@@ -192,3 +192,67 @@ export const useUpdateInventoryStock = () => {
     },
   });
 };
+
+// 删除入库记录时扣减库存数量
+export const useDecreaseInventoryStock = () => {
+  const queryClient = useQueryClient();
+
+  return useMutation({
+    mutationFn: async ({
+      sku,
+      grade,
+      quantity = 1,
+    }: {
+      sku: string;
+      grade: "A" | "B" | "C" | "new";
+      quantity?: number;
+    }) => {
+      // 查询现有库存记录
+      const { data: existing, error: queryError } = await supabase
+        .from("inventory_items")
+        .select("*")
+        .eq("sku", sku)
+        .maybeSingle();
+
+      if (queryError) throw queryError;
+      if (!existing) return null;
+
+      // 构建更新对象，使用 Math.max 确保不会变成负数
+      const updates: Record<string, number> = {
+        total_stock: Math.max(0, existing.total_stock - quantity),
+      };
+
+      // 根据 grade 扣减对应的库存字段
+      switch (grade) {
+        case "new":
+          updates.new_stock = Math.max(0, existing.new_stock - quantity);
+          break;
+        case "A":
+          updates.grade_a_stock = Math.max(0, existing.grade_a_stock - quantity);
+          break;
+        case "B":
+          updates.grade_b_stock = Math.max(0, existing.grade_b_stock - quantity);
+          break;
+        case "C":
+          updates.grade_c_stock = Math.max(0, existing.grade_c_stock - quantity);
+          break;
+      }
+
+      const { data, error } = await supabase
+        .from("inventory_items")
+        .update(updates)
+        .eq("id", existing.id)
+        .select()
+        .single();
+
+      if (error) throw error;
+      return data;
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ["inventory_items"] });
+    },
+    onError: (error) => {
+      console.error("库存扣减失败:", error.message);
+    },
+  });
+};

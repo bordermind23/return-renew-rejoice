@@ -50,7 +50,7 @@ import {
 } from "@/hooks/useInboundItems";
 import { useRemovalShipments, useUpdateRemovalShipment, type RemovalShipment } from "@/hooks/useRemovalShipments";
 import { useOrders, type Order } from "@/hooks/useOrders";
-import { useUpdateInventoryStock } from "@/hooks/useInventoryItems";
+import { useUpdateInventoryStock, useDecreaseInventoryStock } from "@/hooks/useInventoryItems";
 import { Skeleton } from "@/components/ui/skeleton";
 import { toast } from "sonner";
 import { Scanner } from "@/components/Scanner";
@@ -91,6 +91,7 @@ export default function Inbound() {
   const deleteMutation = useDeleteInboundItem();
   const updateShipmentMutation = useUpdateRemovalShipment();
   const updateInventoryMutation = useUpdateInventoryStock();
+  const decreaseInventoryMutation = useDecreaseInventoryStock();
 
   // 自动聚焦输入框
   useEffect(() => {
@@ -305,7 +306,20 @@ export default function Inbound() {
   };
 
   const handleDelete = () => {
-    if (deleteId) {
+    if (deleteId && inboundItems) {
+      // 找到要删除的入库记录
+      const itemToDelete = inboundItems.find(item => item.id === deleteId);
+      
+      if (itemToDelete) {
+        // 先扣减库存
+        decreaseInventoryMutation.mutate({
+          sku: itemToDelete.product_sku,
+          grade: itemToDelete.grade as "A" | "B" | "C" | "new",
+          quantity: 1,
+        });
+      }
+      
+      // 删除入库记录
       deleteMutation.mutate(deleteId, {
         onSuccess: () => setDeleteId(null),
       });

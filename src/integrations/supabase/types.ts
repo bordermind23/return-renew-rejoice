@@ -93,7 +93,6 @@ export type Database = {
           grade_b_stock: number
           grade_c_stock: number
           id: string
-          new_stock: number
           product_category: string | null
           product_image: string | null
           product_name: string
@@ -108,7 +107,6 @@ export type Database = {
           grade_b_stock?: number
           grade_c_stock?: number
           id?: string
-          new_stock?: number
           product_category?: string | null
           product_image?: string | null
           product_name: string
@@ -123,7 +121,6 @@ export type Database = {
           grade_b_stock?: number
           grade_c_stock?: number
           id?: string
-          new_stock?: number
           product_category?: string | null
           product_image?: string | null
           product_name?: string
@@ -206,6 +203,65 @@ export type Database = {
           station?: string
           store_name?: string
           warehouse_location?: string | null
+        }
+        Relationships: []
+      }
+      product_parts: {
+        Row: {
+          created_at: string
+          id: string
+          name: string
+          product_id: string
+        }
+        Insert: {
+          created_at?: string
+          id?: string
+          name: string
+          product_id: string
+        }
+        Update: {
+          created_at?: string
+          id?: string
+          name?: string
+          product_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "product_parts_product_id_fkey"
+            columns: ["product_id"]
+            isOneToOne: false
+            referencedRelation: "products"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      products: {
+        Row: {
+          category: string | null
+          created_at: string
+          id: string
+          image: string | null
+          name: string
+          sku: string
+          updated_at: string
+        }
+        Insert: {
+          category?: string | null
+          created_at?: string
+          id?: string
+          image?: string | null
+          name: string
+          sku: string
+          updated_at?: string
+        }
+        Update: {
+          category?: string | null
+          created_at?: string
+          id?: string
+          image?: string | null
+          name?: string
+          sku?: string
+          updated_at?: string
         }
         Relationships: []
       }

@@ -9,7 +9,6 @@ export interface InventoryItem {
   product_category: string | null;
   warehouse: string;
   total_stock: number;
-  new_stock: number;
   grade_a_stock: number;
   grade_b_stock: number;
   grade_c_stock: number;
@@ -120,7 +119,7 @@ export const useUpdateInventoryStock = () => {
     }: {
       sku: string;
       product_name: string;
-      grade: "A" | "B" | "C" | "new";
+      grade: "A" | "B" | "C";
       quantity?: number;
     }) => {
       // 先查询是否已存在该 SKU 的库存记录
@@ -140,9 +139,6 @@ export const useUpdateInventoryStock = () => {
 
         // 根据 grade 更新对应的库存字段
         switch (grade) {
-          case "new":
-            updates.new_stock = existing.new_stock + quantity;
-            break;
           case "A":
             updates.grade_a_stock = existing.grade_a_stock + quantity;
             break;
@@ -171,7 +167,6 @@ export const useUpdateInventoryStock = () => {
             sku,
             product_name,
             total_stock: quantity,
-            new_stock: grade === "new" ? quantity : 0,
             grade_a_stock: grade === "A" ? quantity : 0,
             grade_b_stock: grade === "B" ? quantity : 0,
             grade_c_stock: grade === "C" ? quantity : 0,
@@ -204,7 +199,7 @@ export const useDecreaseInventoryStock = () => {
       quantity = 1,
     }: {
       sku: string;
-      grade: "A" | "B" | "C" | "new";
+      grade: "A" | "B" | "C";
       quantity?: number;
     }) => {
       // 查询现有库存记录
@@ -224,9 +219,6 @@ export const useDecreaseInventoryStock = () => {
 
       // 根据 grade 扣减对应的库存字段
       switch (grade) {
-        case "new":
-          updates.new_stock = Math.max(0, existing.new_stock - quantity);
-          break;
         case "A":
           updates.grade_a_stock = Math.max(0, existing.grade_a_stock - quantity);
           break;

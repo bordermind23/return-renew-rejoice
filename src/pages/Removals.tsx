@@ -56,7 +56,7 @@ import {
   type RemovalShipment,
   type RemovalShipmentInsert,
 } from "@/hooks/useRemovalShipments";
-import { useCarriers } from "@/hooks/useCarriers";
+// Carrier input is now a simple text field
 import { Skeleton } from "@/components/ui/skeleton";
 import { toast } from "sonner";
 import * as XLSX from "xlsx";
@@ -81,8 +81,6 @@ export default function Removals() {
   const [isDialogOpen, setIsDialogOpen] = useState(false);
   const [editingItem, setEditingItem] = useState<RemovalShipment | null>(null);
   const [deleteId, setDeleteId] = useState<string | null>(null);
-  const [customCarrier, setCustomCarrier] = useState("");
-  const [useCustomCarrier, setUseCustomCarrier] = useState(false);
   const fileInputRef = useRef<HTMLInputElement>(null);
   
   const [importProgress, setImportProgress] = useState<ImportProgress>({
@@ -112,7 +110,6 @@ export default function Removals() {
   });
 
   const { data: shipments, isLoading } = useRemovalShipments();
-  const { data: carriers } = useCarriers();
   const createMutation = useCreateRemovalShipment();
   const updateMutation = useUpdateRemovalShipment();
   const deleteMutation = useDeleteRemovalShipment();
@@ -148,18 +145,13 @@ export default function Removals() {
       product_type: "",
     });
     setEditingItem(null);
-    setCustomCarrier("");
-    setUseCustomCarrier(false);
   };
 
   const handleEdit = (item: RemovalShipment) => {
     setEditingItem(item);
-    const isKnownCarrier = carriers?.some(c => c.name === item.carrier);
-    setUseCustomCarrier(!isKnownCarrier);
-    setCustomCarrier(!isKnownCarrier ? item.carrier : "");
     setFormData({
       order_id: item.order_id,
-      carrier: isKnownCarrier ? item.carrier : "",
+      carrier: item.carrier,
       tracking_number: item.tracking_number,
       quantity: item.quantity,
       product_sku: item.product_sku,
@@ -176,10 +168,8 @@ export default function Removals() {
   };
 
   const handleSubmit = () => {
-    const finalCarrier = useCustomCarrier ? customCarrier : formData.carrier;
     const submitData = {
       ...formData,
-      carrier: finalCarrier,
       store_name: formData.store_name || null,
       country: formData.country || null,
       ship_date: formData.ship_date || null,
@@ -653,43 +643,15 @@ export default function Removals() {
                     </div>
                   </div>
                   <div className="space-y-2">
-                    <div className="flex items-center justify-between">
-                      <Label htmlFor="carrier">物流承运商 *</Label>
-                      <Button
-                        type="button"
-                        variant="ghost"
-                        size="sm"
-                        onClick={() => setUseCustomCarrier(!useCustomCarrier)}
-                      >
-                        {useCustomCarrier ? "从列表选择" : "自定义输入"}
-                      </Button>
-                    </div>
-                    {useCustomCarrier ? (
-                      <Input
-                        id="customCarrier"
-                        placeholder="输入承运商名称"
-                        value={customCarrier}
-                        onChange={(e) => setCustomCarrier(e.target.value)}
-                      />
-                    ) : (
-                      <Select
-                        value={formData.carrier}
-                        onValueChange={(value) =>
-                          setFormData({ ...formData, carrier: value })
-                        }
-                      >
-                        <SelectTrigger>
-                          <SelectValue placeholder="选择承运商" />
-                        </SelectTrigger>
-                        <SelectContent>
-                          {carriers?.map((carrier) => (
-                            <SelectItem key={carrier.id} value={carrier.name}>
-                              {carrier.name}
-                            </SelectItem>
-                          ))}
-                        </SelectContent>
-                      </Select>
-                    )}
+                    <Label htmlFor="carrier">物流承运商 *</Label>
+                    <Input
+                      id="carrier"
+                      placeholder="输入承运商名称"
+                      value={formData.carrier}
+                      onChange={(e) =>
+                        setFormData({ ...formData, carrier: e.target.value })
+                      }
+                    />
                   </div>
                   <div className="space-y-2">
                     <Label htmlFor="note">备注</Label>

@@ -103,16 +103,6 @@ export default function Inventory() {
       ),
     },
     {
-      key: "grade_a_stock",
-      header: "A级",
-      render: (item: InventoryItem) => (
-        <div className="flex items-center gap-2">
-          <GradeBadge grade="A" />
-          <span className="font-medium">{item.grade_a_stock}</span>
-        </div>
-      ),
-    },
-    {
       key: "grade_b_stock",
       header: "B级",
       render: (item: InventoryItem) => (

@@ -770,6 +770,7 @@ export default function Orders() {
                 <TableHead className="w-10">
                   <Checkbox checked={selectedIds.length === orders.length && orders.length > 0} onCheckedChange={toggleSelectAll} />
                 </TableHead>
+                <TableHead className="font-semibold min-w-[110px]">内部订单号</TableHead>
                 <TableHead className="font-semibold min-w-[100px]">LPN编号</TableHead>
                 <TableHead className="font-semibold min-w-[120px]">产品名称</TableHead>
                 <TableHead className="font-semibold min-w-[100px]">产品SKU</TableHead>
@@ -786,7 +787,7 @@ export default function Orders() {
             <TableBody>
               {orders.length === 0 ? (
                 <TableRow>
-                  <TableCell colSpan={12} className="h-32 text-center text-muted-foreground">暂无订单记录</TableCell>
+                  <TableCell colSpan={13} className="h-32 text-center text-muted-foreground">暂无订单记录</TableCell>
                 </TableRow>
               ) : (
                 orders.map((item) => {
@@ -799,6 +800,11 @@ export default function Orders() {
                     <TableRow key={item.id} className="hover:bg-muted/30">
                       <TableCell>
                         <Checkbox checked={selectedIds.includes(item.id)} onCheckedChange={() => toggleSelect(item.id)} />
+                      </TableCell>
+                      <TableCell>
+                        <code className="text-xs bg-primary/10 text-primary px-1.5 py-0.5 rounded font-medium">
+                          {item.internal_order_no || "-"}
+                        </code>
                       </TableCell>
                       <TableCell><code className="text-xs bg-muted px-1.5 py-0.5 rounded font-medium">{item.lpn}</code></TableCell>
                       <TableCell><span className="line-clamp-1">{item.product_name || "-"}</span></TableCell>
@@ -923,6 +929,7 @@ export default function Orders() {
           </DialogHeader>
           {selectedOrder && (
             <div className="grid grid-cols-2 gap-4 rounded-lg bg-muted/50 p-4 text-sm">
+              <div><p className="text-muted-foreground">内部订单号</p><p className="font-mono font-medium text-primary">{selectedOrder.internal_order_no || "-"}</p></div>
               <div><p className="text-muted-foreground">LPN编号</p><p className="font-mono font-medium">{selectedOrder.lpn}</p></div>
               <div><p className="text-muted-foreground">订单号</p><p className="font-medium">{selectedOrder.order_number}</p></div>
               <div><p className="text-muted-foreground">产品名称</p><p className="font-medium">{selectedOrder.product_name || "-"}</p></div>

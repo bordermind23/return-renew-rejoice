@@ -205,6 +205,13 @@ export default function InboundProcess() {
               <CardContent className="space-y-3">
                 {matchedOrders.map((order, index) => (
                   <div key={order.id} className={cn("grid grid-cols-2 gap-2 text-sm", index > 0 && "pt-3 border-t border-blue-200")}>
+                    {order.internal_order_no && (
+                      <div className="col-span-2">
+                        <p className="text-xs text-muted-foreground">内部订单号</p>
+                        <p className="font-mono font-semibold text-primary">{order.internal_order_no}</p>
+                      </div>
+                    )}
+                    <div><p className="text-xs text-muted-foreground">LPN编号</p><p className="font-mono font-medium">{order.lpn}</p></div>
                     <div><p className="text-xs text-muted-foreground">产品名称</p><p className="font-medium">{order.product_name || "-"}</p></div>
                     <div><p className="text-xs text-muted-foreground">退货原因</p><p className="font-medium">{order.return_reason || "-"}</p></div>
                     <div><p className="text-xs text-muted-foreground">买家备注</p><p className="font-medium">{order.buyer_note || "-"}</p></div>

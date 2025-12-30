@@ -9,11 +9,13 @@ import {
   PackageOpen,
   ChevronLeft,
   ChevronRight,
+  Package,
 } from "lucide-react";
 import { cn } from "@/lib/utils";
 
 const navItems = [
   { to: "/", icon: LayoutDashboard, label: "仪表盘" },
+  { to: "/products", icon: Package, label: "产品管理" },
   { to: "/removals", icon: PackageX, label: "移除货件" },
   { to: "/inbound", icon: PackageCheck, label: "入库处理" },
   { to: "/inventory", icon: Warehouse, label: "库存管理" },

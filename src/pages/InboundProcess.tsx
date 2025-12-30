@@ -1,6 +1,6 @@
 import { useState, useEffect } from "react";
 import { useNavigate, useSearchParams } from "react-router-dom";
-import { Package, CheckCircle, Camera, ArrowLeft, AlertTriangle } from "lucide-react";
+import { Package, CheckCircle, Camera, ArrowLeft } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
@@ -36,7 +36,6 @@ export default function InboundProcess() {
   const [isPhotoCaptureOpen, setIsPhotoCaptureOpen] = useState(false);
   const [capturedPhotos, setCapturedPhotos] = useState<Record<string, string>>({});
   const [isLoading, setIsLoading] = useState(true);
-  const [selectedSkuSource, setSelectedSkuSource] = useState<"order" | "shipment">("order"); // SKU来源选择
 
   const { data: shipments } = useRemovalShipments();
   const { data: inboundItems } = useInboundItems();
@@ -102,27 +101,21 @@ export default function InboundProcess() {
       return;
     }
 
-    // 根据用户选择决定使用哪个SKU来源
+    // 优先使用退货订单的 SKU 和产品名称（更准确）
     const orderSku = matchedOrders.length > 0 && matchedOrders[0].product_sku 
       ? matchedOrders[0].product_sku 
-      : null;
+      : matchedShipment.product_sku;
     const orderProductName = matchedOrders.length > 0 && matchedOrders[0].product_name 
       ? matchedOrders[0].product_name 
-      : null;
-    const shipmentSku = matchedShipment.product_sku;
-    const shipmentProductName = matchedShipment.product_name;
-    
-    // 根据选择确定最终使用的SKU
-    const finalSku = selectedSkuSource === "order" && orderSku ? orderSku : shipmentSku;
-    const finalProductName = selectedSkuSource === "order" && orderProductName ? orderProductName : shipmentProductName;
+      : matchedShipment.product_name;
     const returnQty = matchedOrders.length > 0 ? (matchedOrders[0].return_quantity || 1) : 1;
 
     createMutation.mutate(
       {
         lpn: lpn,
         removal_order_id: matchedShipment.order_id,
-        product_sku: finalSku,
-        product_name: finalProductName,
+        product_sku: orderSku,
+        product_name: orderProductName,
         return_reason: returnReason || null,
         grade: selectedGrade as "A" | "B" | "C" | "new",
         missing_parts: selectedMissingParts.length > 0 ? selectedMissingParts : null,
@@ -142,10 +135,10 @@ export default function InboundProcess() {
       },
       {
         onSuccess: () => {
-          // 使用选定的 SKU 和数量更新库存
+          // 使用订单的 SKU 和数量更新库存
           updateInventoryMutation.mutate({
-            sku: finalSku,
-            product_name: finalProductName,
+            sku: orderSku,
+            product_name: orderProductName,
             grade: selectedGrade as "A" | "B" | "C",
             quantity: returnQty,
           });
@@ -208,79 +201,6 @@ export default function InboundProcess() {
 
       <ScrollArea className="h-[calc(100vh-140px)]">
         <div className="p-4 space-y-4">
-          {/* SKU不匹配警告和选择 */}
-          {matchedOrders.length > 0 && matchedShipment && 
-           matchedOrders[0].product_sku && 
-           matchedOrders[0].product_sku !== matchedShipment.product_sku && (
-            <Card className="border-2 border-amber-400 bg-amber-50 dark:bg-amber-950/30 dark:border-amber-600">
-              <CardContent className="pt-4">
-                <div className="flex items-start gap-3">
-                  <AlertTriangle className="h-5 w-5 text-amber-600 dark:text-amber-400 flex-shrink-0 mt-0.5" />
-                  <div className="flex-1">
-                    <h4 className="font-semibold text-amber-800 dark:text-amber-200 mb-2 text-sm">
-                      ⚠️ 产品SKU不一致
-                    </h4>
-                    <p className="text-xs text-amber-700 dark:text-amber-300 mb-3">
-                      请选择入库使用的产品信息：
-                    </p>
-                    <div className="space-y-2">
-                      <button
-                        type="button"
-                        onClick={() => setSelectedSkuSource("order")}
-                        className={cn(
-                          "w-full text-left p-2.5 rounded-lg border-2 transition-all",
-                          selectedSkuSource === "order"
-                            ? "border-amber-500 bg-amber-100 dark:bg-amber-900/50"
-                            : "border-amber-200 dark:border-amber-700"
-                        )}
-                      >
-                        <div className="flex items-center gap-2">
-                          <div className={cn(
-                            "w-4 h-4 rounded-full border-2 flex items-center justify-center flex-shrink-0",
-                            selectedSkuSource === "order" ? "border-amber-600 bg-amber-600" : "border-amber-400"
-                          )}>
-                            {selectedSkuSource === "order" && <div className="w-2 h-2 rounded-full bg-white" />}
-                          </div>
-                          <div className="min-w-0">
-                            <span className="font-medium text-amber-900 dark:text-amber-100 text-sm">退货订单（推荐）</span>
-                            <p className="text-xs text-amber-700 dark:text-amber-300 truncate">
-                              {matchedOrders[0].product_sku} - {matchedOrders[0].product_name || "-"}
-                            </p>
-                          </div>
-                        </div>
-                      </button>
-                      <button
-                        type="button"
-                        onClick={() => setSelectedSkuSource("shipment")}
-                        className={cn(
-                          "w-full text-left p-2.5 rounded-lg border-2 transition-all",
-                          selectedSkuSource === "shipment"
-                            ? "border-amber-500 bg-amber-100 dark:bg-amber-900/50"
-                            : "border-amber-200 dark:border-amber-700"
-                        )}
-                      >
-                        <div className="flex items-center gap-2">
-                          <div className={cn(
-                            "w-4 h-4 rounded-full border-2 flex items-center justify-center flex-shrink-0",
-                            selectedSkuSource === "shipment" ? "border-amber-600 bg-amber-600" : "border-amber-400"
-                          )}>
-                            {selectedSkuSource === "shipment" && <div className="w-2 h-2 rounded-full bg-white" />}
-                          </div>
-                          <div className="min-w-0">
-                            <span className="font-medium text-amber-900 dark:text-amber-100 text-sm">移除货件</span>
-                            <p className="text-xs text-amber-700 dark:text-amber-300 truncate">
-                              {matchedShipment.product_sku} - {matchedShipment.product_name}
-                            </p>
-                          </div>
-                        </div>
-                      </button>
-                    </div>
-                  </div>
-                </div>
-              </CardContent>
-            </Card>
-          )}
-
           {/* 退货订单信息 */}
           {matchedOrders.length > 0 && (
             <Card className="border-blue-200 bg-blue-50 dark:bg-blue-950/30 dark:border-blue-800">
@@ -303,7 +223,6 @@ export default function InboundProcess() {
                     )}
                     <div><p className="text-xs text-muted-foreground">LPN编号</p><p className="font-mono font-medium">{order.lpn}</p></div>
                     <div><p className="text-xs text-muted-foreground">产品名称</p><p className="font-medium">{order.product_name || "-"}</p></div>
-                    <div><p className="text-xs text-muted-foreground">产品SKU</p><p className="font-medium">{order.product_sku || "-"}</p></div>
                     <div><p className="text-xs text-muted-foreground">退货原因</p><p className="font-medium">{order.return_reason || "-"}</p></div>
                     <div><p className="text-xs text-muted-foreground">买家备注</p><p className="font-medium">{order.buyer_note || "-"}</p></div>
                     <div><p className="text-xs text-muted-foreground">店铺</p><p className="font-medium">{order.store_name}</p></div>
@@ -313,12 +232,9 @@ export default function InboundProcess() {
             </Card>
           )}
 
-          {/* 移除货件产品信息 */}
+          {/* 产品信息 */}
           <Card>
-            <CardHeader className="pb-2">
-              <CardTitle className="text-sm">移除货件产品信息</CardTitle>
-            </CardHeader>
-            <CardContent>
+            <CardContent className="pt-4">
               <div className="grid grid-cols-2 gap-3 text-sm">
                 <div>
                   <p className="text-xs text-muted-foreground">产品名称</p>

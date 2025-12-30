@@ -311,8 +311,17 @@ export default function Orders() {
 
           const errors: ImportError[] = [];
           const validItems: OrderInsert[] = [];
-          const existingLpns = new Set((orders || []).map(o => o.lpn));
-          const importedLpns = new Set<string>();
+          // 存储现有数据的 LPN+订单号 组合
+          const existingLpnOrderMap = new Map<string, Set<string>>();
+          (orders || []).forEach(o => {
+            if (!existingLpnOrderMap.has(o.lpn)) {
+              existingLpnOrderMap.set(o.lpn, new Set());
+            }
+            existingLpnOrderMap.get(o.lpn)!.add(o.order_number);
+          });
+          
+          // 存储导入文件中的 LPN+订单号 组合
+          const importedLpnOrderMap = new Map<string, Set<string>>();
 
           for (let i = 0; i < dataRows.length; i++) {
             const row = dataRows[i];
@@ -325,18 +334,25 @@ export default function Orders() {
             }
 
             const lpn = String(row[0]).trim();
+            const orderNumber = String(row[8]).trim();
 
-            if (existingLpns.has(lpn)) {
-              errors.push({ row: rowIndex, message: `第${rowIndex}行：LPN号 "${lpn}" 已存在于系统中` });
+            // 检查系统中是否存在相同 LPN 且相同订单号
+            if (existingLpnOrderMap.has(lpn) && existingLpnOrderMap.get(lpn)!.has(orderNumber)) {
+              errors.push({ row: rowIndex, message: `第${rowIndex}行：LPN号 "${lpn}" 与订单号 "${orderNumber}" 的组合已存在于系统中` });
               continue;
             }
 
-            if (importedLpns.has(lpn)) {
-              errors.push({ row: rowIndex, message: `第${rowIndex}行：LPN号 "${lpn}" 在导入文件中重复` });
+            // 检查导入文件中是否存在相同 LPN 且相同订单号
+            if (importedLpnOrderMap.has(lpn) && importedLpnOrderMap.get(lpn)!.has(orderNumber)) {
+              errors.push({ row: rowIndex, message: `第${rowIndex}行：LPN号 "${lpn}" 与订单号 "${orderNumber}" 的组合在导入文件中重复` });
               continue;
             }
 
-            importedLpns.add(lpn);
+            // 记录当前行的 LPN+订单号 组合
+            if (!importedLpnOrderMap.has(lpn)) {
+              importedLpnOrderMap.set(lpn, new Set());
+            }
+            importedLpnOrderMap.get(lpn)!.add(orderNumber);
 
             validItems.push({
               lpn,

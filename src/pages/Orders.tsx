@@ -180,12 +180,9 @@ export default function Orders() {
       return;
     }
 
-    // 检查LPN+订单号组合是否重复
-    const existingOrder = orders?.find(
-      o => o.lpn === formData.lpn.trim() && o.order_number === formData.order_number.trim()
-    );
+    const existingOrder = orders?.find(o => o.order_number === formData.order_number.trim());
     if (existingOrder) {
-      toast.error(`LPN "${formData.lpn}" 与订单号 "${formData.order_number}" 的组合已存在，不能重复添加`);
+      toast.error(`订单号 "${formData.order_number}" 已存在，不能重复添加`);
       return;
     }
 
@@ -314,11 +311,8 @@ export default function Orders() {
 
           const errors: ImportError[] = [];
           const validItems: OrderInsert[] = [];
-          // 创建已存在的LPN+订单号组合集合
-          const existingCombinations = new Set(
-            (orders || []).map(o => `${o.lpn}|${o.order_number}`)
-          );
-          const importedCombinations = new Set<string>();
+          const existingOrderNumbers = new Set((orders || []).map(o => o.order_number));
+          const importedOrderNumbers = new Set<string>();
 
           for (let i = 0; i < dataRows.length; i++) {
             const row = dataRows[i];
@@ -332,19 +326,18 @@ export default function Orders() {
 
             const lpn = String(row[0]).trim();
             const orderNumber = String(row[8]).trim();
-            const combination = `${lpn}|${orderNumber}`;
 
-            if (existingCombinations.has(combination)) {
-              errors.push({ row: rowIndex, message: `第${rowIndex}行：LPN "${lpn}" 与订单号 "${orderNumber}" 的组合已存在于系统中` });
+            if (existingOrderNumbers.has(orderNumber)) {
+              errors.push({ row: rowIndex, message: `第${rowIndex}行：订单号 "${orderNumber}" 已存在于系统中` });
               continue;
             }
 
-            if (importedCombinations.has(combination)) {
-              errors.push({ row: rowIndex, message: `第${rowIndex}行：LPN "${lpn}" 与订单号 "${orderNumber}" 的组合在导入文件中重复` });
+            if (importedOrderNumbers.has(orderNumber)) {
+              errors.push({ row: rowIndex, message: `第${rowIndex}行：订单号 "${orderNumber}" 在导入文件中重复` });
               continue;
             }
 
-            importedCombinations.add(combination);
+            importedOrderNumbers.add(orderNumber);
 
             validItems.push({
               lpn,

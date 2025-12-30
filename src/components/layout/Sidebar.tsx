@@ -41,7 +41,7 @@ export function Sidebar() {
                 <Warehouse className="h-5 w-5 text-primary-foreground" />
               </div>
               <span className="text-lg font-semibold text-sidebar-foreground">
-                翻新系统
+                境焕
               </span>
             </div>
           )}

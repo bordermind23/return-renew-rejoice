@@ -128,17 +128,23 @@ export function Scanner({
   return (
     <>
       <Button
+        type="button"
         variant={buttonVariant}
         size={buttonSize}
-        onClick={() => setIsOpen(true)}
+        onClick={(e) => {
+          e.preventDefault();
+          e.stopPropagation();
+          console.log("Scanner button clicked, opening dialog");
+          setIsOpen(true);
+        }}
         className={buttonClassName}
       >
-        <Camera className="mr-2 h-4 w-4" />
+        <Camera className={buttonLabel ? "mr-2 h-4 w-4" : "h-6 w-6"} />
         {buttonLabel}
       </Button>
 
       <Dialog open={isOpen} onOpenChange={handleClose}>
-        <DialogContent className="sm:max-w-md">
+        <DialogContent className="sm:max-w-md z-[110]">
           <DialogHeader>
             <DialogTitle className="flex items-center gap-2">
               <Camera className="h-5 w-5" />

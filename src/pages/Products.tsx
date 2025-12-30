@@ -404,36 +404,81 @@ export default function Products() {
               />
             </div>
           </div>
-          {/* Category Filter */}
-          {categories && categories.length > 0 && (
-            <div className="flex flex-wrap gap-2">
-              <span className="text-sm text-muted-foreground py-1">分类筛选:</span>
-              <Badge
-                variant={selectedCategories.length === 0 ? "default" : "outline"}
-                className="cursor-pointer"
-                onClick={() => setSelectedCategories([])}
-              >
-                全部
-              </Badge>
-              {categories.map((cat) => (
-                <Badge
-                  key={cat.id}
-                  variant={selectedCategories.includes(cat.name) ? "default" : "outline"}
-                  className="cursor-pointer"
-                  onClick={() => toggleCategoryFilter(cat.name)}
-                >
-                  {cat.name}
-                </Badge>
-              ))}
-              <Badge
-                variant={selectedCategories.includes("未分类") ? "default" : "outline"}
-                className="cursor-pointer"
-                onClick={() => toggleCategoryFilter("未分类")}
-              >
-                未分类
-              </Badge>
-            </div>
-          )}
+      {/* Category Filter - Dropdown Multi-select */}
+          <div className="flex items-center gap-2">
+            <span className="text-sm text-muted-foreground whitespace-nowrap">分类筛选:</span>
+            <Select
+              value={selectedCategories.length === 0 ? "all" : "custom"}
+              onValueChange={(value) => {
+                if (value === "all") {
+                  setSelectedCategories([]);
+                }
+              }}
+            >
+              <SelectTrigger className="w-[200px]">
+                <SelectValue>
+                  {selectedCategories.length === 0 
+                    ? "全部分类" 
+                    : `已选 ${selectedCategories.length} 个分类`}
+                </SelectValue>
+              </SelectTrigger>
+              <SelectContent className="bg-popover">
+                <div className="p-2 space-y-1">
+                  <div 
+                    className="flex items-center gap-2 p-2 hover:bg-accent rounded cursor-pointer"
+                    onClick={() => setSelectedCategories([])}
+                  >
+                    <div className={`h-4 w-4 border rounded flex items-center justify-center ${selectedCategories.length === 0 ? 'bg-primary border-primary' : 'border-input'}`}>
+                      {selectedCategories.length === 0 && <span className="text-primary-foreground text-xs">✓</span>}
+                    </div>
+                    <span className="text-sm">全部</span>
+                  </div>
+                  {categories?.map((cat) => (
+                    <div 
+                      key={cat.id}
+                      className="flex items-center gap-2 p-2 hover:bg-accent rounded cursor-pointer"
+                      onClick={(e) => {
+                        e.preventDefault();
+                        e.stopPropagation();
+                        toggleCategoryFilter(cat.name);
+                      }}
+                    >
+                      <div className={`h-4 w-4 border rounded flex items-center justify-center ${selectedCategories.includes(cat.name) ? 'bg-primary border-primary' : 'border-input'}`}>
+                        {selectedCategories.includes(cat.name) && <span className="text-primary-foreground text-xs">✓</span>}
+                      </div>
+                      <span className="text-sm">{cat.name}</span>
+                    </div>
+                  ))}
+                  <div 
+                    className="flex items-center gap-2 p-2 hover:bg-accent rounded cursor-pointer"
+                    onClick={(e) => {
+                      e.preventDefault();
+                      e.stopPropagation();
+                      toggleCategoryFilter("未分类");
+                    }}
+                  >
+                    <div className={`h-4 w-4 border rounded flex items-center justify-center ${selectedCategories.includes("未分类") ? 'bg-primary border-primary' : 'border-input'}`}>
+                      {selectedCategories.includes("未分类") && <span className="text-primary-foreground text-xs">✓</span>}
+                    </div>
+                    <span className="text-sm">未分类</span>
+                  </div>
+                </div>
+              </SelectContent>
+            </Select>
+            {selectedCategories.length > 0 && (
+              <div className="flex flex-wrap gap-1">
+                {selectedCategories.map((cat) => (
+                  <Badge key={cat} variant="secondary" className="flex items-center gap-1">
+                    {cat}
+                    <X 
+                      className="h-3 w-3 cursor-pointer" 
+                      onClick={() => toggleCategoryFilter(cat)}
+                    />
+                  </Badge>
+                ))}
+              </div>
+            )}
+          </div>
         </CardContent>
       </Card>
 

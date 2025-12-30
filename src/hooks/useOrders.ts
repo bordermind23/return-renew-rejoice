@@ -26,6 +26,7 @@ export interface Order {
   warehouse_location: string | null;
   return_time: string | null;
   order_time: string | null;
+  grade: string | null;
 }
 
 export type OrderInsert = Omit<Order, "id" | "created_at">;

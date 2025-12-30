@@ -504,7 +504,7 @@ export default function Removals() {
         title="移除货件列表"
         description="管理所有退货和移除货件"
         actions={
-          <div className="flex gap-2 flex-wrap">
+          <div className="flex gap-2 flex-wrap justify-end">
             <input
               type="file"
               ref={fileInputRef}
@@ -516,10 +516,10 @@ export default function Removals() {
             {/* 批量导入下拉菜单 */}
             <DropdownMenu>
               <DropdownMenuTrigger asChild>
-                <Button variant="outline">
-                  <Upload className="mr-2 h-4 w-4" />
-                  批量导入
-                  <ChevronDown className="ml-2 h-4 w-4" />
+                <Button variant="outline" size="sm" className="h-9">
+                  <Upload className="h-4 w-4 sm:mr-2" />
+                  <span className="hidden sm:inline">批量导入</span>
+                  <ChevronDown className="ml-1 h-4 w-4" />
                 </Button>
               </DropdownMenuTrigger>
               <DropdownMenuContent align="end" className="bg-popover">
@@ -535,9 +535,9 @@ export default function Removals() {
               </DropdownMenuContent>
             </DropdownMenu>
 
-            <Button variant="outline" onClick={handleExportExcel}>
-              <Download className="mr-2 h-4 w-4" />
-              批量导出
+            <Button variant="outline" size="sm" className="h-9" onClick={handleExportExcel}>
+              <Download className="h-4 w-4 sm:mr-2" />
+              <span className="hidden sm:inline">批量导出</span>
             </Button>
             
             <Dialog
@@ -548,9 +548,10 @@ export default function Removals() {
               }}
             >
               <DialogTrigger asChild>
-                <Button className="gradient-primary">
-                  <Plus className="mr-2 h-4 w-4" />
-                  创建退货入库
+                <Button className="gradient-primary h-9" size="sm">
+                  <Plus className="h-4 w-4 sm:mr-2" />
+                  <span className="hidden sm:inline">创建退货入库</span>
+                  <span className="sm:hidden">新建</span>
                 </Button>
               </DialogTrigger>
               <DialogContent className="max-w-3xl max-h-[90vh] overflow-y-auto">
@@ -560,7 +561,7 @@ export default function Removals() {
                   </DialogTitle>
                 </DialogHeader>
                 <div className="grid gap-4 py-4">
-                  <div className="grid grid-cols-3 gap-4">
+                  <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
                     <div className="space-y-2">
                       <Label htmlFor="orderId">移除订单号 *</Label>
                       <Input
@@ -595,7 +596,7 @@ export default function Removals() {
                       />
                     </div>
                   </div>
-                  <div className="grid grid-cols-3 gap-4">
+                  <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
                     <div className="space-y-2">
                       <Label htmlFor="sku">产品SKU *</Label>
                       <Input
@@ -630,7 +631,7 @@ export default function Removals() {
                       />
                     </div>
                   </div>
-                  <div className="grid grid-cols-2 gap-4">
+                  <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
                     <div className="space-y-2">
                       <Label htmlFor="productName">产品名称 *</Label>
                       <Input
@@ -654,7 +655,7 @@ export default function Removals() {
                       />
                     </div>
                   </div>
-                  <div className="grid grid-cols-3 gap-4">
+                  <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
                     <div className="space-y-2">
                       <Label htmlFor="quantity">退件数量 *</Label>
                       <Input
@@ -803,18 +804,18 @@ export default function Removals() {
       {/* 批量操作栏 */}
       {selectedIds.length > 0 && (
         <Card className="bg-primary/5 border-primary/20">
-          <CardContent className="py-3 flex items-center justify-between">
+          <CardContent className="py-3 flex flex-col sm:flex-row items-start sm:items-center justify-between gap-2">
             <span className="text-sm font-medium">已选择 {selectedIds.length} 条记录</span>
-            <div className="flex gap-2">
+            <div className="flex gap-2 flex-wrap">
               <Button variant="outline" size="sm" onClick={() => setIsBulkEditOpen(true)}>
-                <Edit className="mr-2 h-4 w-4" />
-                批量编辑
+                <Edit className="h-4 w-4 sm:mr-2" />
+                <span className="hidden sm:inline">批量编辑</span>
               </Button>
               <Button variant="destructive" size="sm" onClick={() => setIsBulkDeleteOpen(true)}>
-                <Trash2 className="mr-2 h-4 w-4" />
-                批量删除
+                <Trash2 className="h-4 w-4 sm:mr-2" />
+                <span className="hidden sm:inline">批量删除</span>
               </Button>
-              <Button variant="ghost" size="sm" onClick={() => setSelectedIds([])}>取消选择</Button>
+              <Button variant="ghost" size="sm" onClick={() => setSelectedIds([])}>取消</Button>
             </div>
           </CardContent>
         </Card>

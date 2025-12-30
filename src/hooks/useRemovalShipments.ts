@@ -134,3 +134,47 @@ export const useDeleteRemovalShipment = () => {
     },
   });
 };
+
+export const useBulkDeleteRemovalShipments = () => {
+  const queryClient = useQueryClient();
+
+  return useMutation({
+    mutationFn: async (ids: string[]) => {
+      const { error } = await supabase
+        .from("removal_shipments")
+        .delete()
+        .in("id", ids);
+
+      if (error) throw error;
+    },
+    onSuccess: (_, ids) => {
+      queryClient.invalidateQueries({ queryKey: ["removal_shipments"] });
+      toast.success(`成功删除 ${ids.length} 条货件记录`);
+    },
+    onError: (error) => {
+      toast.error("批量删除失败: " + error.message);
+    },
+  });
+};
+
+export const useBulkUpdateRemovalShipments = () => {
+  const queryClient = useQueryClient();
+
+  return useMutation({
+    mutationFn: async ({ ids, updates }: { ids: string[]; updates: RemovalShipmentUpdate }) => {
+      const { error } = await supabase
+        .from("removal_shipments")
+        .update(updates)
+        .in("id", ids);
+
+      if (error) throw error;
+    },
+    onSuccess: (_, { ids }) => {
+      queryClient.invalidateQueries({ queryKey: ["removal_shipments"] });
+      toast.success(`成功更新 ${ids.length} 条货件记录`);
+    },
+    onError: (error) => {
+      toast.error("批量更新失败: " + error.message);
+    },
+  });
+};

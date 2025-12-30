@@ -49,7 +49,7 @@ import {
   type InboundItem,
 } from "@/hooks/useInboundItems";
 import { useRemovalShipments, useUpdateRemovalShipment, type RemovalShipment } from "@/hooks/useRemovalShipments";
-import { useOrders } from "@/hooks/useOrders";
+import { useOrders, type Order } from "@/hooks/useOrders";
 import { Skeleton } from "@/components/ui/skeleton";
 import { toast } from "sonner";
 import { Scanner } from "@/components/Scanner";
@@ -69,6 +69,7 @@ export default function Inbound() {
   const [trackingInput, setTrackingInput] = useState("");
   const [lpnInput, setLpnInput] = useState("");
   const [matchedShipment, setMatchedShipment] = useState<RemovalShipment | null>(null);
+  const [matchedOrder, setMatchedOrder] = useState<Order | null>(null);
   const [scannedLpns, setScannedLpns] = useState<string[]>([]);
   const [currentLpn, setCurrentLpn] = useState("");
   
@@ -131,10 +132,13 @@ export default function Inbound() {
     toast.success(`匹配成功: ${found.product_name}`);
   };
 
-  // 验证 LPN 是否存在于退货订单列表
+  // 验证 LPN 是否存在于退货订单列表并获取订单信息
+  const getOrderByLpn = (lpn: string) => {
+    return orders?.find(o => o.lpn === lpn);
+  };
+
   const validateLpnExists = (lpn: string): boolean => {
-    const orderWithLpn = orders?.find(o => o.lpn === lpn);
-    return !!orderWithLpn;
+    return !!getOrderByLpn(lpn);
   };
 
   // 扫描 LPN (支持手动输入和摄像头扫码)
@@ -169,14 +173,9 @@ export default function Inbound() {
     }
 
     setCurrentLpn(lpn);
+    setMatchedOrder(getOrderByLpn(lpn) || null);
     setIsProcessDialogOpen(true);
     setLpnInput("");
-  };
-
-  // 处理摄像头扫描物流号
-  const handleCameraScanTracking = (code: string) => {
-    setTrackingInput(code);
-    // 自动触发扫描
     const found = shipments?.find(
       s => s.tracking_number.toLowerCase() === code.trim().toLowerCase()
     );
@@ -493,6 +492,23 @@ export default function Inbound() {
             </DialogTitle>
           </DialogHeader>
           <div className="grid gap-6 py-4">
+            {/* 退货订单信息 */}
+            {matchedOrder && (
+              <div className="rounded-lg bg-blue-50 dark:bg-blue-950/30 p-4 border border-blue-200 dark:border-blue-800">
+                <h4 className="font-semibold text-blue-900 dark:text-blue-100 mb-3">退货订单信息</h4>
+                <div className="grid grid-cols-2 gap-3 text-sm">
+                  <div><p className="text-muted-foreground">产品名称</p><p className="font-medium">{matchedOrder.product_name || "-"}</p></div>
+                  <div><p className="text-muted-foreground">产品SKU</p><p className="font-medium">{matchedOrder.product_sku || "-"}</p></div>
+                  <div><p className="text-muted-foreground">退货原因</p><p className="font-medium">{matchedOrder.return_reason || "-"}</p></div>
+                  <div><p className="text-muted-foreground">买家备注</p><p className="font-medium">{matchedOrder.buyer_note || "-"}</p></div>
+                  <div><p className="text-muted-foreground">店铺</p><p className="font-medium">{matchedOrder.store_name}</p></div>
+                  <div><p className="text-muted-foreground">国家</p><p className="font-medium">{matchedOrder.country || "-"}</p></div>
+                  <div><p className="text-muted-foreground">FNSKU</p><p className="font-medium">{matchedOrder.fnsku || "-"}</p></div>
+                  <div><p className="text-muted-foreground">ASIN</p><p className="font-medium">{matchedOrder.asin || "-"}</p></div>
+                </div>
+              </div>
+            )}
+
             {/* 产品信息（只读） */}
             {matchedShipment && (
               <div className="rounded-lg bg-muted/50 p-4">

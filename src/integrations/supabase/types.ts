@@ -136,37 +136,76 @@ export type Database = {
       }
       orders: {
         Row: {
+          asin: string | null
+          buyer_note: string | null
+          country: string | null
           created_at: string
+          fnsku: string | null
           id: string
           inbound_at: string | null
+          inventory_attribute: string | null
           lpn: string
+          msku: string | null
           order_number: string
+          order_time: string | null
+          product_name: string | null
+          product_sku: string | null
           removal_order_id: string
           removed_at: string | null
+          return_quantity: number | null
+          return_reason: string | null
+          return_time: string | null
           station: string
           store_name: string
+          warehouse_quantity: number | null
         }
         Insert: {
+          asin?: string | null
+          buyer_note?: string | null
+          country?: string | null
           created_at?: string
+          fnsku?: string | null
           id?: string
           inbound_at?: string | null
+          inventory_attribute?: string | null
           lpn: string
+          msku?: string | null
           order_number: string
+          order_time?: string | null
+          product_name?: string | null
+          product_sku?: string | null
           removal_order_id: string
           removed_at?: string | null
+          return_quantity?: number | null
+          return_reason?: string | null
+          return_time?: string | null
           station: string
           store_name: string
+          warehouse_quantity?: number | null
         }
         Update: {
+          asin?: string | null
+          buyer_note?: string | null
+          country?: string | null
           created_at?: string
+          fnsku?: string | null
           id?: string
           inbound_at?: string | null
+          inventory_attribute?: string | null
           lpn?: string
+          msku?: string | null
           order_number?: string
+          order_time?: string | null
+          product_name?: string | null
+          product_sku?: string | null
           removal_order_id?: string
           removed_at?: string | null
+          return_quantity?: number | null
+          return_reason?: string | null
+          return_time?: string | null
           station?: string
           store_name?: string
+          warehouse_quantity?: number | null
         }
         Relationships: []
       }

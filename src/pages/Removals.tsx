@@ -53,10 +53,13 @@ import {
   useUpdateRemovalShipment,
   useDeleteRemovalShipment,
   useBulkCreateRemovalShipments,
+  useBulkDeleteRemovalShipments,
+  useBulkUpdateRemovalShipments,
   type RemovalShipment,
   type RemovalShipmentInsert,
+  type RemovalShipmentUpdate,
 } from "@/hooks/useRemovalShipments";
-// Carrier input is now a simple text field
+import { Checkbox } from "@/components/ui/checkbox";
 import { Skeleton } from "@/components/ui/skeleton";
 import { toast } from "sonner";
 import * as XLSX from "xlsx";
@@ -81,6 +84,10 @@ export default function Removals() {
   const [isDialogOpen, setIsDialogOpen] = useState(false);
   const [editingItem, setEditingItem] = useState<RemovalShipment | null>(null);
   const [deleteId, setDeleteId] = useState<string | null>(null);
+  const [selectedIds, setSelectedIds] = useState<string[]>([]);
+  const [isBulkDeleteOpen, setIsBulkDeleteOpen] = useState(false);
+  const [isBulkEditOpen, setIsBulkEditOpen] = useState(false);
+  const [bulkEditData, setBulkEditData] = useState<RemovalShipmentUpdate>({});
   const fileInputRef = useRef<HTMLInputElement>(null);
   
   const [importProgress, setImportProgress] = useState<ImportProgress>({
@@ -114,6 +121,53 @@ export default function Removals() {
   const updateMutation = useUpdateRemovalShipment();
   const deleteMutation = useDeleteRemovalShipment();
   const bulkCreateMutation = useBulkCreateRemovalShipments();
+  const bulkDeleteMutation = useBulkDeleteRemovalShipments();
+  const bulkUpdateMutation = useBulkUpdateRemovalShipments();
+
+  // 批量选择
+  const toggleSelectAll = () => {
+    if (selectedIds.length === filteredData.length) {
+      setSelectedIds([]);
+    } else {
+      setSelectedIds(filteredData.map(item => item.id));
+    }
+  };
+
+  const toggleSelect = (id: string) => {
+    setSelectedIds(prev =>
+      prev.includes(id) ? prev.filter(i => i !== id) : [...prev, id]
+    );
+  };
+
+  const handleBulkDelete = () => {
+    bulkDeleteMutation.mutate(selectedIds, {
+      onSuccess: () => {
+        setIsBulkDeleteOpen(false);
+        setSelectedIds([]);
+      }
+    });
+  };
+
+  const handleBulkEdit = () => {
+    const updates: RemovalShipmentUpdate = {};
+    if (bulkEditData.status) updates.status = bulkEditData.status;
+    if (bulkEditData.store_name) updates.store_name = bulkEditData.store_name;
+    if (bulkEditData.country) updates.country = bulkEditData.country;
+    if (bulkEditData.carrier) updates.carrier = bulkEditData.carrier;
+
+    if (Object.keys(updates).length === 0) {
+      toast.error("请选择要更新的字段");
+      return;
+    }
+
+    bulkUpdateMutation.mutate({ ids: selectedIds, updates }, {
+      onSuccess: () => {
+        setIsBulkEditOpen(false);
+        setSelectedIds([]);
+        setBulkEditData({});
+      }
+    });
+  };
 
   const filteredData = (shipments || []).filter((item) => {
     const matchesSearch =
@@ -746,6 +800,26 @@ export default function Removals() {
         </Card>
       )}
 
+      {/* 批量操作栏 */}
+      {selectedIds.length > 0 && (
+        <Card className="bg-primary/5 border-primary/20">
+          <CardContent className="py-3 flex items-center justify-between">
+            <span className="text-sm font-medium">已选择 {selectedIds.length} 条记录</span>
+            <div className="flex gap-2">
+              <Button variant="outline" size="sm" onClick={() => setIsBulkEditOpen(true)}>
+                <Edit className="mr-2 h-4 w-4" />
+                批量编辑
+              </Button>
+              <Button variant="destructive" size="sm" onClick={() => setIsBulkDeleteOpen(true)}>
+                <Trash2 className="mr-2 h-4 w-4" />
+                批量删除
+              </Button>
+              <Button variant="ghost" size="sm" onClick={() => setSelectedIds([])}>取消选择</Button>
+            </div>
+          </CardContent>
+        </Card>
+      )}
+
       {/* Filters */}
       <div className="flex flex-col gap-4 sm:flex-row">
         <div className="relative flex-1">
@@ -771,13 +845,9 @@ export default function Removals() {
           </SelectContent>
         </Select>
       </div>
-
-      {/* 优化后的数据表格 */}
-      <Card>
-        <ScrollArea className="w-full">
-          <Table>
-            <TableHeader>
-              <TableRow className="bg-muted/50 hover:bg-muted/50">
+                <TableHead className="w-10">
+                  <Checkbox checked={selectedIds.length === filteredData.length && filteredData.length > 0} onCheckedChange={toggleSelectAll} />
+                </TableHead>
                 <TableHead className="font-semibold min-w-[140px]">移除订单号</TableHead>
                 <TableHead className="font-semibold min-w-[100px]">店铺</TableHead>
                 <TableHead className="font-semibold min-w-[80px]">国家</TableHead>
@@ -794,7 +864,7 @@ export default function Removals() {
             <TableBody>
               {filteredData.length === 0 ? (
                 <TableRow>
-                  <TableCell colSpan={11} className="h-32 text-center text-muted-foreground">
+                  <TableCell colSpan={12} className="h-32 text-center text-muted-foreground">
                     暂无移除货件记录
                   </TableCell>
                 </TableRow>
@@ -802,6 +872,8 @@ export default function Removals() {
                 filteredData.map((item) => (
                   <TableRow key={item.id} className="hover:bg-muted/30">
                     <TableCell>
+                      <Checkbox checked={selectedIds.includes(item.id)} onCheckedChange={() => toggleSelect(item.id)} />
+                    </TableCell>
                       <span className="font-medium text-primary">{item.order_id}</span>
                     </TableCell>
                     <TableCell className="text-muted-foreground">{item.store_name || "-"}</TableCell>
@@ -860,6 +932,45 @@ export default function Removals() {
         {statusFilter !== "all" && ` (已筛选)`}
       </div>
 
+      {/* 批量编辑对话框 */}
+      <Dialog open={isBulkEditOpen} onOpenChange={setIsBulkEditOpen}>
+        <DialogContent>
+          <DialogHeader>
+            <DialogTitle>批量编辑 ({selectedIds.length} 条记录)</DialogTitle>
+          </DialogHeader>
+          <div className="grid gap-4 py-4">
+            <div className="space-y-2">
+              <Label>状态</Label>
+              <Select value={bulkEditData.status || ""} onValueChange={(value) => setBulkEditData({ ...bulkEditData, status: value as any || undefined })}>
+                <SelectTrigger><SelectValue placeholder="留空则不更新" /></SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="shipping">发货中</SelectItem>
+                  <SelectItem value="arrived">到货</SelectItem>
+                  <SelectItem value="inbound">入库</SelectItem>
+                  <SelectItem value="shelved">上架</SelectItem>
+                </SelectContent>
+              </Select>
+            </div>
+            <div className="space-y-2">
+              <Label>店铺</Label>
+              <Input value={bulkEditData.store_name || ""} onChange={(e) => setBulkEditData({ ...bulkEditData, store_name: e.target.value || undefined })} placeholder="留空则不更新" />
+            </div>
+            <div className="space-y-2">
+              <Label>国家</Label>
+              <Input value={bulkEditData.country || ""} onChange={(e) => setBulkEditData({ ...bulkEditData, country: e.target.value || undefined })} placeholder="留空则不更新" />
+            </div>
+            <div className="space-y-2">
+              <Label>承运商</Label>
+              <Input value={bulkEditData.carrier || ""} onChange={(e) => setBulkEditData({ ...bulkEditData, carrier: e.target.value || undefined })} placeholder="留空则不更新" />
+            </div>
+          </div>
+          <div className="flex justify-end gap-3">
+            <Button variant="outline" onClick={() => { setIsBulkEditOpen(false); setBulkEditData({}); }}>取消</Button>
+            <Button onClick={handleBulkEdit} disabled={bulkUpdateMutation.isPending}>确认更新</Button>
+          </div>
+        </DialogContent>
+      </Dialog>
+
       {/* Delete Confirmation */}
       <AlertDialog open={!!deleteId} onOpenChange={() => setDeleteId(null)}>
         <AlertDialogContent>
@@ -877,6 +988,20 @@ export default function Removals() {
             >
               删除
             </AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
+
+      {/* 批量删除确认 */}
+      <AlertDialog open={isBulkDeleteOpen} onOpenChange={setIsBulkDeleteOpen}>
+        <AlertDialogContent>
+          <AlertDialogHeader>
+            <AlertDialogTitle>确认批量删除</AlertDialogTitle>
+            <AlertDialogDescription>确定要删除选中的 {selectedIds.length} 条货件吗？此操作无法撤销。</AlertDialogDescription>
+          </AlertDialogHeader>
+          <AlertDialogFooter>
+            <AlertDialogCancel>取消</AlertDialogCancel>
+            <AlertDialogAction onClick={handleBulkDelete} className="bg-destructive text-destructive-foreground">删除</AlertDialogAction>
           </AlertDialogFooter>
         </AlertDialogContent>
       </AlertDialog>

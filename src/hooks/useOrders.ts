@@ -27,9 +27,11 @@ export interface Order {
   return_time: string | null;
   order_time: string | null;
   grade: string | null;
+  internal_order_no: string | null;
 }
 
-export type OrderInsert = Omit<Order, "id" | "created_at">;
+// internal_order_no 由数据库触发器自动生成，所以在 Insert 类型中排除它
+export type OrderInsert = Omit<Order, "id" | "created_at" | "internal_order_no">;
 export type OrderUpdate = Partial<OrderInsert>;
 
 export const useOrders = () => {
@@ -58,8 +60,8 @@ export const useOrdersPaginated = (page: number, pageSize: number = 50, searchTe
       // 应用搜索过滤
       if (searchTerm) {
         const search = `%${searchTerm}%`;
-        countQuery = countQuery.or(`order_number.ilike.${search},lpn.ilike.${search},store_name.ilike.${search},product_name.ilike.${search}`);
-        dataQuery = dataQuery.or(`order_number.ilike.${search},lpn.ilike.${search},store_name.ilike.${search},product_name.ilike.${search}`);
+        countQuery = countQuery.or(`order_number.ilike.${search},lpn.ilike.${search},store_name.ilike.${search},product_name.ilike.${search},internal_order_no.ilike.${search}`);
+        dataQuery = dataQuery.or(`order_number.ilike.${search},lpn.ilike.${search},store_name.ilike.${search},product_name.ilike.${search},internal_order_no.ilike.${search}`);
       }
 
       // 应用店铺过滤
@@ -77,6 +79,7 @@ export const useOrdersPaginated = (page: number, pageSize: number = 50, searchTe
       const to = from + pageSize - 1;
 
       const { data, error } = await dataQuery
+        .order("internal_order_no", { ascending: false, nullsFirst: false })
         .order("created_at", { ascending: false })
         .range(from, to);
 

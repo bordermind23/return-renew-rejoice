@@ -282,12 +282,13 @@ export default function Inbound() {
       },
       {
         onSuccess: () => {
-          // 同步更新库存
+          // 同步更新库存 - 使用订单的 return_quantity
+          const returnQty = matchedOrders.length > 0 ? (matchedOrders[0].return_quantity || 1) : 1;
           updateInventoryMutation.mutate({
             sku: matchedShipment.product_sku,
             product_name: matchedShipment.product_name,
             grade: selectedGrade as "A" | "B" | "C",
-            quantity: 1,
+            quantity: returnQty,
           });
 
           const newScannedLpns = [...scannedLpns, currentLpn];
@@ -352,12 +353,26 @@ export default function Inbound() {
       const itemToDelete = inboundItems.find(item => item.id === deleteId);
       
       if (itemToDelete) {
-        // 先扣减库存
-        decreaseInventoryMutation.mutate({
-          sku: itemToDelete.product_sku,
-          grade: itemToDelete.grade as "A" | "B" | "C",
-          quantity: 1,
-        });
+        // 查找对应订单获取退货数量
+        const fetchAndDecrease = async () => {
+          try {
+            const orders = await fetchOrdersByLpn(itemToDelete.lpn);
+            const returnQty = orders.length > 0 ? (orders[0].return_quantity || 1) : 1;
+            decreaseInventoryMutation.mutate({
+              sku: itemToDelete.product_sku,
+              grade: itemToDelete.grade as "A" | "B" | "C",
+              quantity: returnQty,
+            });
+          } catch (error) {
+            // 如果查不到订单，默认扣减1
+            decreaseInventoryMutation.mutate({
+              sku: itemToDelete.product_sku,
+              grade: itemToDelete.grade as "A" | "B" | "C",
+              quantity: 1,
+            });
+          }
+        };
+        fetchAndDecrease();
       }
       
       // 删除入库记录

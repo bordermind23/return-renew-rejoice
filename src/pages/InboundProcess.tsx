@@ -126,11 +126,13 @@ export default function InboundProcess() {
       },
       {
         onSuccess: () => {
+          // 使用订单的 return_quantity
+          const returnQty = matchedOrders.length > 0 ? (matchedOrders[0].return_quantity || 1) : 1;
           updateInventoryMutation.mutate({
             sku: matchedShipment.product_sku,
             product_name: matchedShipment.product_name,
             grade: selectedGrade as "A" | "B" | "C",
-            quantity: 1,
+            quantity: returnQty,
           });
 
           const totalInbounded = getInboundedCount(matchedShipment.tracking_number) + 1;

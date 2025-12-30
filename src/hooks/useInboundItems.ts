@@ -18,11 +18,30 @@ export interface InboundItem {
   created_at: string;
   tracking_number: string | null;
   shipment_id: string | null;
+  // 新增照片字段
+  lpn_label_photo: string | null;
+  packaging_photo_1: string | null;
+  packaging_photo_2: string | null;
+  packaging_photo_3: string | null;
+  packaging_photo_4: string | null;
+  packaging_photo_5: string | null;
+  packaging_photo_6: string | null;
+  accessories_photo: string | null;
+  detail_photo: string | null;
 }
 
-export type InboundItemInsert = Omit<InboundItem, "id" | "created_at" | "package_photo" | "product_photo"> & { 
+export type InboundItemInsert = Omit<InboundItem, "id" | "created_at" | "package_photo" | "product_photo" | "lpn_label_photo" | "packaging_photo_1" | "packaging_photo_2" | "packaging_photo_3" | "packaging_photo_4" | "packaging_photo_5" | "packaging_photo_6" | "accessories_photo" | "detail_photo"> & { 
   package_photo?: string | null; 
   product_photo?: string | null;
+  lpn_label_photo?: string | null;
+  packaging_photo_1?: string | null;
+  packaging_photo_2?: string | null;
+  packaging_photo_3?: string | null;
+  packaging_photo_4?: string | null;
+  packaging_photo_5?: string | null;
+  packaging_photo_6?: string | null;
+  accessories_photo?: string | null;
+  detail_photo?: string | null;
 };
 export type InboundItemUpdate = Partial<InboundItemInsert>;
 

@@ -229,10 +229,14 @@ export default function Products() {
         title="产品管理"
         description="管理产品信息和配件"
         actions={
-          <Button onClick={() => setIsDialogOpen(true)}>
-            <Plus className="mr-2 h-4 w-4" />
-            添加产品
-          </Button>
+        <Button onClick={() => {
+          setEditingProduct(null);
+          setFormData({ sku: "", name: "", category: "", image: "" });
+          setIsDialogOpen(true);
+        }}>
+          <Plus className="mr-2 h-4 w-4" />
+          添加产品
+        </Button>
         }
       />
 

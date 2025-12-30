@@ -12,6 +12,20 @@ export interface Order {
   removed_at: string | null;
   inbound_at: string | null;
   created_at: string;
+  // 新增字段
+  product_name: string | null;
+  buyer_note: string | null;
+  return_reason: string | null;
+  inventory_attribute: string | null;
+  country: string | null;
+  product_sku: string | null;
+  msku: string | null;
+  asin: string | null;
+  fnsku: string | null;
+  return_quantity: number;
+  warehouse_quantity: number;
+  return_time: string | null;
+  order_time: string | null;
 }
 
 export type OrderInsert = Omit<Order, "id" | "created_at">;
@@ -99,6 +113,73 @@ export const useDeleteOrder = () => {
     },
     onError: (error) => {
       toast.error("删除失败: " + error.message);
+    },
+  });
+};
+
+export const useBulkDeleteOrders = () => {
+  const queryClient = useQueryClient();
+
+  return useMutation({
+    mutationFn: async (ids: string[]) => {
+      const { error } = await supabase
+        .from("orders")
+        .delete()
+        .in("id", ids);
+
+      if (error) throw error;
+    },
+    onSuccess: (_, ids) => {
+      queryClient.invalidateQueries({ queryKey: ["orders"] });
+      toast.success(`成功删除 ${ids.length} 条订单`);
+    },
+    onError: (error) => {
+      toast.error("批量删除失败: " + error.message);
+    },
+  });
+};
+
+export const useBulkUpdateOrders = () => {
+  const queryClient = useQueryClient();
+
+  return useMutation({
+    mutationFn: async ({ ids, updates }: { ids: string[]; updates: OrderUpdate }) => {
+      const { error } = await supabase
+        .from("orders")
+        .update(updates)
+        .in("id", ids);
+
+      if (error) throw error;
+    },
+    onSuccess: (_, { ids }) => {
+      queryClient.invalidateQueries({ queryKey: ["orders"] });
+      toast.success(`成功更新 ${ids.length} 条订单`);
+    },
+    onError: (error) => {
+      toast.error("批量更新失败: " + error.message);
+    },
+  });
+};
+
+export const useBulkCreateOrders = () => {
+  const queryClient = useQueryClient();
+
+  return useMutation({
+    mutationFn: async (orders: OrderInsert[]) => {
+      const { data, error } = await supabase
+        .from("orders")
+        .insert(orders)
+        .select();
+
+      if (error) throw error;
+      return data;
+    },
+    onSuccess: (data) => {
+      queryClient.invalidateQueries({ queryKey: ["orders"] });
+      toast.success(`成功导入 ${data.length} 条订单`);
+    },
+    onError: (error) => {
+      toast.error("批量导入失败: " + error.message);
     },
   });
 };

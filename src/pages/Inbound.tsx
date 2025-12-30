@@ -51,6 +51,7 @@ import { Skeleton } from "@/components/ui/skeleton";
 import { toast } from "sonner";
 import { Scanner } from "@/components/Scanner";
 import { SequentialPhotoCapture } from "@/components/SequentialPhotoCapture";
+import { MobileInboundScanner } from "@/components/MobileInboundScanner";
 import { cn } from "@/lib/utils";
 import { useIsMobile } from "@/hooks/use-mobile";
 
@@ -375,6 +376,11 @@ export default function Inbound() {
         <Skeleton className="h-64 w-full" />
       </div>
     );
+  }
+
+  // 手机端和平板端使用独立的扫描界面
+  if (isMobile) {
+    return <MobileInboundScanner initialTracking={searchParams.get("tracking") || undefined} />;
   }
 
   return (

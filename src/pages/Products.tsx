@@ -1,5 +1,5 @@
 import { useState, useRef } from "react";
-import { Search, Plus, Trash2, Edit, Package, Puzzle, Upload, X } from "lucide-react";
+import { Search, Plus, Trash2, Edit, Package, Puzzle, Upload, X, Tags, FolderPlus } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { PageHeader } from "@/components/ui/page-header";
@@ -27,19 +27,30 @@ import {
   HoverCardTrigger,
 } from "@/components/ui/hover-card";
 import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from "@/components/ui/select";
+import {
   useProducts,
   useCreateProduct,
   useUpdateProduct,
   useDeleteProduct,
   useProductParts,
   useCreateProductPart,
+  useUpdateProductPart,
   useDeleteProductPart,
+  useProductCategories,
+  useCreateProductCategory,
+  useDeleteProductCategory,
   type Product,
   type ProductPart,
 } from "@/hooks/useProducts";
 import { Skeleton } from "@/components/ui/skeleton";
 import { toast } from "sonner";
-import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
+import { Card, CardContent } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { supabase } from "@/integrations/supabase/client";
 
@@ -50,7 +61,10 @@ export default function Products() {
   const [deleteId, setDeleteId] = useState<string | null>(null);
   const [selectedProductId, setSelectedProductId] = useState<string | null>(null);
   const [isPartsDialogOpen, setIsPartsDialogOpen] = useState(false);
+  const [isCategoryDialogOpen, setIsCategoryDialogOpen] = useState(false);
   const [newPartName, setNewPartName] = useState("");
+  const [newPartQuantity, setNewPartQuantity] = useState(1);
+  const [newCategoryName, setNewCategoryName] = useState("");
   const [isUploading, setIsUploading] = useState(false);
   const [imagePreview, setImagePreview] = useState<string | null>(null);
   const fileInputRef = useRef<HTMLInputElement>(null);
@@ -64,11 +78,15 @@ export default function Products() {
 
   const { data: products, isLoading } = useProducts();
   const { data: parts } = useProductParts(selectedProductId);
+  const { data: categories } = useProductCategories();
   const createMutation = useCreateProduct();
   const updateMutation = useUpdateProduct();
   const deleteMutation = useDeleteProduct();
   const createPartMutation = useCreateProductPart();
+  const updatePartMutation = useUpdateProductPart();
   const deletePartMutation = useDeleteProductPart();
+  const createCategoryMutation = useCreateProductCategory();
+  const deleteCategoryMutation = useDeleteProductCategory();
 
   const filteredData = (products || []).filter((item) => {
     const matchesSearch =
@@ -184,13 +202,11 @@ export default function Products() {
     const file = e.target.files?.[0];
     if (!file) return;
 
-    // Validate file type
     if (!file.type.startsWith("image/")) {
       toast.error("请上传图片文件");
       return;
     }
 
-    // Validate file size (max 5MB)
     if (file.size > 5 * 1024 * 1024) {
       toast.error("图片大小不能超过5MB");
       return;
@@ -198,19 +214,16 @@ export default function Products() {
 
     setIsUploading(true);
     try {
-      // Generate unique filename
       const fileExt = file.name.split(".").pop();
       const fileName = `${Date.now()}-${Math.random().toString(36).substring(2)}.${fileExt}`;
       const filePath = `products/${fileName}`;
 
-      // Upload to Supabase storage
-      const { data, error } = await supabase.storage
+      const { error } = await supabase.storage
         .from("product-images")
         .upload(filePath, file);
 
       if (error) throw error;
 
-      // Get public URL
       const { data: urlData } = supabase.storage
         .from("product-images")
         .getPublicUrl(filePath);
@@ -274,11 +287,26 @@ export default function Products() {
       await createPartMutation.mutateAsync({
         name: newPartName.trim(),
         product_id: selectedProductId,
+        quantity: newPartQuantity,
       });
       toast.success("配件添加成功");
       setNewPartName("");
+      setNewPartQuantity(1);
     } catch (error) {
       toast.error("添加配件失败");
+    }
+  };
+
+  const handleUpdatePartQuantity = async (partId: string, quantity: number) => {
+    if (!selectedProductId || quantity < 1) return;
+    try {
+      await updatePartMutation.mutateAsync({
+        id: partId,
+        productId: selectedProductId,
+        quantity,
+      });
+    } catch (error) {
+      toast.error("更新数量失败");
     }
   };
 
@@ -289,6 +317,26 @@ export default function Products() {
       toast.success("配件删除成功");
     } catch (error) {
       toast.error("删除配件失败");
+    }
+  };
+
+  const handleAddCategory = async () => {
+    if (!newCategoryName.trim()) return;
+    try {
+      await createCategoryMutation.mutateAsync(newCategoryName.trim());
+      toast.success("分类添加成功");
+      setNewCategoryName("");
+    } catch (error) {
+      toast.error("添加分类失败，可能分类名已存在");
+    }
+  };
+
+  const handleDeleteCategory = async (id: string) => {
+    try {
+      await deleteCategoryMutation.mutateAsync(id);
+      toast.success("分类删除成功");
+    } catch (error) {
+      toast.error("删除分类失败");
     }
   };
 
@@ -310,14 +358,21 @@ export default function Products() {
         title="产品管理"
         description="管理产品信息和配件"
         actions={
-        <Button onClick={() => {
-          setEditingProduct(null);
-          setFormData({ sku: "", name: "", category: "", image: "" });
-          setIsDialogOpen(true);
-        }}>
-          <Plus className="mr-2 h-4 w-4" />
-          添加产品
-        </Button>
+          <div className="flex gap-2">
+            <Button variant="outline" onClick={() => setIsCategoryDialogOpen(true)}>
+              <Tags className="mr-2 h-4 w-4" />
+              分类管理
+            </Button>
+            <Button onClick={() => {
+              setEditingProduct(null);
+              setFormData({ sku: "", name: "", category: "", image: "" });
+              setImagePreview(null);
+              setIsDialogOpen(true);
+            }}>
+              <Plus className="mr-2 h-4 w-4" />
+              添加产品
+            </Button>
+          </div>
         }
       />
 
@@ -391,14 +446,24 @@ export default function Products() {
             </div>
             <div className="space-y-2">
               <Label htmlFor="category">分类</Label>
-              <Input
-                id="category"
+              <Select
                 value={formData.category}
-                onChange={(e) =>
-                  setFormData({ ...formData, category: e.target.value })
+                onValueChange={(value) =>
+                  setFormData({ ...formData, category: value === "none" ? "" : value })
                 }
-                placeholder="输入产品分类"
-              />
+              >
+                <SelectTrigger>
+                  <SelectValue placeholder="选择分类" />
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="none">未分类</SelectItem>
+                  {categories?.map((cat) => (
+                    <SelectItem key={cat.id} value={cat.name}>
+                      {cat.name}
+                    </SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
             </div>
             <div className="space-y-2">
               <Label>产品图片</Label>
@@ -465,9 +530,55 @@ export default function Products() {
         </DialogContent>
       </Dialog>
 
+      {/* Category Management Dialog */}
+      <Dialog open={isCategoryDialogOpen} onOpenChange={setIsCategoryDialogOpen}>
+        <DialogContent>
+          <DialogHeader>
+            <DialogTitle>分类管理</DialogTitle>
+          </DialogHeader>
+          <div className="space-y-4">
+            <div className="flex gap-2">
+              <Input
+                value={newCategoryName}
+                onChange={(e) => setNewCategoryName(e.target.value)}
+                placeholder="输入分类名称"
+                onKeyDown={(e) => e.key === "Enter" && handleAddCategory()}
+              />
+              <Button onClick={handleAddCategory}>
+                <FolderPlus className="h-4 w-4" />
+              </Button>
+            </div>
+            <div className="space-y-2 max-h-60 overflow-y-auto">
+              {categories?.length === 0 ? (
+                <p className="text-muted-foreground text-center py-4">
+                  暂无分类
+                </p>
+              ) : (
+                categories?.map((category) => (
+                  <div
+                    key={category.id}
+                    className="flex items-center justify-between p-2 bg-muted rounded-lg"
+                  >
+                    <span>{category.name}</span>
+                    <Button
+                      size="sm"
+                      variant="ghost"
+                      className="text-destructive"
+                      onClick={() => handleDeleteCategory(category.id)}
+                    >
+                      <Trash2 className="h-4 w-4" />
+                    </Button>
+                  </div>
+                ))
+              )}
+            </div>
+          </div>
+        </DialogContent>
+      </Dialog>
+
       {/* Parts Management Dialog */}
       <Dialog open={isPartsDialogOpen} onOpenChange={setIsPartsDialogOpen}>
-        <DialogContent>
+        <DialogContent className="max-w-md">
           <DialogHeader>
             <DialogTitle>
               管理配件 - {selectedProduct?.name}
@@ -478,8 +589,17 @@ export default function Products() {
               <Input
                 value={newPartName}
                 onChange={(e) => setNewPartName(e.target.value)}
-                placeholder="输入配件名称"
+                placeholder="配件名称"
+                className="flex-1"
                 onKeyDown={(e) => e.key === "Enter" && handleAddPart()}
+              />
+              <Input
+                type="number"
+                value={newPartQuantity}
+                onChange={(e) => setNewPartQuantity(Math.max(1, parseInt(e.target.value) || 1))}
+                placeholder="数量"
+                className="w-20"
+                min={1}
               />
               <Button onClick={handleAddPart}>
                 <Plus className="h-4 w-4" />
@@ -494,17 +614,27 @@ export default function Products() {
                 parts?.map((part) => (
                   <div
                     key={part.id}
-                    className="flex items-center justify-between p-2 bg-muted rounded-lg"
+                    className="flex items-center justify-between p-3 bg-muted rounded-lg"
                   >
-                    <span>{part.name}</span>
-                    <Button
-                      size="sm"
-                      variant="ghost"
-                      className="text-destructive"
-                      onClick={() => handleDeletePart(part.id)}
-                    >
-                      <Trash2 className="h-4 w-4" />
-                    </Button>
+                    <span className="flex-1">{part.name}</span>
+                    <div className="flex items-center gap-2">
+                      <span className="text-sm text-muted-foreground">数量:</span>
+                      <Input
+                        type="number"
+                        value={part.quantity}
+                        onChange={(e) => handleUpdatePartQuantity(part.id, parseInt(e.target.value) || 1)}
+                        className="w-16 h-8 text-center"
+                        min={1}
+                      />
+                      <Button
+                        size="sm"
+                        variant="ghost"
+                        className="text-destructive"
+                        onClick={() => handleDeletePart(part.id)}
+                      >
+                        <Trash2 className="h-4 w-4" />
+                      </Button>
+                    </div>
                   </div>
                 ))
               )}

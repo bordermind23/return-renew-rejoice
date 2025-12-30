@@ -1,6 +1,6 @@
-import { useState, useEffect } from "react";
+import { useState, useEffect, useMemo } from "react";
 import { useNavigate, useSearchParams } from "react-router-dom";
-import { Package, CheckCircle, Camera, ArrowLeft } from "lucide-react";
+import { Package, CheckCircle, Camera, ArrowLeft, AlertTriangle } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
@@ -11,6 +11,17 @@ import { Badge } from "@/components/ui/badge";
 import { GradeBadge } from "@/components/ui/grade-badge";
 import { ScrollArea } from "@/components/ui/scroll-area";
 import { Skeleton } from "@/components/ui/skeleton";
+import {
+  AlertDialog,
+  AlertDialogAction,
+  AlertDialogCancel,
+  AlertDialogContent,
+  AlertDialogDescription,
+  AlertDialogFooter,
+  AlertDialogHeader,
+  AlertDialogTitle,
+} from "@/components/ui/alert-dialog";
+import { RadioGroup, RadioGroupItem } from "@/components/ui/radio-group";
 import { NativePhotoCapture } from "@/components/NativePhotoCapture";
 import { useRemovalShipments, useUpdateRemovalShipment, type RemovalShipment } from "@/hooks/useRemovalShipments";
 import { useCreateInboundItem, useInboundItems } from "@/hooks/useInboundItems";
@@ -36,6 +47,9 @@ export default function InboundProcess() {
   const [isPhotoCaptureOpen, setIsPhotoCaptureOpen] = useState(false);
   const [capturedPhotos, setCapturedPhotos] = useState<Record<string, string>>({});
   const [isLoading, setIsLoading] = useState(true);
+  const [showSkuMismatchDialog, setShowSkuMismatchDialog] = useState(false);
+  const [selectedFinalSku, setSelectedFinalSku] = useState<string>("");
+  const [confirmedSku, setConfirmedSku] = useState<string | null>(null);
 
   const { data: shipments } = useRemovalShipments();
   const { data: inboundItems } = useInboundItems();
@@ -44,8 +58,29 @@ export default function InboundProcess() {
   const updateShipmentMutation = useUpdateRemovalShipment();
   const updateInventoryMutation = useUpdateInventoryStock();
 
-  const matchedProduct = matchedShipment 
-    ? products?.find(p => p.sku === matchedShipment.product_sku)
+  // 检查SKU是否匹配
+  const skuMismatch = useMemo(() => {
+    if (!matchedShipment || matchedOrders.length === 0) return null;
+    
+    const shipmentSku = matchedShipment.product_sku;
+    const orderSkus = matchedOrders.map(o => o.product_sku).filter(Boolean);
+    
+    // 检查是否有不匹配的SKU
+    const mismatchedSkus = orderSkus.filter(sku => sku !== shipmentSku);
+    
+    if (mismatchedSkus.length > 0) {
+      return {
+        shipmentSku,
+        orderSkus: [...new Set(orderSkus)] as string[],
+      };
+    }
+    return null;
+  }, [matchedShipment, matchedOrders]);
+
+  // 获取最终确认的SKU对应的产品
+  const finalSku = confirmedSku || matchedShipment?.product_sku;
+  const matchedProduct = finalSku 
+    ? products?.find(p => p.sku === finalSku)
     : null;
   const { data: productParts } = useProductParts(matchedProduct?.id || null);
 
@@ -78,6 +113,20 @@ export default function InboundProcess() {
     }
   }, [lpn, trackingNumber, shipments]);
 
+  // 检测到SKU不匹配时自动弹出对话框
+  useEffect(() => {
+    if (skuMismatch && !confirmedSku) {
+      setSelectedFinalSku(skuMismatch.shipmentSku);
+      setShowSkuMismatchDialog(true);
+    }
+  }, [skuMismatch, confirmedSku]);
+
+  const handleConfirmSku = () => {
+    setConfirmedSku(selectedFinalSku);
+    setShowSkuMismatchDialog(false);
+    toast.success(`已确认使用SKU: ${selectedFinalSku}`);
+  };
+
   const getInboundedCount = (trackingNumber: string) => {
     return (inboundItems || []).filter(item => item.tracking_number === trackingNumber).length;
   };
@@ -101,12 +150,17 @@ export default function InboundProcess() {
       return;
     }
 
+    // 使用确认后的SKU或默认的货件SKU
+    const inboundSku = confirmedSku || matchedShipment.product_sku;
+    const inboundProduct = products?.find(p => p.sku === inboundSku);
+    const inboundProductName = inboundProduct?.name || matchedShipment.product_name;
+
     createMutation.mutate(
       {
         lpn: lpn,
         removal_order_id: matchedShipment.order_id,
-        product_sku: matchedShipment.product_sku,
-        product_name: matchedShipment.product_name,
+        product_sku: inboundSku,
+        product_name: inboundProductName,
         return_reason: returnReason || null,
         grade: selectedGrade as "A" | "B" | "C" | "new",
         missing_parts: selectedMissingParts.length > 0 ? selectedMissingParts : null,
@@ -127,8 +181,8 @@ export default function InboundProcess() {
       {
         onSuccess: () => {
           updateInventoryMutation.mutate({
-            sku: matchedShipment.product_sku,
-            product_name: matchedShipment.product_name,
+            sku: inboundSku,
+            product_name: inboundProductName,
             grade: selectedGrade as "A" | "B" | "C",
             quantity: 1,
           });
@@ -222,17 +276,81 @@ export default function InboundProcess() {
             </Card>
           )}
 
-          {/* 产品信息 */}
-          <Card>
-            <CardContent className="pt-4">
-              <div className="grid grid-cols-2 gap-3 text-sm">
-                <div>
-                  <p className="text-xs text-muted-foreground">产品名称</p>
-                  <p className="font-medium">{matchedShipment.product_name}</p>
+          {/* SKU不匹配警告 */}
+          {skuMismatch && (
+            <Card className="border-amber-200 bg-amber-50 dark:bg-amber-950/30 dark:border-amber-800">
+              <CardContent className="pt-4">
+                <div className="flex items-start gap-3">
+                  <AlertTriangle className="h-5 w-5 text-amber-500 flex-shrink-0 mt-0.5" />
+                  <div className="flex-1 space-y-2">
+                    <p className="font-medium text-amber-900 dark:text-amber-100">SKU不匹配警告</p>
+                    <p className="text-sm text-amber-800 dark:text-amber-200">
+                      移除货件SKU与退货订单SKU不一致
+                    </p>
+                    <div className="text-sm space-y-1">
+                      <p><span className="text-muted-foreground">货件SKU:</span> <span className="font-mono font-medium">{skuMismatch.shipmentSku}</span></p>
+                      <p><span className="text-muted-foreground">订单SKU:</span> <span className="font-mono font-medium">{skuMismatch.orderSkus.join(", ")}</span></p>
+                    </div>
+                    {confirmedSku && (
+                      <p className="text-sm font-medium text-green-600 dark:text-green-400">
+                        ✓ 已确认使用: {confirmedSku}
+                      </p>
+                    )}
+                    <Button 
+                      variant="outline" 
+                      size="sm" 
+                      className="mt-2"
+                      onClick={() => setShowSkuMismatchDialog(true)}
+                    >
+                      {confirmedSku ? "重新选择" : "选择正确SKU"}
+                    </Button>
+                  </div>
                 </div>
-                <div>
-                  <p className="text-xs text-muted-foreground">产品SKU</p>
-                  <p className="font-medium">{matchedShipment.product_sku}</p>
+              </CardContent>
+            </Card>
+          )}
+
+          {/* 产品信息 - 带图片 */}
+          <Card>
+            <CardHeader className="pb-2">
+              <CardTitle className="text-base flex items-center gap-2">
+                <Package className="h-4 w-4" />
+                入库产品信息
+                {confirmedSku && confirmedSku !== matchedShipment.product_sku && (
+                  <Badge variant="secondary" className="text-xs">已更正SKU</Badge>
+                )}
+              </CardTitle>
+            </CardHeader>
+            <CardContent>
+              <div className="flex gap-4">
+                {/* 产品图片 */}
+                <div className="flex-shrink-0">
+                  {matchedProduct?.image ? (
+                    <img 
+                      src={matchedProduct.image} 
+                      alt={matchedProduct.name} 
+                      className="h-20 w-20 rounded-lg object-cover border"
+                    />
+                  ) : (
+                    <div className="h-20 w-20 rounded-lg bg-muted flex items-center justify-center">
+                      <Package className="h-8 w-8 text-muted-foreground" />
+                    </div>
+                  )}
+                </div>
+                {/* 产品详情 */}
+                <div className="flex-1 grid grid-cols-2 gap-2 text-sm">
+                  <div className="col-span-2">
+                    <p className="text-xs text-muted-foreground">产品名称</p>
+                    <p className="font-medium">{matchedProduct?.name || matchedShipment.product_name}</p>
+                  </div>
+                  <div>
+                    <p className="text-xs text-muted-foreground">产品SKU</p>
+                    <p className="font-mono font-medium text-primary">{finalSku}</p>
+                  </div>
+                  <div>
+                    <p className="text-xs text-muted-foreground">分类</p>
+                    <p className="font-medium">{matchedProduct?.category || "-"}</p>
+                  </div>
                 </div>
               </div>
             </CardContent>
@@ -373,6 +491,71 @@ export default function InboundProcess() {
           onCancel={() => setIsPhotoCaptureOpen(false)}
         />
       )}
+
+      {/* SKU不匹配选择对话框 */}
+      <AlertDialog open={showSkuMismatchDialog} onOpenChange={setShowSkuMismatchDialog}>
+        <AlertDialogContent>
+          <AlertDialogHeader>
+            <AlertDialogTitle className="flex items-center gap-2">
+              <AlertTriangle className="h-5 w-5 text-amber-500" />
+              SKU不匹配
+            </AlertDialogTitle>
+            <AlertDialogDescription>
+              移除货件的产品SKU与退货订单的产品SKU不一致，请选择正确的入库SKU：
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+          
+          <div className="py-4">
+            <RadioGroup value={selectedFinalSku} onValueChange={setSelectedFinalSku}>
+              {/* 货件SKU选项 */}
+              <div className="flex items-start space-x-3 rounded-lg border p-3 mb-2">
+                <RadioGroupItem value={matchedShipment?.product_sku || ""} id="shipment-sku" className="mt-1" />
+                <div className="flex-1">
+                  <Label htmlFor="shipment-sku" className="font-medium cursor-pointer">
+                    使用移除货件SKU
+                  </Label>
+                  <p className="text-sm font-mono text-muted-foreground mt-1">
+                    {matchedShipment?.product_sku}
+                  </p>
+                  <p className="text-xs text-muted-foreground">
+                    {matchedShipment?.product_name}
+                  </p>
+                </div>
+              </div>
+              
+              {/* 订单SKU选项 */}
+              {skuMismatch?.orderSkus.map((sku) => {
+                const product = products?.find(p => p.sku === sku);
+                return (
+                  <div key={sku} className="flex items-start space-x-3 rounded-lg border p-3 mb-2">
+                    <RadioGroupItem value={sku} id={`order-sku-${sku}`} className="mt-1" />
+                    <div className="flex-1">
+                      <Label htmlFor={`order-sku-${sku}`} className="font-medium cursor-pointer">
+                        使用退货订单SKU
+                      </Label>
+                      <p className="text-sm font-mono text-muted-foreground mt-1">
+                        {sku}
+                      </p>
+                      {product && (
+                        <p className="text-xs text-muted-foreground">
+                          {product.name}
+                        </p>
+                      )}
+                    </div>
+                  </div>
+                );
+              })}
+            </RadioGroup>
+          </div>
+
+          <AlertDialogFooter>
+            <AlertDialogCancel>取消</AlertDialogCancel>
+            <AlertDialogAction onClick={handleConfirmSku} disabled={!selectedFinalSku}>
+              确认选择
+            </AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
     </div>
   );
 }

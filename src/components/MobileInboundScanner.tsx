@@ -198,7 +198,7 @@ export function MobileInboundScanner({ initialTracking }: MobileInboundScannerPr
 
         {/* 中央浮动扫描按钮 - 方形设计 */}
         <div className="relative">
-          <div className="absolute inset-0 bg-primary/15 rounded-2xl blur-xl" />
+          <div className="absolute inset-0 bg-primary/15 rounded-2xl blur-xl pointer-events-none" />
           <Button
             onClick={hasActiveShipment ? () => setStep("scan_lpn") : startScanning}
             className="relative h-36 w-36 rounded-2xl gradient-primary shadow-xl hover:shadow-2xl transition-all duration-300 hover:scale-[1.02] active:scale-[0.98]"
@@ -264,7 +264,7 @@ export function MobileInboundScanner({ initialTracking }: MobileInboundScannerPr
 
           {/* 扫描按钮 - 方形设计 */}
           <div className="mb-8 relative">
-            <div className="absolute inset-0 bg-primary/15 rounded-2xl blur-xl" />
+            <div className="absolute inset-0 bg-primary/15 rounded-2xl blur-xl pointer-events-none" />
             <Scanner 
               onScan={handleTrackingScan} 
               buttonLabel=""
@@ -359,7 +359,7 @@ export function MobileInboundScanner({ initialTracking }: MobileInboundScannerPr
 
           {/* 扫描按钮 - 方形设计 */}
           <div className="mb-6 relative">
-            <div className="absolute inset-0 bg-primary/15 rounded-2xl blur-xl" />
+            <div className="absolute inset-0 bg-primary/15 rounded-2xl blur-xl pointer-events-none" />
             <Scanner 
               onScan={handleLpnScan} 
               buttonLabel=""

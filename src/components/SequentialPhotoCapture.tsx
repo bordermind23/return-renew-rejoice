@@ -42,7 +42,7 @@ export function SequentialPhotoCapture({
   const [previewUrl, setPreviewUrl] = useState<string | null>(null);
   const [isUploading, setIsUploading] = useState(false);
   const [cameraReady, setCameraReady] = useState(false);
-  const [facingMode, setFacingMode] = useState<"user" | "environment">("user"); // 默认前置摄像头
+  const [facingMode, setFacingMode] = useState<"user" | "environment">("environment"); // 默认后置摄像头
   
   const videoRef = useRef<HTMLVideoElement>(null);
   const canvasRef = useRef<HTMLCanvasElement>(null);

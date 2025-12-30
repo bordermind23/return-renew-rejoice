@@ -79,8 +79,8 @@ interface ImportProgress {
 // 模板字段
 const templateHeaders = [
   "LPN编号", "产品名称", "买家备注", "退货原因", "库存属性", "店铺", "国家",
-  "产品SKU", "订单号", "MSKU", "ASIN", "FNSKU", "退货数量", "发货仓数量",
-  "退货时间", "订购时间", "移除货件号", "站点"
+  "产品SKU", "订单号", "MSKU", "ASIN", "FNSKU", "退货数量", "发货仓库编号",
+  "退货时间", "订购时间"
 ];
 
 export default function Orders() {
@@ -122,7 +122,7 @@ export default function Orders() {
     asin: null,
     fnsku: null,
     return_quantity: 1,
-    warehouse_quantity: 0,
+    warehouse_location: null,
     return_time: null,
     order_time: null,
   });
@@ -168,14 +168,14 @@ export default function Orders() {
       asin: null,
       fnsku: null,
       return_quantity: 1,
-      warehouse_quantity: 0,
+      warehouse_location: null,
       return_time: null,
       order_time: null,
     });
   };
 
   const handleSubmit = () => {
-    if (!formData.lpn || !formData.order_number || !formData.store_name || !formData.station) {
+    if (!formData.lpn || !formData.order_number || !formData.store_name) {
       toast.error("请填写所有必填字段");
       return;
     }
@@ -237,7 +237,6 @@ export default function Orders() {
   const handleBulkEdit = () => {
     const updates: OrderUpdate = {};
     if (bulkEditData.store_name) updates.store_name = bulkEditData.store_name;
-    if (bulkEditData.station) updates.station = bulkEditData.station;
     if (bulkEditData.country) updates.country = bulkEditData.country;
     if (bulkEditData.inventory_attribute) updates.inventory_attribute = bulkEditData.inventory_attribute;
 
@@ -274,7 +273,6 @@ export default function Orders() {
     if (!row[0]?.trim()) return { valid: false, error: `第${rowIndex}行：LPN编号不能为空` };
     if (!row[5]?.trim()) return { valid: false, error: `第${rowIndex}行：店铺不能为空` };
     if (!row[8]?.trim()) return { valid: false, error: `第${rowIndex}行：订单号不能为空` };
-    if (!row[17]?.trim()) return { valid: false, error: `第${rowIndex}行：站点不能为空` };
     return { valid: true };
   };
 
@@ -354,11 +352,11 @@ export default function Orders() {
               asin: row[10] ? String(row[10]).trim() : null,
               fnsku: row[11] ? String(row[11]).trim() : null,
               return_quantity: parseInt(String(row[12])) || 1,
-              warehouse_quantity: parseInt(String(row[13])) || 0,
+              warehouse_location: row[13] ? String(row[13]).trim() : null,
               return_time: row[14] ? String(row[14]).trim() : null,
               order_time: row[15] ? String(row[15]).trim() : null,
-              removal_order_id: row[16] ? String(row[16]).trim() : "",
-              station: String(row[17]).trim(),
+              removal_order_id: "",
+              station: "",
               removed_at: new Date().toISOString(),
               inbound_at: null,
             });
@@ -426,11 +424,9 @@ export default function Orders() {
         item.asin || "",
         item.fnsku || "",
         item.return_quantity,
-        item.warehouse_quantity,
+        item.warehouse_location || "",
         item.return_time || "",
         item.order_time || "",
-        item.removal_order_id,
-        item.station,
       ])
     ];
 
@@ -527,16 +523,8 @@ export default function Orders() {
                       <Input id="product_sku" value={formData.product_sku || ""} onChange={(e) => setFormData({ ...formData, product_sku: e.target.value || null })} />
                     </div>
                     <div className="space-y-2">
-                      <Label htmlFor="station">站点 *</Label>
-                      <Select value={formData.station} onValueChange={(value) => setFormData({ ...formData, station: value })}>
-                        <SelectTrigger><SelectValue placeholder="选择站点" /></SelectTrigger>
-                        <SelectContent>
-                          <SelectItem value="FBA-US">FBA-US</SelectItem>
-                          <SelectItem value="FBA-EU">FBA-EU</SelectItem>
-                          <SelectItem value="FBA-JP">FBA-JP</SelectItem>
-                          <SelectItem value="FBA-AU">FBA-AU</SelectItem>
-                        </SelectContent>
-                      </Select>
+                      <Label htmlFor="warehouse_location">发货仓库编号</Label>
+                      <Input id="warehouse_location" value={formData.warehouse_location || ""} onChange={(e) => setFormData({ ...formData, warehouse_location: e.target.value || null })} />
                     </div>
                   </div>
                   <div className="grid grid-cols-3 gap-4">
@@ -571,10 +559,6 @@ export default function Orders() {
                     <div className="space-y-2">
                       <Label htmlFor="return_quantity">退货数量</Label>
                       <Input id="return_quantity" type="number" value={formData.return_quantity} onChange={(e) => setFormData({ ...formData, return_quantity: parseInt(e.target.value) || 1 })} />
-                    </div>
-                    <div className="space-y-2">
-                      <Label htmlFor="removal_order_id">移除货件号</Label>
-                      <Input id="removal_order_id" value={formData.removal_order_id} onChange={(e) => setFormData({ ...formData, removal_order_id: e.target.value })} />
                     </div>
                     <div className="space-y-2">
                       <Label htmlFor="buyer_note">买家备注</Label>
@@ -693,14 +677,13 @@ export default function Orders() {
                 <TableHead className="font-semibold min-w-[100px]">退货原因</TableHead>
                 <TableHead className="font-semibold min-w-[60px] text-center">退货数量</TableHead>
                 <TableHead className="font-semibold min-w-[80px]">订单号</TableHead>
-                <TableHead className="font-semibold min-w-[60px]">站点</TableHead>
                 <TableHead className="font-semibold min-w-[80px] text-center">操作</TableHead>
               </TableRow>
             </TableHeader>
             <TableBody>
               {filteredData.length === 0 ? (
                 <TableRow>
-                  <TableCell colSpan={11} className="h-32 text-center text-muted-foreground">暂无订单记录</TableCell>
+                  <TableCell colSpan={10} className="h-32 text-center text-muted-foreground">暂无订单记录</TableCell>
                 </TableRow>
               ) : (
                 filteredData.map((item) => (
@@ -716,7 +699,6 @@ export default function Orders() {
                     <TableCell className="text-muted-foreground">{item.return_reason || "-"}</TableCell>
                     <TableCell className="text-center font-semibold">{item.return_quantity}</TableCell>
                     <TableCell className="font-medium">{item.order_number}</TableCell>
-                    <TableCell className="text-muted-foreground">{item.station}</TableCell>
                     <TableCell>
                       <div className="flex justify-center gap-1">
                         <Button size="icon" variant="ghost" className="h-8 w-8" onClick={() => setSelectedOrder(item)}>
@@ -755,7 +737,7 @@ export default function Orders() {
               <div><p className="text-muted-foreground">退货原因</p><p className="font-medium">{selectedOrder.return_reason || "-"}</p></div>
               <div><p className="text-muted-foreground">买家备注</p><p className="font-medium">{selectedOrder.buyer_note || "-"}</p></div>
               <div><p className="text-muted-foreground">退货数量</p><p className="font-medium">{selectedOrder.return_quantity}</p></div>
-              <div><p className="text-muted-foreground">发货仓数量</p><p className="font-medium">{selectedOrder.warehouse_quantity}</p></div>
+              <div><p className="text-muted-foreground">发货仓库编号</p><p className="font-medium">{selectedOrder.warehouse_location || "-"}</p></div>
               <div><p className="text-muted-foreground">FNSKU</p><p className="font-medium">{selectedOrder.fnsku || "-"}</p></div>
               <div><p className="text-muted-foreground">ASIN</p><p className="font-medium">{selectedOrder.asin || "-"}</p></div>
               <div><p className="text-muted-foreground">MSKU</p><p className="font-medium">{selectedOrder.msku || "-"}</p></div>
@@ -775,18 +757,6 @@ export default function Orders() {
             <div className="space-y-2">
               <Label>店铺</Label>
               <Input value={bulkEditData.store_name || ""} onChange={(e) => setBulkEditData({ ...bulkEditData, store_name: e.target.value || undefined })} placeholder="留空则不更新" />
-            </div>
-            <div className="space-y-2">
-              <Label>站点</Label>
-              <Select value={bulkEditData.station || ""} onValueChange={(value) => setBulkEditData({ ...bulkEditData, station: value || undefined })}>
-                <SelectTrigger><SelectValue placeholder="留空则不更新" /></SelectTrigger>
-                <SelectContent>
-                  <SelectItem value="FBA-US">FBA-US</SelectItem>
-                  <SelectItem value="FBA-EU">FBA-EU</SelectItem>
-                  <SelectItem value="FBA-JP">FBA-JP</SelectItem>
-                  <SelectItem value="FBA-AU">FBA-AU</SelectItem>
-                </SelectContent>
-              </Select>
             </div>
             <div className="space-y-2">
               <Label>国家</Label>

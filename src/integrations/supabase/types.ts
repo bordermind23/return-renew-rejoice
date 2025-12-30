@@ -157,7 +157,7 @@ export type Database = {
           return_time: string | null
           station: string
           store_name: string
-          warehouse_quantity: number | null
+          warehouse_location: string | null
         }
         Insert: {
           asin?: string | null
@@ -181,7 +181,7 @@ export type Database = {
           return_time?: string | null
           station: string
           store_name: string
-          warehouse_quantity?: number | null
+          warehouse_location?: string | null
         }
         Update: {
           asin?: string | null
@@ -205,7 +205,7 @@ export type Database = {
           return_time?: string | null
           station?: string
           store_name?: string
-          warehouse_quantity?: number | null
+          warehouse_location?: string | null
         }
         Relationships: []
       }

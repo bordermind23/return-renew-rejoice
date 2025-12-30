@@ -1,5 +1,5 @@
 import { useState, useRef } from "react";
-import { Plus, Search, Filter, Trash2, Edit, Upload, Download, FileSpreadsheet, ChevronDown, AlertCircle, CheckCircle2, Loader2, RefreshCw } from "lucide-react";
+import { Plus, Search, Filter, Trash2, Edit, Upload, Download, FileSpreadsheet, ChevronDown, AlertCircle, CheckCircle2, Loader2 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { PageHeader } from "@/components/ui/page-header";
@@ -59,7 +59,6 @@ import {
   type RemovalShipmentInsert,
   type RemovalShipmentUpdate,
 } from "@/hooks/useRemovalShipments";
-import { useLingxingSync } from "@/hooks/useLingxingSync";
 import { Checkbox } from "@/components/ui/checkbox";
 import { Skeleton } from "@/components/ui/skeleton";
 import { toast } from "sonner";
@@ -124,7 +123,6 @@ export default function Removals() {
   const bulkCreateMutation = useBulkCreateRemovalShipments();
   const bulkDeleteMutation = useBulkDeleteRemovalShipments();
   const bulkUpdateMutation = useBulkUpdateRemovalShipments();
-  const { isSyncing, syncRemovals } = useLingxingSync();
 
   // 批量选择
   const toggleSelectAll = () => {
@@ -507,16 +505,6 @@ export default function Removals() {
         description="管理所有退货和移除货件"
         actions={
           <div className="flex gap-2 flex-wrap justify-end">
-            <Button 
-              variant="outline" 
-              size="sm" 
-              className="h-9" 
-              onClick={() => syncRemovals()}
-              disabled={isSyncing}
-            >
-              <RefreshCw className={`h-4 w-4 sm:mr-2 ${isSyncing ? 'animate-spin' : ''}`} />
-              <span className="hidden sm:inline">{isSyncing ? '同步中...' : '从领星同步'}</span>
-            </Button>
             <input
               type="file"
               ref={fileInputRef}

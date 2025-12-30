@@ -52,6 +52,7 @@ import { toast } from "sonner";
 import { Scanner } from "@/components/Scanner";
 import { SequentialPhotoCapture } from "@/components/SequentialPhotoCapture";
 import { MobileInboundScanner } from "@/components/MobileInboundScanner";
+import { InboundBatchList } from "@/components/InboundBatchList";
 import { cn } from "@/lib/utils";
 import { useIsMobile } from "@/hooks/use-mobile";
 
@@ -758,80 +759,13 @@ export default function Inbound() {
         </DialogContent>
       </Dialog>
 
-      {/* 已处理记录表格 */}
+      {/* 已处理记录 - 按批次分组 */}
       <div className="space-y-4">
         <h3 className="text-lg font-semibold">已入库记录</h3>
-        <Card>
-          <ScrollArea className="w-full">
-            <Table>
-              <TableHeader>
-                <TableRow className="bg-muted/50 hover:bg-muted/50">
-                  <TableHead className="font-semibold min-w-[120px]">LPN号</TableHead>
-                  <TableHead className="font-semibold min-w-[140px]">物流跟踪号</TableHead>
-                  <TableHead className="font-semibold min-w-[120px]">移除订单号</TableHead>
-                  <TableHead className="font-semibold min-w-[100px]">产品SKU</TableHead>
-                  <TableHead className="font-semibold min-w-[150px]">产品名称</TableHead>
-                  <TableHead className="font-semibold min-w-[80px]">级别</TableHead>
-                  <TableHead className="font-semibold min-w-[120px]">缺少配件</TableHead>
-                  <TableHead className="font-semibold min-w-[150px]">处理时间</TableHead>
-                  <TableHead className="font-semibold min-w-[80px] text-center">操作</TableHead>
-                </TableRow>
-              </TableHeader>
-              <TableBody>
-                {(!inboundItems || inboundItems.length === 0) ? (
-                  <TableRow>
-                    <TableCell colSpan={9} className="h-32 text-center text-muted-foreground">
-                      暂无入库处理记录
-                    </TableCell>
-                  </TableRow>
-                ) : (
-                  inboundItems.map((item) => (
-                    <TableRow key={item.id} className="hover:bg-muted/30">
-                      <TableCell>
-                        <code className="text-xs bg-muted px-1.5 py-0.5 rounded font-medium">{item.lpn}</code>
-                      </TableCell>
-                      <TableCell className="text-muted-foreground">
-                        {item.tracking_number || "-"}
-                      </TableCell>
-                      <TableCell>{item.removal_order_id}</TableCell>
-                      <TableCell>
-                        <code className="text-xs bg-muted px-1.5 py-0.5 rounded">{item.product_sku}</code>
-                      </TableCell>
-                      <TableCell>
-                        <span className="line-clamp-1" title={item.product_name}>{item.product_name}</span>
-                      </TableCell>
-                      <TableCell>
-                        <GradeBadge grade={item.grade as "A" | "B" | "C"} />
-                      </TableCell>
-                      <TableCell className="text-muted-foreground">
-                        {item.missing_parts && item.missing_parts.length > 0
-                          ? item.missing_parts.join(", ")
-                          : "-"}
-                      </TableCell>
-                      <TableCell className="text-muted-foreground">
-                        {new Date(item.processed_at).toLocaleString("zh-CN")}
-                      </TableCell>
-                      <TableCell>
-                        <div className="flex justify-center">
-                          <Button
-                            size="icon"
-                            variant="ghost"
-                            className="h-8 w-8 text-destructive hover:text-destructive"
-                            onClick={() => setDeleteId(item.id)}
-                          >
-                            <Trash2 className="h-4 w-4" />
-                          </Button>
-                        </div>
-                      </TableCell>
-                    </TableRow>
-                  ))
-                )}
-              </TableBody>
-            </Table>
-            <ScrollBar orientation="horizontal" />
-          </ScrollArea>
-        </Card>
-        
+        <InboundBatchList 
+          items={inboundItems || []} 
+          onDelete={(id) => setDeleteId(id)} 
+        />
         <div className="text-sm text-muted-foreground">
           共 {inboundItems?.length || 0} 条入库记录
         </div>

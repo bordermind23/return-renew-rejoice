@@ -1,4 +1,4 @@
-import { useState, useEffect } from "react";
+import { useState, useEffect, useCallback } from "react";
 import { useNavigate } from "react-router-dom";
 import { ScanLine, Package, CheckCircle, X, ArrowRight, Truck, ChevronRight } from "lucide-react";
 import { Button } from "@/components/ui/button";
@@ -11,6 +11,26 @@ import { useInboundItems } from "@/hooks/useInboundItems";
 import { fetchOrdersByLpn } from "@/hooks/useOrdersByLpn";
 import { toast } from "sonner";
 import { cn } from "@/lib/utils";
+
+// 振动反馈工具函数
+const vibrate = (pattern: number | number[]) => {
+  if ('vibrate' in navigator) {
+    try {
+      navigator.vibrate(pattern);
+    } catch (e) {
+      // 忽略不支持振动的设备
+    }
+  }
+};
+
+// 成功振动 - 短促两次
+const vibrateSuccess = () => vibrate([50, 50, 50]);
+
+// 失败振动 - 长振动一次
+const vibrateError = () => vibrate(200);
+
+// 警告振动 - 中等振动两次
+const vibrateWarning = () => vibrate([100, 50, 100]);
 
 type ScanStep = "idle" | "scan_tracking" | "scan_lpn";
 
@@ -66,16 +86,19 @@ export function MobileInboundScanner({ initialTracking }: MobileInboundScannerPr
     );
 
     if (!found) {
+      vibrateError();
       toast.error(`未找到物流跟踪号: ${trackingCode}`);
       return;
     }
 
     const inboundedCount = getInboundedCount(found.tracking_number);
     if (inboundedCount >= found.quantity) {
+      vibrateWarning();
       toast.warning(`该物流号下的 ${found.quantity} 件货物已全部入库`);
       return;
     }
 
+    vibrateSuccess();
     setMatchedShipment(found);
     setTrackingInput(trackingCode);
     setScannedLpns([]);
@@ -91,12 +114,14 @@ export function MobileInboundScanner({ initialTracking }: MobileInboundScannerPr
     // 检查LPN是否存在于退货订单列表
     const lpnOrders = await fetchOrdersByLpn(lpn);
     if (lpnOrders.length === 0) {
+      vibrateError();
       toast.error(`LPN号 "${lpn}" 不存在于退货订单列表中`);
       return;
     }
 
     // 检查是否已扫描过
     if (scannedLpns.includes(lpn)) {
+      vibrateWarning();
       toast.error("该LPN已扫描过");
       return;
     }
@@ -104,11 +129,13 @@ export function MobileInboundScanner({ initialTracking }: MobileInboundScannerPr
     // 检查是否已存在于入库记录
     const existingItem = inboundItems?.find(item => item.lpn === lpn);
     if (existingItem) {
+      vibrateWarning();
       toast.error("该LPN已入库");
       return;
     }
 
-    // 跳转到入库处理页面
+    // 成功振动并跳转到入库处理页面
+    vibrateSuccess();
     if (matchedShipment) {
       navigate(`/inbound/process?lpn=${encodeURIComponent(lpn)}&tracking=${encodeURIComponent(matchedShipment.tracking_number)}`);
     }

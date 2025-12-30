@@ -1,5 +1,5 @@
 import { useState, useRef } from "react";
-import { Search, Filter, Eye, Plus, Trash2, Upload, Download, FileSpreadsheet, ChevronDown, AlertCircle, CheckCircle2, Loader2, Edit, ChevronLeft, ChevronRight, ChevronsLeft, ChevronsRight } from "lucide-react";
+import { Search, Filter, Eye, Plus, Trash2, Upload, Download, FileSpreadsheet, ChevronDown, AlertCircle, CheckCircle2, Loader2, Edit, ChevronLeft, ChevronRight, ChevronsLeft, ChevronsRight, Camera } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { PageHeader } from "@/components/ui/page-header";
@@ -38,6 +38,11 @@ import {
   AlertDialogTitle,
 } from "@/components/ui/alert-dialog";
 import {
+  HoverCard,
+  HoverCardContent,
+  HoverCardTrigger,
+} from "@/components/ui/hover-card";
+import {
   Table,
   TableBody,
   TableCell,
@@ -47,10 +52,12 @@ import {
 } from "@/components/ui/table";
 import { ScrollArea, ScrollBar } from "@/components/ui/scroll-area";
 import { Checkbox } from "@/components/ui/checkbox";
+import { GradeBadge } from "@/components/ui/grade-badge";
 import {
   useOrdersPaginated,
   useOrderStores,
   useCreateOrder,
+  useUpdateOrder,
   useDeleteOrder,
   useBulkDeleteOrders,
   useBulkUpdateOrders,
@@ -59,6 +66,7 @@ import {
   type OrderInsert,
   type OrderUpdate,
 } from "@/hooks/useOrders";
+import { useInboundItems } from "@/hooks/useInboundItems";
 import { Skeleton } from "@/components/ui/skeleton";
 import { toast } from "sonner";
 import * as XLSX from "xlsx";
@@ -130,10 +138,22 @@ export default function Orders() {
     warehouse_location: null,
     return_time: null,
     order_time: null,
+    grade: null,
   });
 
   const { data: paginatedData, isLoading } = useOrdersPaginated(currentPage, pageSize, debouncedSearch, storeFilter);
   const { data: stores = [] } = useOrderStores();
+  const { data: inboundItems } = useInboundItems();
+  const updateOrderMutation = useUpdateOrder();
+
+  // 创建 LPN 到入库记录的映射
+  const inboundByLpn = (inboundItems || []).reduce((acc, item) => {
+    acc[item.lpn] = item;
+    return acc;
+  }, {} as Record<string, typeof inboundItems[0]>);
+
+  const [photoViewLpn, setPhotoViewLpn] = useState<string | null>(null);
+  const photoInboundItem = photoViewLpn ? inboundByLpn[photoViewLpn] : null;
   const createMutation = useCreateOrder();
   const deleteMutation = useDeleteOrder();
   const bulkDeleteMutation = useBulkDeleteOrders();
@@ -184,6 +204,7 @@ export default function Orders() {
       warehouse_location: null,
       return_time: null,
       order_time: null,
+      grade: null,
     });
   };
 
@@ -388,6 +409,7 @@ export default function Orders() {
               station: "",
               removed_at: new Date().toISOString(),
               inbound_at: null,
+              grade: null,
             });
           }
 
@@ -713,6 +735,8 @@ export default function Orders() {
                 <TableHead className="font-semibold min-w-[100px]">LPN编号</TableHead>
                 <TableHead className="font-semibold min-w-[120px]">产品名称</TableHead>
                 <TableHead className="font-semibold min-w-[100px]">产品SKU</TableHead>
+                <TableHead className="font-semibold min-w-[70px] text-center">等级</TableHead>
+                <TableHead className="font-semibold min-w-[60px] text-center">照片</TableHead>
                 <TableHead className="font-semibold min-w-[80px]">店铺</TableHead>
                 <TableHead className="font-semibold min-w-[60px]">国家</TableHead>
                 <TableHead className="font-semibold min-w-[100px]">退货原因</TableHead>
@@ -724,34 +748,78 @@ export default function Orders() {
             <TableBody>
               {orders.length === 0 ? (
                 <TableRow>
-                  <TableCell colSpan={10} className="h-32 text-center text-muted-foreground">暂无订单记录</TableCell>
+                  <TableCell colSpan={12} className="h-32 text-center text-muted-foreground">暂无订单记录</TableCell>
                 </TableRow>
               ) : (
-                orders.map((item) => (
-                  <TableRow key={item.id} className="hover:bg-muted/30">
-                    <TableCell>
-                      <Checkbox checked={selectedIds.includes(item.id)} onCheckedChange={() => toggleSelect(item.id)} />
-                    </TableCell>
-                    <TableCell><code className="text-xs bg-muted px-1.5 py-0.5 rounded font-medium">{item.lpn}</code></TableCell>
-                    <TableCell><span className="line-clamp-1">{item.product_name || "-"}</span></TableCell>
-                    <TableCell><code className="text-xs bg-muted px-1.5 py-0.5 rounded">{item.product_sku || "-"}</code></TableCell>
-                    <TableCell className="text-muted-foreground">{item.store_name}</TableCell>
-                    <TableCell className="text-muted-foreground">{item.country || "-"}</TableCell>
-                    <TableCell className="text-muted-foreground">{item.return_reason || "-"}</TableCell>
-                    <TableCell className="text-center font-semibold">{item.return_quantity}</TableCell>
-                    <TableCell className="font-medium">{item.order_number}</TableCell>
-                    <TableCell>
-                      <div className="flex justify-center gap-1">
-                        <Button size="icon" variant="ghost" className="h-8 w-8" onClick={() => setSelectedOrder(item)}>
-                          <Eye className="h-4 w-4" />
-                        </Button>
-                        <Button size="icon" variant="ghost" className="h-8 w-8 text-destructive hover:text-destructive" onClick={() => setDeleteId(item.id)}>
+                orders.map((item) => {
+                  const inboundItem = inboundByLpn[item.lpn];
+                  const hasPhotos = inboundItem?.product_photo || inboundItem?.package_photo;
+                  // 优先显示订单表中的 grade，否则显示入库记录的 grade
+                  const displayGrade = item.grade || inboundItem?.grade;
+                  
+                  return (
+                    <TableRow key={item.id} className="hover:bg-muted/30">
+                      <TableCell>
+                        <Checkbox checked={selectedIds.includes(item.id)} onCheckedChange={() => toggleSelect(item.id)} />
+                      </TableCell>
+                      <TableCell><code className="text-xs bg-muted px-1.5 py-0.5 rounded font-medium">{item.lpn}</code></TableCell>
+                      <TableCell><span className="line-clamp-1">{item.product_name || "-"}</span></TableCell>
+                      <TableCell><code className="text-xs bg-muted px-1.5 py-0.5 rounded">{item.product_sku || "-"}</code></TableCell>
+                      <TableCell className="text-center">
+                        <Select
+                          value={item.grade || "none"}
+                          onValueChange={(value) => {
+                            updateOrderMutation.mutate({
+                              id: item.id,
+                              grade: value === "none" ? null : value,
+                            });
+                          }}
+                        >
+                          <SelectTrigger className="h-7 w-16 text-xs">
+                            <SelectValue>
+                              {displayGrade ? <GradeBadge grade={displayGrade as "A" | "B" | "C"} /> : "-"}
+                            </SelectValue>
+                          </SelectTrigger>
+                          <SelectContent>
+                            <SelectItem value="none">未评级</SelectItem>
+                            <SelectItem value="A"><GradeBadge grade="A" /></SelectItem>
+                            <SelectItem value="B"><GradeBadge grade="B" /></SelectItem>
+                            <SelectItem value="C"><GradeBadge grade="C" /></SelectItem>
+                          </SelectContent>
+                        </Select>
+                      </TableCell>
+                      <TableCell className="text-center">
+                        {hasPhotos ? (
+                          <Button
+                            size="icon"
+                            variant="ghost"
+                            className="h-8 w-8 text-primary"
+                            onClick={() => setPhotoViewLpn(item.lpn)}
+                          >
+                            <Camera className="h-4 w-4" />
+                          </Button>
+                        ) : (
+                          <span className="text-muted-foreground text-xs">-</span>
+                        )}
+                      </TableCell>
+                      <TableCell className="text-muted-foreground">{item.store_name}</TableCell>
+                      <TableCell className="text-muted-foreground">{item.country || "-"}</TableCell>
+                      <TableCell className="text-muted-foreground">{item.return_reason || "-"}</TableCell>
+                      <TableCell className="text-center font-semibold">{item.return_quantity}</TableCell>
+                      <TableCell className="font-medium">{item.order_number}</TableCell>
+                      <TableCell>
+                        <div className="flex justify-center gap-1">
+                          <Button size="icon" variant="ghost" className="h-8 w-8" onClick={() => setSelectedOrder(item)}>
+                            <Eye className="h-4 w-4" />
+                          </Button>
+                          <Button size="icon" variant="ghost" className="h-8 w-8 text-destructive hover:text-destructive" onClick={() => setDeleteId(item.id)}>
                           <Trash2 className="h-4 w-4" />
                         </Button>
                       </div>
                     </TableCell>
                   </TableRow>
-                ))
+                  );
+                })
               )}
             </TableBody>
           </Table>

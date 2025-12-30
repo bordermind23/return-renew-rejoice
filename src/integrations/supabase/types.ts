@@ -138,6 +138,7 @@ export type Database = {
           country: string | null
           created_at: string
           fnsku: string | null
+          grade: string | null
           id: string
           inbound_at: string | null
           inventory_attribute: string | null
@@ -162,6 +163,7 @@ export type Database = {
           country?: string | null
           created_at?: string
           fnsku?: string | null
+          grade?: string | null
           id?: string
           inbound_at?: string | null
           inventory_attribute?: string | null
@@ -186,6 +188,7 @@ export type Database = {
           country?: string | null
           created_at?: string
           fnsku?: string | null
+          grade?: string | null
           id?: string
           inbound_at?: string | null
           inventory_attribute?: string | null

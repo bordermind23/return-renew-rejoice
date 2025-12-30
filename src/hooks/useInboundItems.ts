@@ -111,3 +111,22 @@ export const useDeleteInboundItem = () => {
     },
   });
 };
+
+// 通过 LPN 获取入库记录（用于查看照片）
+export const useInboundItemByLpn = (lpn: string | null) => {
+  return useQuery({
+    queryKey: ["inbound_items", "by_lpn", lpn],
+    queryFn: async () => {
+      if (!lpn) return null;
+      const { data, error } = await supabase
+        .from("inbound_items")
+        .select("*")
+        .eq("lpn", lpn)
+        .maybeSingle();
+
+      if (error) throw error;
+      return data as InboundItem | null;
+    },
+    enabled: !!lpn,
+  });
+};

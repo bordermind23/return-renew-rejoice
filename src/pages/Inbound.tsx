@@ -66,6 +66,7 @@ export default function Inbound() {
   const [trackingInput, setTrackingInput] = useState("");
   const [lpnInput, setLpnInput] = useState("");
   const [matchedShipment, setMatchedShipment] = useState<RemovalShipment | null>(null);
+  const [matchedShipments, setMatchedShipments] = useState<RemovalShipment[]>([]); // 同一跟踪号下的所有货件
   const [matchedOrders, setMatchedOrders] = useState<Order[]>([]);
   const [scannedLpns, setScannedLpns] = useState<string[]>([]);
   const [currentLpn, setCurrentLpn] = useState("");
@@ -92,11 +93,21 @@ export default function Inbound() {
   const updateInventoryMutation = useUpdateInventoryStock();
   const decreaseInventoryMutation = useDecreaseInventoryStock();
 
-  // 通过 SKU 找到对应产品并获取其配件
-  const matchedProduct = matchedShipment 
-    ? products?.find(p => p.sku === matchedShipment.product_sku)
+  // 通过 SKU 找到对应产品并获取其配件（优先从 matchedOrders 获取 SKU）
+  const currentOrderSku = matchedOrders.length > 0 && matchedOrders[0].product_sku
+    ? matchedOrders[0].product_sku
+    : matchedShipment?.product_sku;
+  const matchedProduct = currentOrderSku
+    ? products?.find(p => p.sku === currentOrderSku)
     : null;
   const { data: productParts } = useProductParts(matchedProduct?.id || null);
+
+  // 计算同一跟踪号下的总数量
+  const getTotalQuantityByTracking = (trackingNumber: string) => {
+    return (shipments || [])
+      .filter(s => s.tracking_number === trackingNumber)
+      .reduce((sum, s) => sum + s.quantity, 0);
+  };
 
   // 自动聚焦输入框
   useEffect(() => {
@@ -111,14 +122,17 @@ export default function Inbound() {
   useEffect(() => {
     const trackingFromUrl = searchParams.get("tracking");
     if (trackingFromUrl && shipments) {
-      const found = shipments.find(
+      // 找到所有匹配该跟踪号的货件
+      const allMatched = shipments.filter(
         s => s.tracking_number.toLowerCase() === trackingFromUrl.toLowerCase()
       );
-      if (found) {
-        const inboundedCount = getInboundedCount(found.tracking_number);
-        if (inboundedCount < found.quantity) {
-          setMatchedShipment(found);
-          setTrackingInput(found.tracking_number);
+      if (allMatched.length > 0) {
+        const totalQuantity = allMatched.reduce((sum, s) => sum + s.quantity, 0);
+        const inboundedCount = getInboundedCount(trackingFromUrl);
+        if (inboundedCount < totalQuantity) {
+          setMatchedShipment(allMatched[0]);
+          setMatchedShipments(allMatched);
+          setTrackingInput(allMatched[0].tracking_number);
           setCurrentStep("scan_lpn");
         }
       }
@@ -137,25 +151,31 @@ export default function Inbound() {
       return;
     }
 
-    const found = shipments?.find(
+    // 找到所有匹配该跟踪号的货件
+    const allMatched = shipments?.filter(
       s => s.tracking_number.toLowerCase() === trackingInput.trim().toLowerCase()
-    );
+    ) || [];
 
-    if (!found) {
+    if (allMatched.length === 0) {
       toast.error(`未找到物流跟踪号: ${trackingInput}`);
       return;
     }
 
-    const inboundedCount = getInboundedCount(found.tracking_number);
-    if (inboundedCount >= found.quantity) {
-      toast.warning(`该物流号下的 ${found.quantity} 件货物已全部入库`);
+    const totalQuantity = allMatched.reduce((sum, s) => sum + s.quantity, 0);
+    const inboundedCount = getInboundedCount(allMatched[0].tracking_number);
+    if (inboundedCount >= totalQuantity) {
+      toast.warning(`该物流号下的 ${totalQuantity} 件货物已全部入库`);
       return;
     }
 
-    setMatchedShipment(found);
+    setMatchedShipment(allMatched[0]);
+    setMatchedShipments(allMatched);
     setScannedLpns([]);
     setCurrentStep("scan_lpn");
-    toast.success(`匹配成功: ${found.product_name}`);
+    
+    // 显示匹配到的所有产品
+    const productNames = [...new Set(allMatched.map(s => s.product_name))];
+    toast.success(`匹配成功: ${allMatched.length} 种产品 (${productNames.slice(0, 2).join(", ")}${productNames.length > 2 ? "..." : ""})`);
   };
 
   // 通过后端按 LPN 精确查询（避免 1000 行上限导致漏数据）
@@ -215,25 +235,31 @@ export default function Inbound() {
   // 处理摄像头扫描物流号
   const handleCameraScanTracking = (code: string) => {
     setTrackingInput(code);
-    const found = shipments?.find(
+    
+    // 找到所有匹配该跟踪号的货件
+    const allMatched = shipments?.filter(
       s => s.tracking_number.toLowerCase() === code.trim().toLowerCase()
-    );
+    ) || [];
 
-    if (!found) {
+    if (allMatched.length === 0) {
       toast.error(`未找到物流跟踪号: ${code}`);
       return;
     }
 
-    const inboundedCount = getInboundedCount(found.tracking_number);
-    if (inboundedCount >= found.quantity) {
-      toast.warning(`该物流号下的 ${found.quantity} 件货物已全部入库`);
+    const totalQuantity = allMatched.reduce((sum, s) => sum + s.quantity, 0);
+    const inboundedCount = getInboundedCount(allMatched[0].tracking_number);
+    if (inboundedCount >= totalQuantity) {
+      toast.warning(`该物流号下的 ${totalQuantity} 件货物已全部入库`);
       return;
     }
 
-    setMatchedShipment(found);
+    setMatchedShipment(allMatched[0]);
+    setMatchedShipments(allMatched);
     setScannedLpns([]);
     setCurrentStep("scan_lpn");
-    toast.success(`匹配成功: ${found.product_name}`);
+    
+    const productNames = [...new Set(allMatched.map(s => s.product_name))];
+    toast.success(`匹配成功: ${allMatched.length} 种产品 (${productNames.slice(0, 2).join(", ")}${productNames.length > 2 ? "..." : ""})`);
   };
 
   // 处理摄像头扫描LPN
@@ -265,10 +291,13 @@ export default function Inbound() {
       : matchedShipment.product_name;
     const returnQty = matchedOrders.length > 0 ? (matchedOrders[0].return_quantity || 1) : 1;
 
+    // 根据 SKU 找到对应的 shipment（可能是 matchedShipments 中的某一个）
+    const matchingShipmentBySku = matchedShipments.find(s => s.product_sku === orderSku) || matchedShipment;
+
     createMutation.mutate(
       {
         lpn: currentLpn,
-        removal_order_id: matchedShipment.order_id,
+        removal_order_id: matchingShipmentBySku.order_id,
         product_sku: orderSku,
         product_name: orderProductName,
         return_reason: returnReason || null,
@@ -277,7 +306,7 @@ export default function Inbound() {
         processed_at: new Date().toISOString(),
         processed_by: "操作员",
         tracking_number: matchedShipment.tracking_number,
-        shipment_id: matchedShipment.id,
+        shipment_id: matchingShipmentBySku.id,
         // 照片字段
         lpn_label_photo: capturedPhotos.lpn_label_photo || null,
         packaging_photo_1: capturedPhotos.packaging_photo_1 || null,
@@ -302,19 +331,22 @@ export default function Inbound() {
           const newScannedLpns = [...scannedLpns, currentLpn];
           setScannedLpns(newScannedLpns);
           
-          // 检查是否全部完成
+          // 检查是否全部完成 - 使用整个跟踪号下的总数量
           const totalInbounded = getInboundedCount(matchedShipment.tracking_number) + 1;
+          const totalQuantity = matchedShipments.reduce((sum, s) => sum + s.quantity, 0);
           
-          if (totalInbounded >= matchedShipment.quantity) {
-            // 更新货件状态为已入库
-            updateShipmentMutation.mutate({
-              id: matchedShipment.id,
-              status: "inbound"
+          if (totalInbounded >= totalQuantity) {
+            // 更新所有相关货件状态为已入库
+            matchedShipments.forEach(shipment => {
+              updateShipmentMutation.mutate({
+                id: shipment.id,
+                status: "inbound"
+              });
             });
-            toast.success(`所有 ${matchedShipment.quantity} 件货物已全部入库！`);
+            toast.success(`所有 ${totalQuantity} 件货物已全部入库！`);
             handleReset();
           } else {
-            toast.success(`入库成功！还剩 ${matchedShipment.quantity - totalInbounded} 件待入库`);
+            toast.success(`入库成功！还剩 ${totalQuantity - totalInbounded} 件待入库`);
           }
           
           setIsProcessDialogOpen(false);
@@ -341,6 +373,7 @@ export default function Inbound() {
   const handleReset = () => {
     setCurrentStep("scan_tracking");
     setMatchedShipment(null);
+    setMatchedShipments([]);
     setScannedLpns([]);
     setTrackingInput("");
     setLpnInput("");
@@ -474,7 +507,7 @@ export default function Inbound() {
               <div className="flex items-center justify-between">
                 <CardTitle className="flex items-center gap-2 text-lg">
                   <PackageCheck className="h-5 w-5 text-green-500" />
-                  已匹配货件
+                  已匹配货件 {matchedShipments.length > 1 && `(${matchedShipments.length} 种产品)`}
                 </CardTitle>
                 <Button variant="outline" size="sm" onClick={handleReset}>
                   重新扫描
@@ -489,44 +522,51 @@ export default function Inbound() {
                 </div>
                 <div>
                   <p className="text-muted-foreground">移除订单号</p>
-                  <p className="font-medium">{matchedShipment.order_id}</p>
-                </div>
-                <div>
-                  <p className="text-muted-foreground">产品名称</p>
-                  <p className="font-medium">{matchedShipment.product_name}</p>
-                </div>
-                <div>
-                  <p className="text-muted-foreground">产品SKU</p>
-                  <p className="font-medium">{matchedShipment.product_sku}</p>
+                  <p className="font-medium">
+                    {matchedShipments.length > 1 
+                      ? `${[...new Set(matchedShipments.map(s => s.order_id))].length} 个订单`
+                      : matchedShipment.order_id
+                    }
+                  </p>
                 </div>
                 <div>
                   <p className="text-muted-foreground">承运商</p>
                   <p className="font-medium">{matchedShipment.carrier}</p>
                 </div>
                 <div>
-                  <p className="text-muted-foreground">店铺</p>
-                  <p className="font-medium">{matchedShipment.store_name || "-"}</p>
-                </div>
-                <div>
-                  <p className="text-muted-foreground">国家</p>
-                  <p className="font-medium">{matchedShipment.country || "-"}</p>
-                </div>
-                <div>
                   <p className="text-muted-foreground">总件数</p>
-                  <p className="font-medium">{matchedShipment.quantity} 件</p>
+                  <p className="font-medium">{matchedShipments.reduce((sum, s) => sum + s.quantity, 0)} 件</p>
                 </div>
               </div>
+
+              {/* 产品列表 */}
+              {matchedShipments.length > 0 && (
+                <div className="mt-4 pt-4 border-t">
+                  <p className="text-sm text-muted-foreground mb-2">包含产品：</p>
+                  <div className="space-y-2">
+                    {matchedShipments.map((shipment, idx) => (
+                      <div key={idx} className="flex items-center justify-between text-sm bg-muted/30 rounded-md px-3 py-2">
+                        <div className="flex items-center gap-3">
+                          <code className="text-xs bg-muted px-1.5 py-0.5 rounded">{shipment.product_sku}</code>
+                          <span className="text-muted-foreground">{shipment.product_name}</span>
+                        </div>
+                        <Badge variant="outline">{shipment.quantity} 件</Badge>
+                      </div>
+                    ))}
+                  </div>
+                </div>
+              )}
 
               {/* 入库进度 */}
               <div className="mt-4 pt-4 border-t">
                 <div className="flex items-center justify-between mb-2">
                   <span className="text-sm text-muted-foreground">入库进度</span>
                   <span className="text-sm font-medium">
-                    {getInboundedCount(matchedShipment.tracking_number) + scannedLpns.length} / {matchedShipment.quantity}
+                    {getInboundedCount(matchedShipment.tracking_number) + scannedLpns.length} / {matchedShipments.reduce((sum, s) => sum + s.quantity, 0)}
                   </span>
                 </div>
                 <Progress 
-                  value={((getInboundedCount(matchedShipment.tracking_number) + scannedLpns.length) / matchedShipment.quantity) * 100} 
+                  value={((getInboundedCount(matchedShipment.tracking_number) + scannedLpns.length) / matchedShipments.reduce((sum, s) => sum + s.quantity, 0)) * 100} 
                 />
               </div>
             </CardContent>

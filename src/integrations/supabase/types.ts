@@ -34,12 +34,21 @@ export type Database = {
       }
       inbound_items: {
         Row: {
+          accessories_photo: string | null
           created_at: string
+          detail_photo: string | null
           grade: string
           id: string
           lpn: string
+          lpn_label_photo: string | null
           missing_parts: string[] | null
           package_photo: string | null
+          packaging_photo_1: string | null
+          packaging_photo_2: string | null
+          packaging_photo_3: string | null
+          packaging_photo_4: string | null
+          packaging_photo_5: string | null
+          packaging_photo_6: string | null
           processed_at: string
           processed_by: string
           product_name: string
@@ -51,12 +60,21 @@ export type Database = {
           tracking_number: string | null
         }
         Insert: {
+          accessories_photo?: string | null
           created_at?: string
+          detail_photo?: string | null
           grade?: string
           id?: string
           lpn: string
+          lpn_label_photo?: string | null
           missing_parts?: string[] | null
           package_photo?: string | null
+          packaging_photo_1?: string | null
+          packaging_photo_2?: string | null
+          packaging_photo_3?: string | null
+          packaging_photo_4?: string | null
+          packaging_photo_5?: string | null
+          packaging_photo_6?: string | null
           processed_at?: string
           processed_by: string
           product_name: string
@@ -68,12 +86,21 @@ export type Database = {
           tracking_number?: string | null
         }
         Update: {
+          accessories_photo?: string | null
           created_at?: string
+          detail_photo?: string | null
           grade?: string
           id?: string
           lpn?: string
+          lpn_label_photo?: string | null
           missing_parts?: string[] | null
           package_photo?: string | null
+          packaging_photo_1?: string | null
+          packaging_photo_2?: string | null
+          packaging_photo_3?: string | null
+          packaging_photo_4?: string | null
+          packaging_photo_5?: string | null
+          packaging_photo_6?: string | null
           processed_at?: string
           processed_by?: string
           product_name?: string

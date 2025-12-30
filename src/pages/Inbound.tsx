@@ -49,6 +49,7 @@ import { useProducts, useProductParts, type ProductPart } from "@/hooks/useProdu
 import { Skeleton } from "@/components/ui/skeleton";
 import { toast } from "sonner";
 import { Scanner } from "@/components/Scanner";
+import { SequentialPhotoCapture } from "@/components/SequentialPhotoCapture";
 import { cn } from "@/lib/utils";
 
 type InboundStep = "scan_tracking" | "scan_lpn" | "process";
@@ -68,6 +69,8 @@ export default function Inbound() {
   const [deleteId, setDeleteId] = useState<string | null>(null);
   const [notes, setNotes] = useState("");
   const [returnReason, setReturnReason] = useState("");
+  const [isPhotoCaptureOpen, setIsPhotoCaptureOpen] = useState(false);
+  const [capturedPhotos, setCapturedPhotos] = useState<Record<string, string>>({});
   
   const lpnInputRef = useRef<HTMLInputElement>(null);
   const trackingInputRef = useRef<HTMLInputElement>(null);
@@ -234,6 +237,16 @@ export default function Inbound() {
         processed_by: "操作员",
         tracking_number: matchedShipment.tracking_number,
         shipment_id: matchedShipment.id,
+        // 照片字段
+        lpn_label_photo: capturedPhotos.lpn_label_photo || null,
+        packaging_photo_1: capturedPhotos.packaging_photo_1 || null,
+        packaging_photo_2: capturedPhotos.packaging_photo_2 || null,
+        packaging_photo_3: capturedPhotos.packaging_photo_3 || null,
+        packaging_photo_4: capturedPhotos.packaging_photo_4 || null,
+        packaging_photo_5: capturedPhotos.packaging_photo_5 || null,
+        packaging_photo_6: capturedPhotos.packaging_photo_6 || null,
+        accessories_photo: capturedPhotos.accessories_photo || null,
+        detail_photo: capturedPhotos.detail_photo || null,
       },
       {
         onSuccess: () => {
@@ -281,6 +294,7 @@ export default function Inbound() {
     setNotes("");
     setReturnReason("");
     setCurrentLpn("");
+    setCapturedPhotos({});
   };
 
   const handleReset = () => {
@@ -570,25 +584,33 @@ export default function Inbound() {
               </div>
 
               {/* 拍照上传 */}
-              <div className="grid grid-cols-2 gap-3">
-                <div className="space-y-2">
-                  <Label className="text-sm">产品包装照片</Label>
-                  <div className="flex h-24 cursor-pointer items-center justify-center rounded-lg border-2 border-dashed border-muted-foreground/30 transition-colors hover:border-primary/50 hover:bg-primary/5">
-                    <div className="text-center">
-                      <Camera className="mx-auto h-6 w-6 text-muted-foreground" />
-                      <span className="mt-1 block text-xs text-muted-foreground">点击上传</span>
-                    </div>
+              <div className="space-y-2">
+                <Label className="text-sm">产品拍照 ({Object.keys(capturedPhotos).length}/9)</Label>
+                <Button
+                  type="button"
+                  variant="outline"
+                  className="w-full h-20 border-2 border-dashed"
+                  onClick={() => setIsPhotoCaptureOpen(true)}
+                >
+                  <div className="text-center">
+                    <Camera className="mx-auto h-6 w-6 text-muted-foreground" />
+                    <span className="mt-1 block text-sm text-muted-foreground">
+                      {Object.keys(capturedPhotos).length > 0 
+                        ? `已拍摄 ${Object.keys(capturedPhotos).length} 张，点击继续` 
+                        : "点击开始顺序拍照"}
+                    </span>
                   </div>
-                </div>
-                <div className="space-y-2">
-                  <Label className="text-sm">产品内部照片</Label>
-                  <div className="flex h-24 cursor-pointer items-center justify-center rounded-lg border-2 border-dashed border-muted-foreground/30 transition-colors hover:border-primary/50 hover:bg-primary/5">
-                    <div className="text-center">
-                      <Camera className="mx-auto h-6 w-6 text-muted-foreground" />
-                      <span className="mt-1 block text-xs text-muted-foreground">点击上传</span>
-                    </div>
+                </Button>
+                {/* 已拍摄缩略图 */}
+                {Object.keys(capturedPhotos).length > 0 && (
+                  <div className="flex gap-2 overflow-x-auto pb-1">
+                    {Object.entries(capturedPhotos).map(([key, url]) => (
+                      <div key={key} className="flex-shrink-0 w-12 h-12 rounded overflow-hidden border">
+                        <img src={url} alt={key} className="w-full h-full object-cover" />
+                      </div>
+                    ))}
                   </div>
-                </div>
+                )}
               </div>
 
               {/* 级别选择 - 改为点击框 */}
@@ -799,6 +821,20 @@ export default function Inbound() {
           </AlertDialogFooter>
         </AlertDialogContent>
       </AlertDialog>
+
+      {/* 顺序拍照弹窗 */}
+      <Dialog open={isPhotoCaptureOpen} onOpenChange={setIsPhotoCaptureOpen}>
+        <DialogContent className="max-w-full h-[90vh] p-0 overflow-hidden">
+          <SequentialPhotoCapture
+            lpn={currentLpn}
+            onComplete={(photos) => {
+              setCapturedPhotos(photos);
+              setIsPhotoCaptureOpen(false);
+            }}
+            onCancel={() => setIsPhotoCaptureOpen(false)}
+          />
+        </DialogContent>
+      </Dialog>
     </div>
   );
 }

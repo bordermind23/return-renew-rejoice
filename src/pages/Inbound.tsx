@@ -180,16 +180,8 @@ export default function Inbound() {
     setCurrentLpn(lpn);
     console.log("[handleScanLpn] Found orders for LPN:", lpn, lpnOrders);
     setMatchedOrders(lpnOrders);
-    setLpnInput("");
-
-    // 手机端跳转到新页面处理
-    if (isMobile && matchedShipment) {
-      navigate(`/inbound/process?lpn=${encodeURIComponent(lpn)}&tracking=${encodeURIComponent(matchedShipment.tracking_number)}`);
-      return;
-    }
-
-    // 桌面端打开弹窗
     setIsProcessDialogOpen(true);
+    setLpnInput("");
   };
 
   // 处理摄像头扫描物流号

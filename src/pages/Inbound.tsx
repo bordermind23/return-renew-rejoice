@@ -50,6 +50,7 @@ import {
 } from "@/hooks/useInboundItems";
 import { useRemovalShipments, useUpdateRemovalShipment, type RemovalShipment } from "@/hooks/useRemovalShipments";
 import { useOrders, type Order } from "@/hooks/useOrders";
+import { useUpdateInventoryStock } from "@/hooks/useInventoryItems";
 import { Skeleton } from "@/components/ui/skeleton";
 import { toast } from "sonner";
 import { Scanner } from "@/components/Scanner";
@@ -89,6 +90,7 @@ export default function Inbound() {
   const createMutation = useCreateInboundItem();
   const deleteMutation = useDeleteInboundItem();
   const updateShipmentMutation = useUpdateRemovalShipment();
+  const updateInventoryMutation = useUpdateInventoryStock();
 
   // 自动聚焦输入框
   useEffect(() => {
@@ -239,6 +241,14 @@ export default function Inbound() {
       },
       {
         onSuccess: () => {
+          // 同步更新库存
+          updateInventoryMutation.mutate({
+            sku: matchedShipment.product_sku,
+            product_name: matchedShipment.product_name,
+            grade: selectedGrade as "A" | "B" | "C" | "new",
+            quantity: 1,
+          });
+
           const newScannedLpns = [...scannedLpns, currentLpn];
           setScannedLpns(newScannedLpns);
           

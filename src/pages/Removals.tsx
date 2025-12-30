@@ -959,7 +959,7 @@ export default function Removals() {
                         </TableCell>
                         <TableCell></TableCell>
                         <TableCell>
-                          <span className="font-medium text-primary">{item.order_id}</span>
+                          <span className="font-medium text-primary text-sm">{item.order_id}</span>
                         </TableCell>
                         <TableCell>
                           <code className="text-xs bg-muted px-1.5 py-0.5 rounded">{item.tracking_number}</code>
@@ -1032,9 +1032,9 @@ export default function Removals() {
                           </CollapsibleTrigger>
                           <CollapsibleTrigger asChild>
                             <TableCell onClick={() => toggleGroup(group.orderId)}>
-                              <code className="text-xs bg-primary/10 text-primary px-2 py-1 rounded font-medium">
+                              <span className="font-medium text-primary text-sm">
                                 {group.orderId}
-                              </code>
+                              </span>
                             </TableCell>
                           </CollapsibleTrigger>
                           <CollapsibleTrigger asChild>

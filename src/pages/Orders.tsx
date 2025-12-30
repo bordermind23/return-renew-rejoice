@@ -1,5 +1,5 @@
 import { useState, useRef } from "react";
-import { Search, Filter, Eye, Plus, Trash2, Upload, Download, FileSpreadsheet, ChevronDown, AlertCircle, CheckCircle2, Loader2, Edit, SquareCheck, Square } from "lucide-react";
+import { Search, Filter, Eye, Plus, Trash2, Upload, Download, FileSpreadsheet, ChevronDown, AlertCircle, CheckCircle2, Loader2, Edit, ChevronLeft, ChevronRight, ChevronsLeft, ChevronsRight } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { PageHeader } from "@/components/ui/page-header";
@@ -48,7 +48,8 @@ import {
 import { ScrollArea, ScrollBar } from "@/components/ui/scroll-area";
 import { Checkbox } from "@/components/ui/checkbox";
 import {
-  useOrders,
+  useOrdersPaginated,
+  useOrderStores,
   useCreateOrder,
   useDeleteOrder,
   useBulkDeleteOrders,
@@ -85,7 +86,10 @@ const templateHeaders = [
 
 export default function Orders() {
   const [searchTerm, setSearchTerm] = useState("");
+  const [debouncedSearch, setDebouncedSearch] = useState("");
   const [storeFilter, setStoreFilter] = useState<string>("all");
+  const [currentPage, setCurrentPage] = useState(1);
+  const [pageSize, setPageSize] = useState(50);
   const [selectedOrder, setSelectedOrder] = useState<Order | null>(null);
   const [isDialogOpen, setIsDialogOpen] = useState(false);
   const [deleteId, setDeleteId] = useState<string | null>(null);
@@ -94,6 +98,7 @@ export default function Orders() {
   const [isBulkEditOpen, setIsBulkEditOpen] = useState(false);
   const [bulkEditData, setBulkEditData] = useState<OrderUpdate>({});
   const fileInputRef = useRef<HTMLInputElement>(null);
+  const searchTimeoutRef = useRef<NodeJS.Timeout>();
 
   const [importProgress, setImportProgress] = useState<ImportProgress>({
     isImporting: false,
@@ -127,27 +132,35 @@ export default function Orders() {
     order_time: null,
   });
 
-  const { data: orders, isLoading } = useOrders();
+  const { data: paginatedData, isLoading } = useOrdersPaginated(currentPage, pageSize, debouncedSearch, storeFilter);
+  const { data: stores = [] } = useOrderStores();
   const createMutation = useCreateOrder();
   const deleteMutation = useDeleteOrder();
   const bulkDeleteMutation = useBulkDeleteOrders();
   const bulkUpdateMutation = useBulkUpdateOrders();
   const bulkCreateMutation = useBulkCreateOrders();
 
-  const filteredData = (orders || []).filter((item) => {
-    const matchesSearch =
-      item.order_number.toLowerCase().includes(searchTerm.toLowerCase()) ||
-      item.lpn.toLowerCase().includes(searchTerm.toLowerCase()) ||
-      item.store_name.toLowerCase().includes(searchTerm.toLowerCase()) ||
-      (item.product_name || "").toLowerCase().includes(searchTerm.toLowerCase());
+  const orders = paginatedData?.data || [];
+  const totalCount = paginatedData?.totalCount || 0;
+  const totalPages = paginatedData?.totalPages || 1;
 
-    const matchesStore =
-      storeFilter === "all" || item.store_name === storeFilter;
+  // 搜索防抖
+  const handleSearchChange = (value: string) => {
+    setSearchTerm(value);
+    if (searchTimeoutRef.current) {
+      clearTimeout(searchTimeoutRef.current);
+    }
+    searchTimeoutRef.current = setTimeout(() => {
+      setDebouncedSearch(value);
+      setCurrentPage(1);
+    }, 300);
+  };
 
-    return matchesSearch && matchesStore;
-  });
-
-  const stores = [...new Set((orders || []).map((o) => o.store_name))];
+  // 店铺筛选变化时重置页码
+  const handleStoreFilterChange = (value: string) => {
+    setStoreFilter(value);
+    setCurrentPage(1);
+  };
 
   const resetForm = () => {
     setFormData({
@@ -210,10 +223,10 @@ export default function Orders() {
 
   // 批量选择
   const toggleSelectAll = () => {
-    if (selectedIds.length === filteredData.length) {
+    if (selectedIds.length === orders.length) {
       setSelectedIds([]);
     } else {
-      setSelectedIds(filteredData.map(item => item.id));
+      setSelectedIds(orders.map(item => item.id));
     }
   };
 
@@ -672,9 +685,9 @@ export default function Orders() {
       <div className="flex flex-col gap-4 sm:flex-row">
         <div className="relative flex-1">
           <Search className="absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-muted-foreground" />
-          <Input placeholder="搜索订单号、LPN或店铺名称..." value={searchTerm} onChange={(e) => setSearchTerm(e.target.value)} className="pl-10" />
+          <Input placeholder="搜索订单号、LPN或店铺名称..." value={searchTerm} onChange={(e) => handleSearchChange(e.target.value)} className="pl-10" />
         </div>
-        <Select value={storeFilter} onValueChange={setStoreFilter}>
+        <Select value={storeFilter} onValueChange={handleStoreFilterChange}>
           <SelectTrigger className="w-full sm:w-48">
             <Filter className="mr-2 h-4 w-4" />
             <SelectValue placeholder="店铺筛选" />
@@ -695,7 +708,7 @@ export default function Orders() {
             <TableHeader>
               <TableRow className="bg-muted/50 hover:bg-muted/50">
                 <TableHead className="w-10">
-                  <Checkbox checked={selectedIds.length === filteredData.length && filteredData.length > 0} onCheckedChange={toggleSelectAll} />
+                  <Checkbox checked={selectedIds.length === orders.length && orders.length > 0} onCheckedChange={toggleSelectAll} />
                 </TableHead>
                 <TableHead className="font-semibold min-w-[100px]">LPN编号</TableHead>
                 <TableHead className="font-semibold min-w-[120px]">产品名称</TableHead>
@@ -709,12 +722,12 @@ export default function Orders() {
               </TableRow>
             </TableHeader>
             <TableBody>
-              {filteredData.length === 0 ? (
+              {orders.length === 0 ? (
                 <TableRow>
                   <TableCell colSpan={10} className="h-32 text-center text-muted-foreground">暂无订单记录</TableCell>
                 </TableRow>
               ) : (
-                filteredData.map((item) => (
+                orders.map((item) => (
                   <TableRow key={item.id} className="hover:bg-muted/30">
                     <TableCell>
                       <Checkbox checked={selectedIds.includes(item.id)} onCheckedChange={() => toggleSelect(item.id)} />
@@ -746,7 +759,69 @@ export default function Orders() {
         </ScrollArea>
       </Card>
 
-      <div className="text-sm text-muted-foreground">共 {filteredData.length} 条记录</div>
+      {/* 分页控件 */}
+      <div className="flex flex-col sm:flex-row items-center justify-between gap-4">
+        <div className="flex items-center gap-4 text-sm text-muted-foreground">
+          <span>共 {totalCount} 条记录</span>
+          <div className="flex items-center gap-2">
+            <span>每页</span>
+            <Select value={String(pageSize)} onValueChange={(v) => { setPageSize(Number(v)); setCurrentPage(1); }}>
+              <SelectTrigger className="w-20 h-8">
+                <SelectValue />
+              </SelectTrigger>
+              <SelectContent>
+                <SelectItem value="20">20</SelectItem>
+                <SelectItem value="50">50</SelectItem>
+                <SelectItem value="100">100</SelectItem>
+              </SelectContent>
+            </Select>
+            <span>条</span>
+          </div>
+        </div>
+        <div className="flex items-center gap-2">
+          <span className="text-sm text-muted-foreground">
+            第 {currentPage} / {totalPages} 页
+          </span>
+          <div className="flex gap-1">
+            <Button
+              variant="outline"
+              size="icon"
+              className="h-8 w-8"
+              onClick={() => setCurrentPage(1)}
+              disabled={currentPage === 1}
+            >
+              <ChevronsLeft className="h-4 w-4" />
+            </Button>
+            <Button
+              variant="outline"
+              size="icon"
+              className="h-8 w-8"
+              onClick={() => setCurrentPage(p => Math.max(1, p - 1))}
+              disabled={currentPage === 1}
+            >
+              <ChevronLeft className="h-4 w-4" />
+            </Button>
+            <Button
+              variant="outline"
+              size="icon"
+              className="h-8 w-8"
+              onClick={() => setCurrentPage(p => Math.min(totalPages, p + 1))}
+              disabled={currentPage === totalPages}
+            >
+              <ChevronRight className="h-4 w-4" />
+            </Button>
+            <Button
+              variant="outline"
+              size="icon"
+              className="h-8 w-8"
+              onClick={() => setCurrentPage(totalPages)}
+              disabled={currentPage === totalPages}
+            >
+              <ChevronsRight className="h-4 w-4" />
+            </Button>
+          </div>
+        </div>
+      </div>
 
       {/* 订单详情 */}
       <Dialog open={!!selectedOrder} onOpenChange={() => setSelectedOrder(null)}>

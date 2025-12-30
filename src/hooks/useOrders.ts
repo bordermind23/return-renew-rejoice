@@ -46,6 +46,68 @@ export const useOrders = () => {
   });
 };
 
+export const useOrdersPaginated = (page: number, pageSize: number = 50, searchTerm?: string, storeFilter?: string) => {
+  return useQuery({
+    queryKey: ["orders", "paginated", page, pageSize, searchTerm, storeFilter],
+    queryFn: async () => {
+      // 构建基础查询
+      let countQuery = supabase.from("orders").select("*", { count: "exact", head: true });
+      let dataQuery = supabase.from("orders").select("*");
+
+      // 应用搜索过滤
+      if (searchTerm) {
+        const search = `%${searchTerm}%`;
+        countQuery = countQuery.or(`order_number.ilike.${search},lpn.ilike.${search},store_name.ilike.${search},product_name.ilike.${search}`);
+        dataQuery = dataQuery.or(`order_number.ilike.${search},lpn.ilike.${search},store_name.ilike.${search},product_name.ilike.${search}`);
+      }
+
+      // 应用店铺过滤
+      if (storeFilter && storeFilter !== "all") {
+        countQuery = countQuery.eq("store_name", storeFilter);
+        dataQuery = dataQuery.eq("store_name", storeFilter);
+      }
+
+      // 获取总数
+      const { count, error: countError } = await countQuery;
+      if (countError) throw countError;
+
+      // 获取分页数据
+      const from = (page - 1) * pageSize;
+      const to = from + pageSize - 1;
+
+      const { data, error } = await dataQuery
+        .order("created_at", { ascending: false })
+        .range(from, to);
+
+      if (error) throw error;
+
+      return {
+        data: data as Order[],
+        totalCount: count || 0,
+        totalPages: Math.ceil((count || 0) / pageSize),
+        currentPage: page,
+      };
+    },
+  });
+};
+
+// 获取所有店铺（用于过滤下拉框）
+export const useOrderStores = () => {
+  return useQuery({
+    queryKey: ["orders", "stores"],
+    queryFn: async () => {
+      const { data, error } = await supabase
+        .from("orders")
+        .select("store_name")
+        .order("store_name");
+
+      if (error) throw error;
+      const stores = [...new Set(data.map((d) => d.store_name))];
+      return stores;
+    },
+  });
+};
+
 export const useCreateOrder = () => {
   const queryClient = useQueryClient();
 

@@ -1,5 +1,5 @@
 import { useState, useRef, useEffect, useCallback } from "react";
-import { Camera, Check, RotateCcw, X, ChevronRight, ImageIcon } from "lucide-react";
+import { Camera, Check, RotateCcw, X, ChevronRight, ImageIcon, SwitchCamera } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Progress } from "@/components/ui/progress";
 import { cn } from "@/lib/utils";
@@ -42,6 +42,7 @@ export function SequentialPhotoCapture({
   const [previewUrl, setPreviewUrl] = useState<string | null>(null);
   const [isUploading, setIsUploading] = useState(false);
   const [cameraReady, setCameraReady] = useState(false);
+  const [facingMode, setFacingMode] = useState<"user" | "environment">("user"); // 默认前置摄像头
   
   const videoRef = useRef<HTMLVideoElement>(null);
   const canvasRef = useRef<HTMLCanvasElement>(null);
@@ -53,14 +54,17 @@ export function SequentialPhotoCapture({
   // 初始化摄像头
   const initCamera = useCallback(async () => {
     try {
+      setCameraReady(false);
+      
       // 先停止现有流
       if (streamRef.current) {
         streamRef.current.getTracks().forEach(track => track.stop());
+        streamRef.current = null;
       }
 
       const stream = await navigator.mediaDevices.getUserMedia({
         video: {
-          facingMode: { ideal: "environment" },
+          facingMode: { ideal: facingMode },
           width: { ideal: 1920 },
           height: { ideal: 1080 },
         },
@@ -70,15 +74,26 @@ export function SequentialPhotoCapture({
       streamRef.current = stream;
       if (videoRef.current) {
         videoRef.current.srcObject = stream;
-        videoRef.current.onloadedmetadata = () => {
-          setCameraReady(true);
-        };
+        // 等待视频元数据加载完成
+        await new Promise<void>((resolve) => {
+          if (videoRef.current) {
+            videoRef.current.onloadedmetadata = () => {
+              videoRef.current?.play().then(() => {
+                setCameraReady(true);
+                resolve();
+              }).catch(() => {
+                setCameraReady(true);
+                resolve();
+              });
+            };
+          }
+        });
       }
     } catch (error) {
       console.error("无法访问摄像头:", error);
       toast.error("无法访问摄像头，请检查权限设置");
     }
-  }, []);
+  }, [facingMode]);
 
   // 停止摄像头
   const stopCamera = useCallback(() => {
@@ -87,6 +102,11 @@ export function SequentialPhotoCapture({
       streamRef.current = null;
     }
     setCameraReady(false);
+  }, []);
+
+  // 切换前后摄像头
+  const switchCamera = useCallback(() => {
+    setFacingMode(prev => prev === "user" ? "environment" : "user");
   }, []);
 
   useEffect(() => {
@@ -151,6 +171,8 @@ export function SequentialPhotoCapture({
       if (currentStepIndex < steps.length - 1) {
         setCurrentStepIndex(prev => prev + 1);
         toast.success(`${currentStep.label} 上传成功，请继续拍摄下一张`);
+        // 重新初始化摄像头以确保下一张照片正常工作
+        await initCamera();
       } else {
         // 全部完成
         toast.success("所有照片拍摄完成！");
@@ -243,7 +265,7 @@ export function SequentialPhotoCapture({
       </div>
 
       {/* 摄像头/预览区域 */}
-      <div className="flex-1 relative">
+      <div className="flex-1 relative min-h-0">
         {previewUrl ? (
           // 预览已拍照片
           <img
@@ -262,6 +284,18 @@ export function SequentialPhotoCapture({
           />
         )}
         
+        {/* 切换摄像头按钮 */}
+        {!previewUrl && (
+          <Button
+            variant="secondary"
+            size="icon"
+            className="absolute top-3 right-3 h-10 w-10 rounded-full bg-black/50 hover:bg-black/70 text-white"
+            onClick={switchCamera}
+          >
+            <SwitchCamera className="h-5 w-5" />
+          </Button>
+        )}
+        
         {/* 拍摄引导框 */}
         {!previewUrl && cameraReady && (
           <div className="absolute inset-0 flex items-center justify-center pointer-events-none">
@@ -269,6 +303,16 @@ export function SequentialPhotoCapture({
               <span className="text-white/70 text-sm bg-black/50 px-3 py-1 rounded">
                 {currentStep?.label}
               </span>
+            </div>
+          </div>
+        )}
+        
+        {/* 加载提示 */}
+        {!previewUrl && !cameraReady && (
+          <div className="absolute inset-0 flex items-center justify-center bg-black">
+            <div className="text-white text-center">
+              <div className="animate-spin rounded-full h-8 w-8 border-2 border-white border-t-transparent mx-auto mb-2" />
+              <span className="text-sm">正在启动摄像头...</span>
             </div>
           </div>
         )}

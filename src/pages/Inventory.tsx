@@ -1,5 +1,5 @@
 import { useState } from "react";
-import { Search, Filter, Download, Plus, Trash2, Edit } from "lucide-react";
+import { Search, Filter, Download } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { PageHeader } from "@/components/ui/page-header";
@@ -13,28 +13,12 @@ import {
   SelectValue,
 } from "@/components/ui/select";
 import {
-  Dialog,
-  DialogContent,
-  DialogHeader,
-  DialogTitle,
-  DialogTrigger,
-} from "@/components/ui/dialog";
-import { Label } from "@/components/ui/label";
-import {
-  AlertDialog,
-  AlertDialogAction,
-  AlertDialogCancel,
-  AlertDialogContent,
-  AlertDialogDescription,
-  AlertDialogFooter,
-  AlertDialogHeader,
-  AlertDialogTitle,
-} from "@/components/ui/alert-dialog";
+  HoverCard,
+  HoverCardContent,
+  HoverCardTrigger,
+} from "@/components/ui/hover-card";
 import {
   useInventoryItems,
-  useCreateInventoryItem,
-  useUpdateInventoryItem,
-  useDeleteInventoryItem,
   type InventoryItem,
 } from "@/hooks/useInventoryItems";
 import { Skeleton } from "@/components/ui/skeleton";
@@ -43,25 +27,8 @@ import { toast } from "sonner";
 export default function Inventory() {
   const [searchTerm, setSearchTerm] = useState("");
   const [warehouseFilter, setWarehouseFilter] = useState<string>("all");
-  const [isDialogOpen, setIsDialogOpen] = useState(false);
-  const [editingItem, setEditingItem] = useState<InventoryItem | null>(null);
-  const [deleteId, setDeleteId] = useState<string | null>(null);
-
-  const [formData, setFormData] = useState({
-    sku: "",
-    product_name: "",
-    product_category: "",
-    warehouse: "华东仓",
-    total_stock: 0,
-    grade_a_stock: 0,
-    grade_b_stock: 0,
-    grade_c_stock: 0,
-  });
 
   const { data: inventory, isLoading } = useInventoryItems();
-  const createMutation = useCreateInventoryItem();
-  const updateMutation = useUpdateInventoryItem();
-  const deleteMutation = useDeleteInventoryItem();
 
   const filteredData = (inventory || []).filter((item) => {
     const matchesSearch =
@@ -75,6 +42,34 @@ export default function Inventory() {
   });
 
   const columns = [
+    {
+      key: "product_image",
+      header: "图片",
+      render: (item: InventoryItem) => (
+        item.product_image ? (
+          <HoverCard>
+            <HoverCardTrigger asChild>
+              <img
+                src={item.product_image}
+                alt={item.product_name}
+                className="h-10 w-10 rounded-lg object-cover cursor-pointer border"
+              />
+            </HoverCardTrigger>
+            <HoverCardContent className="w-64 p-2">
+              <img
+                src={item.product_image}
+                alt={item.product_name}
+                className="w-full rounded-lg object-contain"
+              />
+            </HoverCardContent>
+          </HoverCard>
+        ) : (
+          <div className="h-10 w-10 rounded-lg bg-muted flex items-center justify-center text-muted-foreground text-xs">
+            无图
+          </div>
+        )
+      ),
+    },
     {
       key: "sku",
       header: "SKU",
@@ -122,109 +117,7 @@ export default function Inventory() {
         </div>
       ),
     },
-    {
-      key: "actions",
-      header: "操作",
-      render: (item: InventoryItem) => (
-        <div className="flex gap-2">
-          <Button
-            size="sm"
-            variant="ghost"
-            onClick={(e) => {
-              e.stopPropagation();
-              handleEdit(item);
-            }}
-          >
-            <Edit className="h-4 w-4" />
-          </Button>
-          <Button
-            size="sm"
-            variant="ghost"
-            className="text-destructive"
-            onClick={(e) => {
-              e.stopPropagation();
-              setDeleteId(item.id);
-            }}
-          >
-            <Trash2 className="h-4 w-4" />
-          </Button>
-        </div>
-      ),
-    },
   ];
-
-  const resetForm = () => {
-    setFormData({
-      sku: "",
-      product_name: "",
-      product_category: "",
-      warehouse: "华东仓",
-      total_stock: 0,
-      grade_a_stock: 0,
-      grade_b_stock: 0,
-      grade_c_stock: 0,
-    });
-    setEditingItem(null);
-  };
-
-  const handleEdit = (item: InventoryItem) => {
-    setEditingItem(item);
-    setFormData({
-      sku: item.sku,
-      product_name: item.product_name,
-      product_category: item.product_category || "",
-      warehouse: item.warehouse,
-      total_stock: item.total_stock,
-      grade_a_stock: item.grade_a_stock,
-      grade_b_stock: item.grade_b_stock,
-      grade_c_stock: item.grade_c_stock,
-    });
-    setIsDialogOpen(true);
-  };
-
-  const handleSubmit = () => {
-    const totalStock =
-      formData.grade_a_stock +
-      formData.grade_b_stock +
-      formData.grade_c_stock;
-
-    if (editingItem) {
-      updateMutation.mutate(
-        {
-          id: editingItem.id,
-          ...formData,
-          total_stock: totalStock,
-        },
-        {
-          onSuccess: () => {
-            setIsDialogOpen(false);
-            resetForm();
-          },
-        }
-      );
-    } else {
-      createMutation.mutate(
-        {
-          ...formData,
-          total_stock: totalStock,
-        },
-        {
-          onSuccess: () => {
-            setIsDialogOpen(false);
-            resetForm();
-          },
-        }
-      );
-    }
-  };
-
-  const handleDelete = () => {
-    if (deleteId) {
-      deleteMutation.mutate(deleteId, {
-        onSuccess: () => setDeleteId(null),
-      });
-    }
-  };
 
   const handleExport = () => {
     toast.success("库存数据导出成功");
@@ -245,8 +138,8 @@ export default function Inventory() {
     return (
       <div className="space-y-6">
         <Skeleton className="h-10 w-48" />
-        <div className="grid gap-4 sm:grid-cols-5">
-          {[...Array(5)].map((_, i) => (
+        <div className="grid gap-4 sm:grid-cols-4">
+          {[...Array(4)].map((_, i) => (
             <Skeleton key={i} className="h-20 w-full" />
           ))}
         </div>
@@ -259,156 +152,12 @@ export default function Inventory() {
     <div className="space-y-6 animate-fade-in">
       <PageHeader
         title="库存管理"
-        description="查看和管理所有仓库库存"
+        description="查看所有仓库库存（库存由入库操作自动更新）"
         actions={
-          <div className="flex gap-2">
-            <Dialog
-              open={isDialogOpen}
-              onOpenChange={(open) => {
-                setIsDialogOpen(open);
-                if (!open) resetForm();
-              }}
-            >
-              <DialogTrigger asChild>
-                <Button className="gradient-primary">
-                  <Plus className="mr-2 h-4 w-4" />
-                  添加库存
-                </Button>
-              </DialogTrigger>
-              <DialogContent className="max-w-2xl">
-                <DialogHeader>
-                  <DialogTitle>
-                    {editingItem ? "编辑库存" : "添加新库存"}
-                  </DialogTitle>
-                </DialogHeader>
-                <div className="grid gap-4 py-4">
-                  <div className="grid grid-cols-2 gap-4">
-                    <div className="space-y-2">
-                      <Label htmlFor="sku">SKU</Label>
-                      <Input
-                        id="sku"
-                        placeholder="输入SKU"
-                        value={formData.sku}
-                        onChange={(e) =>
-                          setFormData({ ...formData, sku: e.target.value })
-                        }
-                      />
-                    </div>
-                    <div className="space-y-2">
-                      <Label htmlFor="product_name">产品名称</Label>
-                      <Input
-                        id="product_name"
-                        placeholder="输入产品名称"
-                        value={formData.product_name}
-                        onChange={(e) =>
-                          setFormData({ ...formData, product_name: e.target.value })
-                        }
-                      />
-                    </div>
-                  </div>
-                  <div className="grid grid-cols-2 gap-4">
-                    <div className="space-y-2">
-                      <Label htmlFor="product_category">产品分类</Label>
-                      <Input
-                        id="product_category"
-                        placeholder="输入产品分类"
-                        value={formData.product_category}
-                        onChange={(e) =>
-                          setFormData({
-                            ...formData,
-                            product_category: e.target.value,
-                          })
-                        }
-                      />
-                    </div>
-                    <div className="space-y-2">
-                      <Label htmlFor="warehouse">仓库</Label>
-                      <Select
-                        value={formData.warehouse}
-                        onValueChange={(value) =>
-                          setFormData({ ...formData, warehouse: value })
-                        }
-                      >
-                        <SelectTrigger>
-                          <SelectValue placeholder="选择仓库" />
-                        </SelectTrigger>
-                        <SelectContent>
-                          <SelectItem value="华东仓">华东仓</SelectItem>
-                          <SelectItem value="华南仓">华南仓</SelectItem>
-                          <SelectItem value="华北仓">华北仓</SelectItem>
-                        </SelectContent>
-                      </Select>
-                    </div>
-                  </div>
-                  <div className="grid grid-cols-3 gap-4">
-                    <div className="space-y-2">
-                      <Label htmlFor="grade_a_stock">A级库存</Label>
-                      <Input
-                        id="grade_a_stock"
-                        type="number"
-                        value={formData.grade_a_stock}
-                        onChange={(e) =>
-                          setFormData({
-                            ...formData,
-                            grade_a_stock: parseInt(e.target.value) || 0,
-                          })
-                        }
-                      />
-                    </div>
-                    <div className="space-y-2">
-                      <Label htmlFor="grade_b_stock">B级库存</Label>
-                      <Input
-                        id="grade_b_stock"
-                        type="number"
-                        value={formData.grade_b_stock}
-                        onChange={(e) =>
-                          setFormData({
-                            ...formData,
-                            grade_b_stock: parseInt(e.target.value) || 0,
-                          })
-                        }
-                      />
-                    </div>
-                    <div className="space-y-2">
-                      <Label htmlFor="grade_c_stock">C级库存</Label>
-                      <Input
-                        id="grade_c_stock"
-                        type="number"
-                        value={formData.grade_c_stock}
-                        onChange={(e) =>
-                          setFormData({
-                            ...formData,
-                            grade_c_stock: parseInt(e.target.value) || 0,
-                          })
-                        }
-                      />
-                    </div>
-                  </div>
-                </div>
-                <div className="flex justify-end gap-3">
-                  <Button
-                    variant="outline"
-                    onClick={() => {
-                      setIsDialogOpen(false);
-                      resetForm();
-                    }}
-                  >
-                    取消
-                  </Button>
-                  <Button
-                    onClick={handleSubmit}
-                    disabled={createMutation.isPending || updateMutation.isPending}
-                  >
-                    {editingItem ? "保存" : "创建"}
-                  </Button>
-                </div>
-              </DialogContent>
-            </Dialog>
-            <Button variant="outline" onClick={handleExport}>
-              <Download className="mr-2 h-4 w-4" />
-              导出数据
-            </Button>
-          </div>
+          <Button variant="outline" onClick={handleExport}>
+            <Download className="mr-2 h-4 w-4" />
+            导出数据
+          </Button>
         }
       />
 
@@ -461,29 +210,8 @@ export default function Inventory() {
       <DataTable
         columns={columns}
         data={filteredData}
-        emptyMessage="暂无库存记录"
+        emptyMessage="暂无库存记录，库存数据会在入库操作后自动生成"
       />
-
-      {/* Delete Confirmation */}
-      <AlertDialog open={!!deleteId} onOpenChange={() => setDeleteId(null)}>
-        <AlertDialogContent>
-          <AlertDialogHeader>
-            <AlertDialogTitle>确认删除</AlertDialogTitle>
-            <AlertDialogDescription>
-              此操作无法撤销，确定要删除此库存记录吗？
-            </AlertDialogDescription>
-          </AlertDialogHeader>
-          <AlertDialogFooter>
-            <AlertDialogCancel>取消</AlertDialogCancel>
-            <AlertDialogAction
-              onClick={handleDelete}
-              className="bg-destructive text-destructive-foreground"
-            >
-              删除
-            </AlertDialogAction>
-          </AlertDialogFooter>
-        </AlertDialogContent>
-      </AlertDialog>
     </div>
   );
 }

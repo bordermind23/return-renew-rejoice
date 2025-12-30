@@ -621,13 +621,25 @@ export default function Orders() {
                   <Button variant="ghost" size="sm" onClick={() => setImportProgress(prev => ({ ...prev, showResult: false }))}>关闭</Button>
                 </div>
                 {importProgress.errors.length > 0 && (
-                  <div className="max-h-40 overflow-y-auto rounded-lg bg-destructive/10 p-3">
-                    <p className="mb-2 text-sm font-medium text-destructive">错误详情：</p>
-                    <ul className="space-y-1 text-sm text-destructive">
+                  <div className="max-h-60 overflow-y-auto rounded-lg border border-destructive/30 bg-destructive/5">
+                    <div className="sticky top-0 bg-destructive/10 px-4 py-2 border-b border-destructive/20">
+                      <p className="text-sm font-semibold text-destructive flex items-center gap-2">
+                        <AlertCircle className="h-4 w-4" />
+                        错误详情 ({importProgress.errors.length} 条)
+                      </p>
+                    </div>
+                    <div className="divide-y divide-destructive/10">
                       {importProgress.errors.map((error, index) => (
-                        <li key={index}>{error.message}</li>
+                        <div key={index} className="px-4 py-2.5 hover:bg-destructive/5">
+                          <div className="flex items-start gap-3">
+                            <span className="flex-shrink-0 w-8 h-5 rounded bg-destructive/20 text-destructive text-xs font-bold flex items-center justify-center">
+                              {error.row > 0 ? `#${error.row}` : "!"}
+                            </span>
+                            <p className="text-sm text-destructive/90 leading-relaxed">{error.message}</p>
+                          </div>
+                        </div>
                       ))}
-                    </ul>
+                    </div>
                   </div>
                 )}
               </div>

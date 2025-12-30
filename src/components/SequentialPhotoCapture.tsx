@@ -199,32 +199,32 @@ export function SequentialPhotoCapture({
   };
 
   return (
-    <div className="flex flex-col h-full bg-black">
-      {/* 顶部进度和标题 */}
-      <div className="bg-background/95 backdrop-blur p-4 space-y-3">
-        <div className="flex items-center justify-between">
-          <div className="flex items-center gap-2">
-            <span className="text-sm text-muted-foreground">
-              {currentStepIndex + 1} / {steps.length}
+    <div className="flex flex-col h-full w-full bg-black fixed inset-0 z-50">
+      {/* 顶部进度和标题 - 使用safe area */}
+      <div className="bg-background/95 backdrop-blur p-3 sm:p-4 space-y-2 sm:space-y-3 pt-[env(safe-area-inset-top,12px)]">
+        <div className="flex items-center justify-between gap-2">
+          <div className="flex items-center gap-2 min-w-0 flex-1">
+            <span className="text-xs sm:text-sm text-muted-foreground flex-shrink-0">
+              {currentStepIndex + 1}/{steps.length}
             </span>
-            <span className="font-medium">{currentStep?.label}</span>
+            <span className="font-medium text-sm sm:text-base truncate">{currentStep?.label}</span>
             {currentStep?.required && (
-              <span className="text-xs text-destructive">*必填</span>
+              <span className="text-xs text-destructive flex-shrink-0">*必填</span>
             )}
           </div>
-          <Button variant="ghost" size="sm" onClick={onCancel}>
+          <Button variant="ghost" size="icon" className="h-8 w-8 flex-shrink-0" onClick={onCancel}>
             <X className="h-4 w-4" />
           </Button>
         </div>
-        <Progress value={progress} className="h-2" />
+        <Progress value={progress} className="h-1.5 sm:h-2" />
         
-        {/* 步骤指示器 */}
-        <div className="flex gap-1 overflow-x-auto pb-1">
+        {/* 步骤指示器 - 更紧凑 */}
+        <div className="flex gap-1 overflow-x-auto pb-1 -mx-1 px-1">
           {steps.map((step, index) => (
             <div
               key={step.id}
               className={cn(
-                "flex-shrink-0 w-8 h-8 rounded-full flex items-center justify-center text-xs",
+                "flex-shrink-0 w-6 h-6 sm:w-8 sm:h-8 rounded-full flex items-center justify-center text-xs",
                 index === currentStepIndex
                   ? "bg-primary text-primary-foreground"
                   : capturedPhotos[step.id]
@@ -233,7 +233,7 @@ export function SequentialPhotoCapture({
               )}
             >
               {capturedPhotos[step.id] ? (
-                <Check className="h-4 w-4" />
+                <Check className="h-3 w-3 sm:h-4 sm:w-4" />
               ) : (
                 index + 1
               )}
@@ -277,54 +277,54 @@ export function SequentialPhotoCapture({
         <canvas ref={canvasRef} className="hidden" />
       </div>
 
-      {/* 底部操作按钮 */}
-      <div className="bg-background/95 backdrop-blur p-4">
+      {/* 底部操作按钮 - 使用safe area */}
+      <div className="bg-background/95 backdrop-blur p-3 sm:p-4 pb-[max(env(safe-area-inset-bottom,12px),12px)]">
         {previewUrl ? (
           // 预览状态：确认/重拍
-          <div className="flex gap-3">
+          <div className="flex gap-2 sm:gap-3">
             <Button
               variant="outline"
-              className="flex-1"
+              className="flex-1 h-12 sm:h-10"
               onClick={retakePhoto}
               disabled={isUploading}
             >
-              <RotateCcw className="mr-2 h-4 w-4" />
-              重拍
+              <RotateCcw className="mr-1.5 sm:mr-2 h-4 w-4" />
+              <span className="text-sm">重拍</span>
             </Button>
             <Button
-              className="flex-1 gradient-primary"
+              className="flex-1 h-12 sm:h-10 gradient-primary"
               onClick={confirmAndUpload}
               disabled={isUploading}
             >
               {isUploading ? (
-                "上传中..."
+                <span className="text-sm">上传中...</span>
               ) : (
                 <>
-                  <Check className="mr-2 h-4 w-4" />
-                  确认上传
+                  <Check className="mr-1.5 sm:mr-2 h-4 w-4" />
+                  <span className="text-sm">确认上传</span>
                 </>
               )}
             </Button>
           </div>
         ) : (
           // 拍摄状态
-          <div className="flex gap-3">
+          <div className="flex gap-2 sm:gap-3">
             {!currentStep?.required && (
-              <Button variant="outline" onClick={skipStep}>
-                跳过
+              <Button variant="outline" onClick={skipStep} className="h-12 sm:h-10 px-3 sm:px-4">
+                <span className="text-sm">跳过</span>
               </Button>
             )}
             <Button
-              className="flex-1 gradient-primary"
+              className="flex-1 h-12 sm:h-10 gradient-primary"
               onClick={capturePhoto}
               disabled={!cameraReady}
             >
-              <Camera className="mr-2 h-4 w-4" />
-              拍照
+              <Camera className="mr-1.5 sm:mr-2 h-5 w-5 sm:h-4 sm:w-4" />
+              <span className="text-sm sm:text-base">拍照</span>
             </Button>
             {Object.keys(capturedPhotos).length > 0 && (
-              <Button variant="secondary" onClick={finishCapture}>
-                完成 ({Object.keys(capturedPhotos).length})
+              <Button variant="secondary" onClick={finishCapture} className="h-12 sm:h-10 px-3 sm:px-4">
+                <span className="text-sm">完成 ({Object.keys(capturedPhotos).length})</span>
               </Button>
             )}
           </div>
@@ -332,12 +332,12 @@ export function SequentialPhotoCapture({
 
         {/* 已拍摄的缩略图 */}
         {Object.keys(capturedPhotos).length > 0 && (
-          <div className="flex gap-2 mt-3 overflow-x-auto pb-1">
+          <div className="flex gap-1.5 sm:gap-2 mt-2 sm:mt-3 overflow-x-auto pb-1">
             {steps.map((step) => (
               capturedPhotos[step.id] && (
                 <div
                   key={step.id}
-                  className="flex-shrink-0 w-12 h-12 rounded overflow-hidden border-2 border-green-500"
+                  className="flex-shrink-0 w-10 h-10 sm:w-12 sm:h-12 rounded overflow-hidden border-2 border-green-500"
                 >
                   <img
                     src={capturedPhotos[step.id]}

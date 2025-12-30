@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useState, useMemo } from "react";
 import { Search, Filter, Download } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -21,16 +21,82 @@ import {
   useInventoryItems,
   type InventoryItem,
 } from "@/hooks/useInventoryItems";
+import { useProducts } from "@/hooks/useProducts";
 import { Skeleton } from "@/components/ui/skeleton";
 import { toast } from "sonner";
+
+// 合并后的库存项目类型
+interface MergedInventoryItem {
+  id: string;
+  sku: string;
+  product_name: string;
+  product_category: string | null;
+  product_image: string | null;
+  warehouse: string;
+  total_stock: number;
+  grade_a_stock: number;
+  grade_b_stock: number;
+  grade_c_stock: number;
+}
 
 export default function Inventory() {
   const [searchTerm, setSearchTerm] = useState("");
   const [warehouseFilter, setWarehouseFilter] = useState<string>("all");
 
-  const { data: inventory, isLoading } = useInventoryItems();
+  const { data: inventory, isLoading: isLoadingInventory } = useInventoryItems();
+  const { data: products, isLoading: isLoadingProducts } = useProducts();
 
-  const filteredData = (inventory || []).filter((item) => {
+  // 合并产品和库存数据
+  const mergedData = useMemo(() => {
+    const inventoryBySku = new Map<string, InventoryItem>();
+    (inventory || []).forEach(item => {
+      inventoryBySku.set(item.sku, item);
+    });
+
+    const result: MergedInventoryItem[] = [];
+    const processedSkus = new Set<string>();
+
+    // 首先处理所有产品
+    (products || []).forEach(product => {
+      const inventoryItem = inventoryBySku.get(product.sku);
+      processedSkus.add(product.sku);
+      
+      result.push({
+        id: product.id,
+        sku: product.sku,
+        product_name: product.name,
+        product_category: product.category,
+        product_image: product.image || inventoryItem?.product_image || null,
+        warehouse: inventoryItem?.warehouse || "华东仓",
+        total_stock: inventoryItem?.total_stock || 0,
+        grade_a_stock: inventoryItem?.grade_a_stock || 0,
+        grade_b_stock: inventoryItem?.grade_b_stock || 0,
+        grade_c_stock: inventoryItem?.grade_c_stock || 0,
+      });
+    });
+
+    // 添加不在产品表中但在库存表中的SKU
+    (inventory || []).forEach(item => {
+      if (!processedSkus.has(item.sku)) {
+        result.push({
+          id: item.id,
+          sku: item.sku,
+          product_name: item.product_name,
+          product_category: item.product_category,
+          product_image: item.product_image,
+          warehouse: item.warehouse,
+          total_stock: item.total_stock,
+          grade_a_stock: item.grade_a_stock,
+          grade_b_stock: item.grade_b_stock,
+          grade_c_stock: item.grade_c_stock,
+        });
+      }
+    });
+
+    return result;
+  }, [inventory, products]);
+
+  const filteredData = mergedData.filter((item) => {
     const matchesSearch =
       item.sku.toLowerCase().includes(searchTerm.toLowerCase()) ||
       item.product_name.toLowerCase().includes(searchTerm.toLowerCase());
@@ -45,7 +111,7 @@ export default function Inventory() {
     {
       key: "product_image",
       header: "图片",
-      render: (item: InventoryItem) => (
+      render: (item: MergedInventoryItem) => (
         item.product_image ? (
           <HoverCard>
             <HoverCardTrigger asChild>
@@ -73,7 +139,7 @@ export default function Inventory() {
     {
       key: "sku",
       header: "SKU",
-      render: (item: InventoryItem) => (
+      render: (item: MergedInventoryItem) => (
         <span className="font-mono font-medium text-primary">{item.sku}</span>
       ),
     },
@@ -83,37 +149,45 @@ export default function Inventory() {
     {
       key: "total_stock",
       header: "总库存",
-      render: (item: InventoryItem) => (
-        <span className="text-lg font-bold">{item.total_stock}</span>
+      render: (item: MergedInventoryItem) => (
+        <span className={`text-lg font-bold ${item.total_stock === 0 ? 'text-muted-foreground' : ''}`}>
+          {item.total_stock}
+        </span>
       ),
     },
     {
       key: "grade_a_stock",
       header: "A级",
-      render: (item: InventoryItem) => (
+      render: (item: MergedInventoryItem) => (
         <div className="flex items-center gap-2">
           <GradeBadge grade="A" />
-          <span className="font-medium">{item.grade_a_stock}</span>
+          <span className={`font-medium ${item.grade_a_stock === 0 ? 'text-muted-foreground' : ''}`}>
+            {item.grade_a_stock}
+          </span>
         </div>
       ),
     },
     {
       key: "grade_b_stock",
       header: "B级",
-      render: (item: InventoryItem) => (
+      render: (item: MergedInventoryItem) => (
         <div className="flex items-center gap-2">
           <GradeBadge grade="B" />
-          <span className="font-medium">{item.grade_b_stock}</span>
+          <span className={`font-medium ${item.grade_b_stock === 0 ? 'text-muted-foreground' : ''}`}>
+            {item.grade_b_stock}
+          </span>
         </div>
       ),
     },
     {
       key: "grade_c_stock",
       header: "C级",
-      render: (item: InventoryItem) => (
+      render: (item: MergedInventoryItem) => (
         <div className="flex items-center gap-2">
           <GradeBadge grade="C" />
-          <span className="font-medium">{item.grade_c_stock}</span>
+          <span className={`font-medium ${item.grade_c_stock === 0 ? 'text-muted-foreground' : ''}`}>
+            {item.grade_c_stock}
+          </span>
         </div>
       ),
     },
@@ -134,6 +208,8 @@ export default function Inventory() {
     { total: 0, gradeA: 0, gradeB: 0, gradeC: 0 }
   );
 
+  const isLoading = isLoadingInventory || isLoadingProducts;
+
   if (isLoading) {
     return (
       <div className="space-y-6">
@@ -152,7 +228,7 @@ export default function Inventory() {
     <div className="space-y-6 animate-fade-in">
       <PageHeader
         title="库存管理"
-        description="查看所有仓库库存（库存由入库操作自动更新）"
+        description={`展示所有产品SKU及其库存情况（共 ${mergedData.length} 个SKU）`}
         actions={
           <Button variant="outline" onClick={handleExport}>
             <Download className="mr-2 h-4 w-4" />
@@ -210,7 +286,7 @@ export default function Inventory() {
       <DataTable
         columns={columns}
         data={filteredData}
-        emptyMessage="暂无库存记录，库存数据会在入库操作后自动生成"
+        emptyMessage="暂无产品SKU记录"
       />
     </div>
   );

@@ -1,17 +1,10 @@
 import { useState, useMemo } from "react";
-import { Search, Filter, Download } from "lucide-react";
+import { Search, Download } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { PageHeader } from "@/components/ui/page-header";
 import { DataTable } from "@/components/ui/data-table";
 import { GradeBadge } from "@/components/ui/grade-badge";
-import {
-  Select,
-  SelectContent,
-  SelectItem,
-  SelectTrigger,
-  SelectValue,
-} from "@/components/ui/select";
 import {
   HoverCard,
   HoverCardContent,
@@ -32,7 +25,6 @@ interface MergedInventoryItem {
   product_name: string;
   product_category: string | null;
   product_image: string | null;
-  warehouse: string;
   total_stock: number;
   grade_a_stock: number;
   grade_b_stock: number;
@@ -41,7 +33,6 @@ interface MergedInventoryItem {
 
 export default function Inventory() {
   const [searchTerm, setSearchTerm] = useState("");
-  const [warehouseFilter, setWarehouseFilter] = useState<string>("all");
 
   const { data: inventory, isLoading: isLoadingInventory } = useInventoryItems();
   const { data: products, isLoading: isLoadingProducts } = useProducts();
@@ -67,7 +58,6 @@ export default function Inventory() {
         product_name: product.name,
         product_category: product.category,
         product_image: product.image || inventoryItem?.product_image || null,
-        warehouse: inventoryItem?.warehouse || "华东仓",
         total_stock: inventoryItem?.total_stock || 0,
         grade_a_stock: inventoryItem?.grade_a_stock || 0,
         grade_b_stock: inventoryItem?.grade_b_stock || 0,
@@ -84,7 +74,6 @@ export default function Inventory() {
           product_name: item.product_name,
           product_category: item.product_category,
           product_image: item.product_image,
-          warehouse: item.warehouse,
           total_stock: item.total_stock,
           grade_a_stock: item.grade_a_stock,
           grade_b_stock: item.grade_b_stock,
@@ -101,10 +90,7 @@ export default function Inventory() {
       item.sku.toLowerCase().includes(searchTerm.toLowerCase()) ||
       item.product_name.toLowerCase().includes(searchTerm.toLowerCase());
 
-    const matchesWarehouse =
-      warehouseFilter === "all" || item.warehouse === warehouseFilter;
-
-    return matchesSearch && matchesWarehouse;
+    return matchesSearch;
   });
 
   const columns = [
@@ -145,7 +131,6 @@ export default function Inventory() {
     },
     { key: "product_name", header: "产品名称" },
     { key: "product_category", header: "产品分类" },
-    { key: "warehouse", header: "仓库" },
     {
       key: "total_stock",
       header: "总库存",
@@ -268,18 +253,6 @@ export default function Inventory() {
             className="pl-10"
           />
         </div>
-        <Select value={warehouseFilter} onValueChange={setWarehouseFilter}>
-          <SelectTrigger className="w-full sm:w-40">
-            <Filter className="mr-2 h-4 w-4" />
-            <SelectValue placeholder="仓库筛选" />
-          </SelectTrigger>
-          <SelectContent>
-            <SelectItem value="all">全部仓库</SelectItem>
-            <SelectItem value="华东仓">华东仓</SelectItem>
-            <SelectItem value="华南仓">华南仓</SelectItem>
-            <SelectItem value="华北仓">华北仓</SelectItem>
-          </SelectContent>
-        </Select>
       </div>
 
       {/* Data Table */}

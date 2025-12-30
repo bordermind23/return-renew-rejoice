@@ -1,9 +1,20 @@
 import { useState } from "react";
-import { Shield, Users, UserCog, Crown, Warehouse, Eye } from "lucide-react";
+import { Shield, Users, UserCog, Crown, Warehouse, Eye, UserPlus, Loader2 } from "lucide-react";
 import { PageHeader } from "@/components/ui/page-header";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
+import { Input } from "@/components/ui/input";
+import { Label } from "@/components/ui/label";
+import {
+  Dialog,
+  DialogContent,
+  DialogDescription,
+  DialogFooter,
+  DialogHeader,
+  DialogTitle,
+  DialogTrigger,
+} from "@/components/ui/dialog";
 import {
   Select,
   SelectContent,
@@ -24,10 +35,12 @@ import {
   useUsersWithRoles,
   useUpdateUserRole,
   useCurrentUserRole,
+  useCreateUser,
   type AppRole,
 } from "@/hooks/useUserManagement";
 import { useAuth } from "@/hooks/useAuth";
 import { cn } from "@/lib/utils";
+import { toast } from "sonner";
 
 const ROLE_CONFIG: Record<AppRole, { label: string; icon: typeof Crown; color: string }> = {
   admin: { label: "管理员", icon: Crown, color: "text-yellow-600 bg-yellow-100" },
@@ -56,13 +69,41 @@ export default function UserManagement() {
   const { data: currentUserRole } = useCurrentUserRole();
   const { user: currentUser } = useAuth();
   const updateRoleMutation = useUpdateUserRole();
+  const createUserMutation = useCreateUser();
   const [editingUserId, setEditingUserId] = useState<string | null>(null);
+  const [isAddDialogOpen, setIsAddDialogOpen] = useState(false);
+  const [newUserEmail, setNewUserEmail] = useState("");
+  const [newUserPassword, setNewUserPassword] = useState("");
+  const [newUserRole, setNewUserRole] = useState<AppRole>("warehouse_staff");
 
   const isAdmin = currentUserRole === "admin";
 
   const handleRoleChange = (userId: string, roleId: string | null, newRole: AppRole) => {
     updateRoleMutation.mutate({ userId, roleId, newRole });
     setEditingUserId(null);
+  };
+
+  const handleCreateUser = async () => {
+    if (!newUserEmail || !newUserPassword) {
+      toast.error("请填写邮箱和密码");
+      return;
+    }
+    if (newUserPassword.length < 6) {
+      toast.error("密码至少需要6个字符");
+      return;
+    }
+    
+    createUserMutation.mutate(
+      { email: newUserEmail, password: newUserPassword, role: newUserRole },
+      {
+        onSuccess: () => {
+          setIsAddDialogOpen(false);
+          setNewUserEmail("");
+          setNewUserPassword("");
+          setNewUserRole("warehouse_staff");
+        },
+      }
+    );
   };
 
   if (!isAdmin) {
@@ -92,6 +133,89 @@ export default function UserManagement() {
       <PageHeader
         title="用户管理"
         description="查看和管理系统用户权限"
+        actions={
+          <Dialog open={isAddDialogOpen} onOpenChange={setIsAddDialogOpen}>
+            <DialogTrigger asChild>
+              <Button>
+                <UserPlus className="mr-2 h-4 w-4" />
+                添加用户
+              </Button>
+            </DialogTrigger>
+            <DialogContent>
+              <DialogHeader>
+                <DialogTitle>添加新用户</DialogTitle>
+                <DialogDescription>
+                  创建一个新用户账号并分配角色
+                </DialogDescription>
+              </DialogHeader>
+              <div className="space-y-4 py-4">
+                <div className="space-y-2">
+                  <Label htmlFor="new-email">邮箱</Label>
+                  <Input
+                    id="new-email"
+                    type="email"
+                    placeholder="user@example.com"
+                    value={newUserEmail}
+                    onChange={(e) => setNewUserEmail(e.target.value)}
+                  />
+                </div>
+                <div className="space-y-2">
+                  <Label htmlFor="new-password">密码</Label>
+                  <Input
+                    id="new-password"
+                    type="password"
+                    placeholder="至少6个字符"
+                    value={newUserPassword}
+                    onChange={(e) => setNewUserPassword(e.target.value)}
+                  />
+                </div>
+                <div className="space-y-2">
+                  <Label>角色</Label>
+                  <Select value={newUserRole} onValueChange={(v) => setNewUserRole(v as AppRole)}>
+                    <SelectTrigger>
+                      <SelectValue />
+                    </SelectTrigger>
+                    <SelectContent>
+                      <SelectItem value="admin">
+                        <div className="flex items-center gap-2">
+                          <Crown className="h-4 w-4 text-yellow-500" />
+                          管理员
+                        </div>
+                      </SelectItem>
+                      <SelectItem value="warehouse_staff">
+                        <div className="flex items-center gap-2">
+                          <Warehouse className="h-4 w-4 text-blue-500" />
+                          仓库员工
+                        </div>
+                      </SelectItem>
+                      <SelectItem value="viewer">
+                        <div className="flex items-center gap-2">
+                          <Eye className="h-4 w-4 text-gray-500" />
+                          访客
+                        </div>
+                      </SelectItem>
+                    </SelectContent>
+                  </Select>
+                </div>
+              </div>
+              <DialogFooter>
+                <Button variant="outline" onClick={() => setIsAddDialogOpen(false)}>
+                  取消
+                </Button>
+                <Button onClick={handleCreateUser} disabled={createUserMutation.isPending}>
+                  {createUserMutation.isPending ? (
+                    <>
+                      <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+                      创建中...
+                    </>
+                  ) : (
+                    "创建用户"
+                  )}
+                </Button>
+              </DialogFooter>
+            </DialogContent>
+          </Dialog>
+        }
       />
 
       {/* Stats */}

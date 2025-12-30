@@ -1,5 +1,5 @@
-import { useState, useRef } from "react";
-import { Plus, Search, Filter, Trash2, Edit, Upload, Download, FileSpreadsheet, ChevronDown, AlertCircle, CheckCircle2, Loader2 } from "lucide-react";
+import { useState, useRef, useMemo } from "react";
+import { Plus, Search, Filter, Trash2, Edit, Upload, Download, FileSpreadsheet, ChevronDown, ChevronRight, AlertCircle, CheckCircle2, Loader2, Package } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { PageHeader } from "@/components/ui/page-header";
@@ -61,6 +61,7 @@ import {
 } from "@/hooks/useRemovalShipments";
 import { Checkbox } from "@/components/ui/checkbox";
 import { Skeleton } from "@/components/ui/skeleton";
+import { Collapsible, CollapsibleContent, CollapsibleTrigger } from "@/components/ui/collapsible";
 import { toast } from "sonner";
 import * as XLSX from "xlsx";
 
@@ -169,6 +170,8 @@ export default function Removals() {
     });
   };
 
+  const [expandedGroups, setExpandedGroups] = useState<Set<string>>(new Set());
+
   const filteredData = (shipments || []).filter((item) => {
     const matchesSearch =
       item.order_id.toLowerCase().includes(searchTerm.toLowerCase()) ||
@@ -181,6 +184,71 @@ export default function Removals() {
 
     return matchesSearch && matchesStatus;
   });
+
+  // 按跟踪号分组
+  interface TrackingGroup {
+    trackingNumber: string;
+    carrier: string;
+    items: RemovalShipment[];
+    totalQuantity: number;
+    statuses: string[];
+    shipDate: string | null;
+    storeName: string | null;
+  }
+
+  const groupedByTracking = useMemo(() => {
+    const groups: Record<string, TrackingGroup> = {};
+    
+    filteredData.forEach((item) => {
+      const key = item.tracking_number;
+      if (!groups[key]) {
+        groups[key] = {
+          trackingNumber: item.tracking_number,
+          carrier: item.carrier,
+          items: [],
+          totalQuantity: 0,
+          statuses: [],
+          shipDate: item.ship_date,
+          storeName: item.store_name,
+        };
+      }
+      groups[key].items.push(item);
+      groups[key].totalQuantity += item.quantity;
+      if (!groups[key].statuses.includes(item.status)) {
+        groups[key].statuses.push(item.status);
+      }
+    });
+
+    return Object.values(groups).sort((a, b) => {
+      // 按最新创建时间排序
+      const aDate = Math.max(...a.items.map(i => new Date(i.created_at).getTime()));
+      const bDate = Math.max(...b.items.map(i => new Date(i.created_at).getTime()));
+      return bDate - aDate;
+    });
+  }, [filteredData]);
+
+  const toggleGroup = (trackingNumber: string) => {
+    setExpandedGroups(prev => {
+      const newSet = new Set(prev);
+      if (newSet.has(trackingNumber)) {
+        newSet.delete(trackingNumber);
+      } else {
+        newSet.add(trackingNumber);
+      }
+      return newSet;
+    });
+  };
+
+  const toggleSelectGroup = (group: TrackingGroup) => {
+    const groupIds = group.items.map(i => i.id);
+    const allSelected = groupIds.every(id => selectedIds.includes(id));
+    
+    if (allSelected) {
+      setSelectedIds(prev => prev.filter(id => !groupIds.includes(id)));
+    } else {
+      setSelectedIds(prev => [...new Set([...prev, ...groupIds])]);
+    }
+  };
 
   const resetForm = () => {
     setFormData({
@@ -847,7 +915,7 @@ export default function Removals() {
         </Select>
       </div>
 
-      {/* 优化后的数据表格 */}
+      {/* 按跟踪号分组的数据表格 */}
       <Card>
         <ScrollArea className="w-full">
           <Table>
@@ -856,78 +924,167 @@ export default function Removals() {
                 <TableHead className="w-10">
                   <Checkbox checked={selectedIds.length === filteredData.length && filteredData.length > 0} onCheckedChange={toggleSelectAll} />
                 </TableHead>
-                <TableHead className="font-semibold min-w-[140px]">移除订单号</TableHead>
-                <TableHead className="font-semibold min-w-[100px]">店铺</TableHead>
-                <TableHead className="font-semibold min-w-[80px]">国家</TableHead>
-                <TableHead className="font-semibold min-w-[120px]">产品SKU</TableHead>
-                <TableHead className="font-semibold min-w-[180px]">产品名称</TableHead>
-                <TableHead className="font-semibold min-w-[80px] text-center">数量</TableHead>
-                <TableHead className="font-semibold min-w-[100px]">承运商</TableHead>
+                <TableHead className="w-10"></TableHead>
                 <TableHead className="font-semibold min-w-[140px]">跟踪号</TableHead>
+                <TableHead className="font-semibold min-w-[100px]">承运商</TableHead>
+                <TableHead className="font-semibold min-w-[100px]">店铺</TableHead>
                 <TableHead className="font-semibold min-w-[100px]">发货日期</TableHead>
-                <TableHead className="font-semibold min-w-[80px]">状态</TableHead>
+                <TableHead className="font-semibold min-w-[80px] text-center">产品数</TableHead>
+                <TableHead className="font-semibold min-w-[80px] text-center">总数量</TableHead>
+                <TableHead className="font-semibold min-w-[100px]">状态</TableHead>
                 <TableHead className="font-semibold min-w-[80px] text-center">操作</TableHead>
               </TableRow>
             </TableHeader>
             <TableBody>
-              {filteredData.length === 0 ? (
+              {groupedByTracking.length === 0 ? (
                 <TableRow>
-                  <TableCell colSpan={12} className="h-32 text-center text-muted-foreground">
+                  <TableCell colSpan={10} className="h-32 text-center text-muted-foreground">
                     暂无移除货件记录
                   </TableCell>
                 </TableRow>
               ) : (
-                filteredData.map((item) => (
-                  <TableRow key={item.id} className="hover:bg-muted/30">
-                    <TableCell>
-                      <Checkbox checked={selectedIds.includes(item.id)} onCheckedChange={() => toggleSelect(item.id)} />
-                    </TableCell>
-                    <TableCell>
-                      <span className="font-medium text-primary">{item.order_id}</span>
-                    </TableCell>
-                    <TableCell className="text-muted-foreground">{item.store_name || "-"}</TableCell>
-                    <TableCell className="text-muted-foreground">{item.country || "-"}</TableCell>
-                    <TableCell>
-                      <code className="text-xs bg-muted px-1.5 py-0.5 rounded">{item.product_sku}</code>
-                    </TableCell>
-                    <TableCell>
-                      <span className="line-clamp-1" title={item.product_name}>{item.product_name}</span>
-                    </TableCell>
-                    <TableCell className="text-center">
-                      <span className="font-semibold">{item.quantity}</span>
-                    </TableCell>
-                    <TableCell className="text-muted-foreground">{item.carrier}</TableCell>
-                    <TableCell>
-                      <code className="text-xs bg-muted px-1.5 py-0.5 rounded">{item.tracking_number}</code>
-                    </TableCell>
-                    <TableCell className="text-muted-foreground">
-                      {item.ship_date ? new Date(item.ship_date).toLocaleDateString("zh-CN") : "-"}
-                    </TableCell>
-                    <TableCell>
-                      <StatusBadge status={item.status} />
-                    </TableCell>
-                    <TableCell>
-                      <div className="flex justify-center gap-1">
-                        <Button
-                          size="icon"
-                          variant="ghost"
-                          className="h-8 w-8"
-                          onClick={() => handleEdit(item)}
-                        >
-                          <Edit className="h-4 w-4" />
-                        </Button>
-                        <Button
-                          size="icon"
-                          variant="ghost"
-                          className="h-8 w-8 text-destructive hover:text-destructive"
-                          onClick={() => setDeleteId(item.id)}
-                        >
-                          <Trash2 className="h-4 w-4" />
-                        </Button>
-                      </div>
-                    </TableCell>
-                  </TableRow>
-                ))
+                groupedByTracking.map((group) => {
+                  const isExpanded = expandedGroups.has(group.trackingNumber);
+                  const groupIds = group.items.map(i => i.id);
+                  const allSelected = groupIds.every(id => selectedIds.includes(id));
+                  const someSelected = groupIds.some(id => selectedIds.includes(id)) && !allSelected;
+                  
+                  return (
+                    <Collapsible key={group.trackingNumber} open={isExpanded} asChild>
+                      <>
+                        {/* 分组头部行 */}
+                        <TableRow className="bg-muted/30 hover:bg-muted/50 cursor-pointer">
+                          <TableCell onClick={(e) => e.stopPropagation()}>
+                            <Checkbox 
+                              checked={allSelected} 
+                              // @ts-ignore - indeterminate is valid HTML
+                              ref={(el) => el && (el.indeterminate = someSelected)}
+                              onCheckedChange={() => toggleSelectGroup(group)} 
+                            />
+                          </TableCell>
+                          <CollapsibleTrigger asChild>
+                            <TableCell onClick={() => toggleGroup(group.trackingNumber)}>
+                              {isExpanded ? (
+                                <ChevronDown className="h-4 w-4 text-muted-foreground" />
+                              ) : (
+                                <ChevronRight className="h-4 w-4 text-muted-foreground" />
+                              )}
+                            </TableCell>
+                          </CollapsibleTrigger>
+                          <CollapsibleTrigger asChild>
+                            <TableCell onClick={() => toggleGroup(group.trackingNumber)}>
+                              <code className="text-xs bg-primary/10 text-primary px-2 py-1 rounded font-medium">
+                                {group.trackingNumber}
+                              </code>
+                            </TableCell>
+                          </CollapsibleTrigger>
+                          <CollapsibleTrigger asChild>
+                            <TableCell onClick={() => toggleGroup(group.trackingNumber)} className="text-muted-foreground">
+                              {group.carrier}
+                            </TableCell>
+                          </CollapsibleTrigger>
+                          <CollapsibleTrigger asChild>
+                            <TableCell onClick={() => toggleGroup(group.trackingNumber)} className="text-muted-foreground">
+                              {group.storeName || "-"}
+                            </TableCell>
+                          </CollapsibleTrigger>
+                          <CollapsibleTrigger asChild>
+                            <TableCell onClick={() => toggleGroup(group.trackingNumber)} className="text-muted-foreground">
+                              {group.shipDate ? new Date(group.shipDate).toLocaleDateString("zh-CN") : "-"}
+                            </TableCell>
+                          </CollapsibleTrigger>
+                          <CollapsibleTrigger asChild>
+                            <TableCell onClick={() => toggleGroup(group.trackingNumber)} className="text-center">
+                              <div className="flex items-center justify-center gap-1">
+                                <Package className="h-3.5 w-3.5 text-muted-foreground" />
+                                <span className="font-medium">{group.items.length}</span>
+                              </div>
+                            </TableCell>
+                          </CollapsibleTrigger>
+                          <CollapsibleTrigger asChild>
+                            <TableCell onClick={() => toggleGroup(group.trackingNumber)} className="text-center">
+                              <span className="font-semibold text-primary">{group.totalQuantity}</span>
+                            </TableCell>
+                          </CollapsibleTrigger>
+                          <CollapsibleTrigger asChild>
+                            <TableCell onClick={() => toggleGroup(group.trackingNumber)}>
+                              <div className="flex flex-wrap gap-1">
+                                {group.statuses.map((status, idx) => (
+                                  <StatusBadge key={idx} status={status as "shipping" | "arrived" | "inbound" | "shelved"} />
+                                ))}
+                              </div>
+                            </TableCell>
+                          </CollapsibleTrigger>
+                          <TableCell>
+                            <Button
+                              size="sm"
+                              variant="ghost"
+                              onClick={() => toggleGroup(group.trackingNumber)}
+                            >
+                              {isExpanded ? "收起" : "展开"}
+                            </Button>
+                          </TableCell>
+                        </TableRow>
+                        
+                        {/* 展开的子项 */}
+                        <CollapsibleContent asChild>
+                          <>
+                            {group.items.map((item) => (
+                              <TableRow key={item.id} className="hover:bg-muted/20 bg-background">
+                                <TableCell>
+                                  <Checkbox checked={selectedIds.includes(item.id)} onCheckedChange={() => toggleSelect(item.id)} />
+                                </TableCell>
+                                <TableCell></TableCell>
+                                <TableCell>
+                                  <span className="text-sm text-muted-foreground pl-4">└</span>
+                                  <span className="font-medium text-primary ml-2">{item.order_id}</span>
+                                </TableCell>
+                                <TableCell>
+                                  <code className="text-xs bg-muted px-1.5 py-0.5 rounded">{item.product_sku}</code>
+                                </TableCell>
+                                <TableCell>
+                                  <span className="line-clamp-1 text-sm" title={item.product_name}>{item.product_name}</span>
+                                </TableCell>
+                                <TableCell className="text-muted-foreground text-sm">
+                                  {item.country || "-"}
+                                </TableCell>
+                                <TableCell className="text-center">
+                                  <span className="text-sm">{item.fnsku}</span>
+                                </TableCell>
+                                <TableCell className="text-center">
+                                  <span className="font-semibold">{item.quantity}</span>
+                                </TableCell>
+                                <TableCell>
+                                  <StatusBadge status={item.status} />
+                                </TableCell>
+                                <TableCell>
+                                  <div className="flex justify-center gap-1">
+                                    <Button
+                                      size="icon"
+                                      variant="ghost"
+                                      className="h-7 w-7"
+                                      onClick={() => handleEdit(item)}
+                                    >
+                                      <Edit className="h-3.5 w-3.5" />
+                                    </Button>
+                                    <Button
+                                      size="icon"
+                                      variant="ghost"
+                                      className="h-7 w-7 text-destructive hover:text-destructive"
+                                      onClick={() => setDeleteId(item.id)}
+                                    >
+                                      <Trash2 className="h-3.5 w-3.5" />
+                                    </Button>
+                                  </div>
+                                </TableCell>
+                              </TableRow>
+                            ))}
+                          </>
+                        </CollapsibleContent>
+                      </>
+                    </Collapsible>
+                  );
+                })
               )}
             </TableBody>
           </Table>
@@ -937,7 +1094,7 @@ export default function Removals() {
 
       {/* 数据统计 */}
       <div className="text-sm text-muted-foreground">
-        共 {filteredData.length} 条记录
+        共 {groupedByTracking.length} 个货件（{filteredData.length} 条产品记录）
         {statusFilter !== "all" && ` (已筛选)`}
       </div>
 

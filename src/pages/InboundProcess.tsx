@@ -58,29 +58,56 @@ export default function InboundProcess() {
   const updateShipmentMutation = useUpdateRemovalShipment();
   const updateInventoryMutation = useUpdateInventoryStock();
 
+  // 统一SKU比较：忽略大小写/首尾空格
+  const normalizeSku = (sku: string) => sku.trim().toLowerCase();
+
   // 检查SKU是否匹配
   const skuMismatch = useMemo(() => {
-    if (!matchedShipment || matchedOrders.length === 0) return null;
-    
-    const shipmentSku = matchedShipment.product_sku;
-    const orderSkus = matchedOrders.map(o => o.product_sku).filter(Boolean);
-    
-    // 检查是否有不匹配的SKU
-    const mismatchedSkus = orderSkus.filter(sku => sku !== shipmentSku);
-    
-    if (mismatchedSkus.length > 0) {
+    if (!matchedShipment) return null;
+
+    const shipmentSkuRaw = matchedShipment.product_sku || "";
+    const shipmentSku = normalizeSku(shipmentSkuRaw);
+
+    const orderSkusRaw = matchedOrders
+      .map((o) => o.product_sku || "")
+      .map((s) => s.trim())
+      .filter(Boolean);
+
+    // 订单里可能有重复SKU
+    const uniqueOrderSkusRaw = Array.from(new Set(orderSkusRaw));
+
+    // 候选SKU：货件SKU + 订单SKU
+    const candidateSkusRaw = Array.from(new Set([shipmentSkuRaw.trim(), ...uniqueOrderSkusRaw].filter(Boolean)));
+    const candidateSkusNormalized = candidateSkusRaw.map(normalizeSku);
+
+    // 如果候选SKU（规范化后）有2个及以上，判定为不匹配
+    const normalizedSet = new Set(candidateSkusNormalized);
+    if (normalizedSet.size >= 2) {
       return {
-        shipmentSku,
-        orderSkus: [...new Set(orderSkus)] as string[],
+        shipmentSku: shipmentSkuRaw.trim(),
+        orderSkus: uniqueOrderSkusRaw,
+        candidateSkus: candidateSkusRaw,
       };
     }
+
+    // 如果订单SKU为空，无法对比
+    if (uniqueOrderSkusRaw.length === 0) {
+      return {
+        shipmentSku: shipmentSkuRaw.trim(),
+        orderSkus: [],
+        candidateSkus: candidateSkusRaw,
+        orderSkuMissing: true as const,
+      };
+    }
+
+    // 其余情况视为匹配
     return null;
   }, [matchedShipment, matchedOrders]);
 
   // 获取最终确认的SKU对应的产品
   const finalSku = confirmedSku || matchedShipment?.product_sku;
-  const matchedProduct = finalSku 
-    ? products?.find(p => p.sku === finalSku)
+  const matchedProduct = finalSku
+    ? products?.find((p) => normalizeSku(p.sku) === normalizeSku(finalSku))
     : null;
   const { data: productParts } = useProductParts(matchedProduct?.id || null);
 
@@ -113,7 +140,7 @@ export default function InboundProcess() {
     }
   }, [lpn, trackingNumber, shipments]);
 
-  // 检测到SKU不匹配时自动弹出对话框
+  // 检测到SKU不匹配/订单SKU缺失时自动弹出对话框（只要还没确认过）
   useEffect(() => {
     if (skuMismatch && !confirmedSku) {
       setSelectedFinalSku(skuMismatch.shipmentSku);
@@ -276,29 +303,43 @@ export default function InboundProcess() {
             </Card>
           )}
 
-          {/* SKU不匹配警告 */}
+          {/* SKU不匹配/订单SKU缺失提示 */}
           {skuMismatch && (
             <Card className="border-amber-200 bg-amber-50 dark:bg-amber-950/30 dark:border-amber-800">
               <CardContent className="pt-4">
                 <div className="flex items-start gap-3">
                   <AlertTriangle className="h-5 w-5 text-amber-500 flex-shrink-0 mt-0.5" />
                   <div className="flex-1 space-y-2">
-                    <p className="font-medium text-amber-900 dark:text-amber-100">SKU不匹配警告</p>
+                    <p className="font-medium text-amber-900 dark:text-amber-100">
+                      {("orderSkuMissing" in skuMismatch && skuMismatch.orderSkuMissing)
+                        ? "订单SKU缺失，需确认入库SKU"
+                        : "SKU不匹配警告"}
+                    </p>
                     <p className="text-sm text-amber-800 dark:text-amber-200">
-                      移除货件SKU与退货订单SKU不一致
+                      {("orderSkuMissing" in skuMismatch && skuMismatch.orderSkuMissing)
+                        ? "退货订单中没有SKU，系统无法自动对比，请确认最终入库SKU。"
+                        : "移除货件SKU与退货订单SKU不一致，请确认最终入库SKU。"}
                     </p>
                     <div className="text-sm space-y-1">
-                      <p><span className="text-muted-foreground">货件SKU:</span> <span className="font-mono font-medium">{skuMismatch.shipmentSku}</span></p>
-                      <p><span className="text-muted-foreground">订单SKU:</span> <span className="font-mono font-medium">{skuMismatch.orderSkus.join(", ")}</span></p>
+                      <p>
+                        <span className="text-muted-foreground">货件SKU:</span>{" "}
+                        <span className="font-mono font-medium">{skuMismatch.shipmentSku || "-"}</span>
+                      </p>
+                      <p>
+                        <span className="text-muted-foreground">订单SKU:</span>{" "}
+                        <span className="font-mono font-medium">
+                          {skuMismatch.orderSkus.length > 0 ? skuMismatch.orderSkus.join(", ") : "-"}
+                        </span>
+                      </p>
                     </div>
                     {confirmedSku && (
                       <p className="text-sm font-medium text-green-600 dark:text-green-400">
                         ✓ 已确认使用: {confirmedSku}
                       </p>
                     )}
-                    <Button 
-                      variant="outline" 
-                      size="sm" 
+                    <Button
+                      variant="outline"
+                      size="sm"
                       className="mt-2"
                       onClick={() => setShowSkuMismatchDialog(true)}
                     >
@@ -326,10 +367,11 @@ export default function InboundProcess() {
                 {/* 产品图片 */}
                 <div className="flex-shrink-0">
                   {matchedProduct?.image ? (
-                    <img 
-                      src={matchedProduct.image} 
-                      alt={matchedProduct.name} 
+                    <img
+                      src={matchedProduct.image}
+                      alt={matchedProduct.name}
                       className="h-20 w-20 rounded-lg object-cover border"
+                      loading="lazy"
                     />
                   ) : (
                     <div className="h-20 w-20 rounded-lg bg-muted flex items-center justify-center">
@@ -345,12 +387,19 @@ export default function InboundProcess() {
                   </div>
                   <div>
                     <p className="text-xs text-muted-foreground">产品SKU</p>
-                    <p className="font-mono font-medium text-primary">{finalSku}</p>
+                    <p className="font-mono font-medium text-primary">{finalSku || "-"}</p>
                   </div>
                   <div>
                     <p className="text-xs text-muted-foreground">分类</p>
                     <p className="font-medium">{matchedProduct?.category || "-"}</p>
                   </div>
+                  {!matchedProduct && skuMismatch && skuMismatch.candidateSkus.length > 1 && (
+                    <div className="col-span-2 pt-1">
+                      <Button variant="outline" size="sm" onClick={() => setShowSkuMismatchDialog(true)}>
+                        选择SKU以显示正确产品信息
+                      </Button>
+                    </div>
+                  )}
                 </div>
               </div>
             </CardContent>
@@ -509,23 +558,23 @@ export default function InboundProcess() {
             <RadioGroup value={selectedFinalSku} onValueChange={setSelectedFinalSku}>
               {/* 货件SKU选项 */}
               <div className="flex items-start space-x-3 rounded-lg border p-3 mb-2">
-                <RadioGroupItem value={matchedShipment?.product_sku || ""} id="shipment-sku" className="mt-1" />
+                <RadioGroupItem value={skuMismatch?.shipmentSku || matchedShipment?.product_sku || ""} id="shipment-sku" className="mt-1" />
                 <div className="flex-1">
                   <Label htmlFor="shipment-sku" className="font-medium cursor-pointer">
                     使用移除货件SKU
                   </Label>
                   <p className="text-sm font-mono text-muted-foreground mt-1">
-                    {matchedShipment?.product_sku}
+                    {skuMismatch?.shipmentSku || matchedShipment?.product_sku}
                   </p>
                   <p className="text-xs text-muted-foreground">
                     {matchedShipment?.product_name}
                   </p>
                 </div>
               </div>
-              
+
               {/* 订单SKU选项 */}
-              {skuMismatch?.orderSkus.map((sku) => {
-                const product = products?.find(p => p.sku === sku);
+              {(skuMismatch?.orderSkus || []).map((sku) => {
+                const product = products?.find((p) => normalizeSku(p.sku) === normalizeSku(sku));
                 return (
                   <div key={sku} className="flex items-start space-x-3 rounded-lg border p-3 mb-2">
                     <RadioGroupItem value={sku} id={`order-sku-${sku}`} className="mt-1" />

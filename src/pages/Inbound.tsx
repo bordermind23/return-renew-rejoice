@@ -348,7 +348,7 @@ export default function Inbound() {
   }
 
   return (
-    <div className="space-y-6 animate-fade-in">
+    <div className="space-y-6 animate-fade-in pb-6">
       <PageHeader
         title="入库处理"
         description="先扫描物流跟踪号匹配货件，再逐个扫描LPN进行入库"
@@ -522,14 +522,14 @@ export default function Inbound() {
 
       {/* 处理对话框 */}
       <Dialog open={isProcessDialogOpen} onOpenChange={setIsProcessDialogOpen}>
-        <DialogContent className="sm:max-w-2xl h-full sm:h-auto sm:max-h-[90vh] overflow-hidden flex flex-col p-0 sm:p-6">
-          <DialogHeader className="flex-shrink-0 p-4 pb-0 sm:p-0">
+        <DialogContent className="sm:max-w-2xl max-h-[90vh] overflow-hidden flex flex-col">
+          <DialogHeader className="flex-shrink-0">
             <DialogTitle className="flex items-center gap-2 text-base sm:text-lg pr-8">
               <Package className="h-5 w-5 text-primary flex-shrink-0" />
               <span className="truncate">产品入库处理 - {currentLpn}</span>
             </DialogTitle>
           </DialogHeader>
-          <ScrollArea className="flex-1 px-4 sm:pr-4 sm:pl-0">
+          <ScrollArea className="flex-1 -mx-6 px-6">
             <div className="grid gap-4 py-4">
               {/* 退货订单信息 - 显示所有匹配的订单 */}
               {matchedOrders.length > 0 && (
@@ -703,7 +703,7 @@ export default function Inbound() {
               </div>
             </div>
           </ScrollArea>
-          <div className="flex justify-end gap-3 pt-4 border-t flex-shrink-0">
+          <div className="flex justify-end gap-3 pt-4 border-t flex-shrink-0 mt-4">
             <Button variant="outline" onClick={() => {
               setIsProcessDialogOpen(false);
               resetProcessForm();
@@ -822,19 +822,17 @@ export default function Inbound() {
         </AlertDialogContent>
       </AlertDialog>
 
-      {/* 顺序拍照弹窗 */}
-      <Dialog open={isPhotoCaptureOpen} onOpenChange={setIsPhotoCaptureOpen}>
-        <DialogContent className="!inset-0 !translate-x-0 !translate-y-0 !max-w-none h-full sm:h-full p-0 rounded-none">
-          <SequentialPhotoCapture
-            lpn={currentLpn}
-            onComplete={(photos) => {
-              setCapturedPhotos(photos);
-              setIsPhotoCaptureOpen(false);
-            }}
-            onCancel={() => setIsPhotoCaptureOpen(false)}
-          />
-        </DialogContent>
-      </Dialog>
+      {/* 顺序拍照弹窗 - 使用全屏模式 */}
+      {isPhotoCaptureOpen && (
+        <SequentialPhotoCapture
+          lpn={currentLpn}
+          onComplete={(photos) => {
+            setCapturedPhotos(photos);
+            setIsPhotoCaptureOpen(false);
+          }}
+          onCancel={() => setIsPhotoCaptureOpen(false)}
+        />
+      )}
     </div>
   );
 }

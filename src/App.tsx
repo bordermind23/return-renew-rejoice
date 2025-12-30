@@ -10,6 +10,7 @@ import Inbound from "./pages/Inbound";
 import Inventory from "./pages/Inventory";
 import Orders from "./pages/Orders";
 import Outbound from "./pages/Outbound";
+import Carriers from "./pages/Carriers";
 import NotFound from "./pages/NotFound";
 
 const queryClient = new QueryClient();
@@ -66,6 +67,14 @@ const App = () => (
             element={
               <MainLayout>
                 <Outbound />
+              </MainLayout>
+            }
+          />
+          <Route
+            path="/carriers"
+            element={
+              <MainLayout>
+                <Carriers />
               </MainLayout>
             }
           />

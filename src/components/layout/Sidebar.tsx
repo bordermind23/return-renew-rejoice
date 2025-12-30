@@ -9,6 +9,7 @@ import {
   PackageOpen,
   ChevronLeft,
   ChevronRight,
+  Truck,
 } from "lucide-react";
 import { cn } from "@/lib/utils";
 
@@ -19,6 +20,7 @@ const navItems = [
   { to: "/inventory", icon: Warehouse, label: "库存管理" },
   { to: "/orders", icon: ClipboardList, label: "订单列表" },
   { to: "/outbound", icon: PackageOpen, label: "出库管理" },
+  { to: "/carriers", icon: Truck, label: "承运商管理" },
 ];
 
 export function Sidebar() {

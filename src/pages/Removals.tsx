@@ -37,14 +37,8 @@ import {
   useDeleteRemovalShipment,
   type RemovalShipment,
 } from "@/hooks/useRemovalShipments";
+import { useCarriers } from "@/hooks/useCarriers";
 import { Skeleton } from "@/components/ui/skeleton";
-
-const carrierMap: Record<string, string> = {
-  sf: "顺丰速运",
-  jd: "京东物流",
-  yt: "圆通快递",
-  zt: "中通快递",
-};
 
 export default function Removals() {
   const [searchTerm, setSearchTerm] = useState("");
@@ -66,6 +60,7 @@ export default function Removals() {
   });
 
   const { data: shipments, isLoading } = useRemovalShipments();
+  const { data: carriers } = useCarriers();
   const createMutation = useCreateRemovalShipment();
   const updateMutation = useUpdateRemovalShipment();
   const deleteMutation = useDeleteRemovalShipment();
@@ -264,20 +259,18 @@ export default function Removals() {
                     <Select
                       value={formData.carrier}
                       onValueChange={(value) =>
-                        setFormData({
-                          ...formData,
-                          carrier: carrierMap[value] || value,
-                        })
+                        setFormData({ ...formData, carrier: value })
                       }
                     >
                       <SelectTrigger>
                         <SelectValue placeholder="选择承运商" />
                       </SelectTrigger>
                       <SelectContent>
-                        <SelectItem value="sf">顺丰速运</SelectItem>
-                        <SelectItem value="jd">京东物流</SelectItem>
-                        <SelectItem value="yt">圆通快递</SelectItem>
-                        <SelectItem value="zt">中通快递</SelectItem>
+                        {carriers?.map((carrier) => (
+                          <SelectItem key={carrier.id} value={carrier.name}>
+                            {carrier.name}
+                          </SelectItem>
+                        ))}
                       </SelectContent>
                     </Select>
                   </div>

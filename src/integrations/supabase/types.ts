@@ -14,6 +14,24 @@ export type Database = {
   }
   public: {
     Tables: {
+      carriers: {
+        Row: {
+          created_at: string
+          id: string
+          name: string
+        }
+        Insert: {
+          created_at?: string
+          id?: string
+          name: string
+        }
+        Update: {
+          created_at?: string
+          id?: string
+          name?: string
+        }
+        Relationships: []
+      }
       inbound_items: {
         Row: {
           created_at: string

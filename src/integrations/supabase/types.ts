@@ -14,7 +14,186 @@ export type Database = {
   }
   public: {
     Tables: {
-      [_ in never]: never
+      inbound_items: {
+        Row: {
+          created_at: string
+          grade: string
+          id: string
+          lpn: string
+          missing_parts: string[] | null
+          package_photo: string | null
+          processed_at: string
+          processed_by: string
+          product_name: string
+          product_photo: string | null
+          product_sku: string
+          removal_order_id: string
+          return_reason: string | null
+        }
+        Insert: {
+          created_at?: string
+          grade?: string
+          id?: string
+          lpn: string
+          missing_parts?: string[] | null
+          package_photo?: string | null
+          processed_at?: string
+          processed_by: string
+          product_name: string
+          product_photo?: string | null
+          product_sku: string
+          removal_order_id: string
+          return_reason?: string | null
+        }
+        Update: {
+          created_at?: string
+          grade?: string
+          id?: string
+          lpn?: string
+          missing_parts?: string[] | null
+          package_photo?: string | null
+          processed_at?: string
+          processed_by?: string
+          product_name?: string
+          product_photo?: string | null
+          product_sku?: string
+          removal_order_id?: string
+          return_reason?: string | null
+        }
+        Relationships: []
+      }
+      inventory_items: {
+        Row: {
+          created_at: string
+          grade_a_stock: number
+          grade_b_stock: number
+          grade_c_stock: number
+          id: string
+          new_stock: number
+          product_category: string | null
+          product_image: string | null
+          product_name: string
+          sku: string
+          total_stock: number
+          updated_at: string
+          warehouse: string
+        }
+        Insert: {
+          created_at?: string
+          grade_a_stock?: number
+          grade_b_stock?: number
+          grade_c_stock?: number
+          id?: string
+          new_stock?: number
+          product_category?: string | null
+          product_image?: string | null
+          product_name: string
+          sku: string
+          total_stock?: number
+          updated_at?: string
+          warehouse?: string
+        }
+        Update: {
+          created_at?: string
+          grade_a_stock?: number
+          grade_b_stock?: number
+          grade_c_stock?: number
+          id?: string
+          new_stock?: number
+          product_category?: string | null
+          product_image?: string | null
+          product_name?: string
+          sku?: string
+          total_stock?: number
+          updated_at?: string
+          warehouse?: string
+        }
+        Relationships: []
+      }
+      orders: {
+        Row: {
+          created_at: string
+          id: string
+          inbound_at: string | null
+          lpn: string
+          order_number: string
+          removal_order_id: string
+          removed_at: string | null
+          station: string
+          store_name: string
+        }
+        Insert: {
+          created_at?: string
+          id?: string
+          inbound_at?: string | null
+          lpn: string
+          order_number: string
+          removal_order_id: string
+          removed_at?: string | null
+          station: string
+          store_name: string
+        }
+        Update: {
+          created_at?: string
+          id?: string
+          inbound_at?: string | null
+          lpn?: string
+          order_number?: string
+          removal_order_id?: string
+          removed_at?: string | null
+          station?: string
+          store_name?: string
+        }
+        Relationships: []
+      }
+      removal_shipments: {
+        Row: {
+          carrier: string
+          created_at: string
+          fnsku: string
+          id: string
+          note: string | null
+          order_id: string
+          product_image: string | null
+          product_name: string
+          product_sku: string
+          quantity: number
+          status: string
+          tracking_number: string
+          updated_at: string
+        }
+        Insert: {
+          carrier: string
+          created_at?: string
+          fnsku: string
+          id?: string
+          note?: string | null
+          order_id: string
+          product_image?: string | null
+          product_name: string
+          product_sku: string
+          quantity?: number
+          status?: string
+          tracking_number: string
+          updated_at?: string
+        }
+        Update: {
+          carrier?: string
+          created_at?: string
+          fnsku?: string
+          id?: string
+          note?: string | null
+          order_id?: string
+          product_image?: string | null
+          product_name?: string
+          product_sku?: string
+          quantity?: number
+          status?: string
+          tracking_number?: string
+          updated_at?: string
+        }
+        Relationships: []
+      }
     }
     Views: {
       [_ in never]: never

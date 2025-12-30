@@ -1,5 +1,5 @@
 import React, { useState, useRef, useMemo } from "react";
-import { Search, Filter, Eye, Plus, Trash2, Upload, Download, FileSpreadsheet, ChevronDown, AlertCircle, CheckCircle2, Loader2, Edit, ChevronLeft, ChevronRight, ChevronsLeft, ChevronsRight, Camera, Pencil, ChevronUp } from "lucide-react";
+import { Search, Filter, Eye, Plus, Trash2, Upload, Download, FileSpreadsheet, ChevronDown, AlertCircle, CheckCircle2, Loader2, Edit, ChevronLeft, ChevronRight, ChevronsLeft, ChevronsRight, Camera, Pencil, ChevronUp, RefreshCw } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { PageHeader } from "@/components/ui/page-header";
@@ -69,6 +69,7 @@ import {
   type OrderUpdate,
 } from "@/hooks/useOrders";
 import { useInboundItems } from "@/hooks/useInboundItems";
+import { useLingxingSync } from "@/hooks/useLingxingSync";
 import { Skeleton } from "@/components/ui/skeleton";
 import { toast } from "sonner";
 import * as XLSX from "xlsx";
@@ -150,6 +151,7 @@ export default function Orders() {
   const { data: stores = [] } = useOrderStores();
   const { data: inboundItems } = useInboundItems();
   const updateOrderMutation = useUpdateOrder();
+  const { isSyncing, syncOrders } = useLingxingSync();
 
   // 创建 LPN 到入库记录的映射
   const inboundByLpn = (inboundItems || []).reduce((acc, item) => {
@@ -597,6 +599,16 @@ export default function Orders() {
         description="查看和管理所有退货订单"
         actions={
           <div className="flex gap-2 flex-wrap justify-end">
+            <Button 
+              variant="outline" 
+              size="sm" 
+              className="h-9" 
+              onClick={() => syncOrders()}
+              disabled={isSyncing}
+            >
+              <RefreshCw className={`h-4 w-4 sm:mr-2 ${isSyncing ? 'animate-spin' : ''}`} />
+              <span className="hidden sm:inline">{isSyncing ? '同步中...' : '从领星同步'}</span>
+            </Button>
             <DropdownMenu>
               <DropdownMenuTrigger asChild>
                 <Button variant="outline" size="sm" className="h-9">

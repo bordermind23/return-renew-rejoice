@@ -53,7 +53,6 @@ export default function Inventory() {
     product_category: "",
     warehouse: "华东仓",
     total_stock: 0,
-    new_stock: 0,
     grade_a_stock: 0,
     grade_b_stock: 0,
     grade_c_stock: 0,
@@ -94,12 +93,12 @@ export default function Inventory() {
       ),
     },
     {
-      key: "new_stock",
-      header: "全新",
+      key: "grade_a_stock",
+      header: "A级",
       render: (item: InventoryItem) => (
         <div className="flex items-center gap-2">
-          <GradeBadge grade="new" />
-          <span className="font-medium">{item.new_stock}</span>
+          <GradeBadge grade="A" />
+          <span className="font-medium">{item.grade_a_stock}</span>
         </div>
       ),
     },
@@ -171,7 +170,6 @@ export default function Inventory() {
       product_category: "",
       warehouse: "华东仓",
       total_stock: 0,
-      new_stock: 0,
       grade_a_stock: 0,
       grade_b_stock: 0,
       grade_c_stock: 0,
@@ -187,7 +185,6 @@ export default function Inventory() {
       product_category: item.product_category || "",
       warehouse: item.warehouse,
       total_stock: item.total_stock,
-      new_stock: item.new_stock,
       grade_a_stock: item.grade_a_stock,
       grade_b_stock: item.grade_b_stock,
       grade_c_stock: item.grade_c_stock,
@@ -197,7 +194,6 @@ export default function Inventory() {
 
   const handleSubmit = () => {
     const totalStock =
-      formData.new_stock +
       formData.grade_a_stock +
       formData.grade_b_stock +
       formData.grade_c_stock;
@@ -248,12 +244,11 @@ export default function Inventory() {
   const totals = filteredData.reduce(
     (acc, item) => ({
       total: acc.total + item.total_stock,
-      new: acc.new + item.new_stock,
       gradeA: acc.gradeA + item.grade_a_stock,
       gradeB: acc.gradeB + item.grade_b_stock,
       gradeC: acc.gradeC + item.grade_c_stock,
     }),
-    { total: 0, new: 0, gradeA: 0, gradeB: 0, gradeC: 0 }
+    { total: 0, gradeA: 0, gradeB: 0, gradeC: 0 }
   );
 
   if (isLoading) {
@@ -355,21 +350,7 @@ export default function Inventory() {
                       </Select>
                     </div>
                   </div>
-                  <div className="grid grid-cols-4 gap-4">
-                    <div className="space-y-2">
-                      <Label htmlFor="new_stock">全新库存</Label>
-                      <Input
-                        id="new_stock"
-                        type="number"
-                        value={formData.new_stock}
-                        onChange={(e) =>
-                          setFormData({
-                            ...formData,
-                            new_stock: parseInt(e.target.value) || 0,
-                          })
-                        }
-                      />
-                    </div>
+                  <div className="grid grid-cols-3 gap-4">
                     <div className="space-y-2">
                       <Label htmlFor="grade_a_stock">A级库存</Label>
                       <Input
@@ -378,6 +359,11 @@ export default function Inventory() {
                         value={formData.grade_a_stock}
                         onChange={(e) =>
                           setFormData({
+                            ...formData,
+                            grade_a_stock: parseInt(e.target.value) || 0,
+                          })
+                        }
+                      />
                             ...formData,
                             grade_a_stock: parseInt(e.target.value) || 0,
                           })
@@ -442,14 +428,10 @@ export default function Inventory() {
       />
 
       {/* Summary Cards */}
-      <div className="grid gap-4 sm:grid-cols-5">
+      <div className="grid gap-4 sm:grid-cols-4">
         <div className="rounded-xl border bg-card p-4 text-center">
           <p className="text-sm text-muted-foreground">总库存</p>
           <p className="mt-1 text-2xl font-bold">{totals.total}</p>
-        </div>
-        <div className="rounded-xl border bg-success/10 p-4 text-center">
-          <p className="text-sm text-success">全新</p>
-          <p className="mt-1 text-2xl font-bold text-success">{totals.new}</p>
         </div>
         <div className="rounded-xl border bg-info/10 p-4 text-center">
           <p className="text-sm text-info">A级</p>

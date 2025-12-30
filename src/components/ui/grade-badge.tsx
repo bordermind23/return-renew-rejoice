@@ -1,6 +1,6 @@
 import { cn } from "@/lib/utils";
 
-type GradeType = "A" | "B" | "C" | "new";
+type GradeType = "A" | "B" | "C";
 
 interface GradeBadgeProps {
   grade: GradeType;
@@ -8,10 +8,6 @@ interface GradeBadgeProps {
 }
 
 const gradeConfig: Record<GradeType, { label: string; className: string }> = {
-  new: {
-    label: "全新",
-    className: "bg-success text-success-foreground",
-  },
   A: {
     label: "A级",
     className: "bg-info text-info-foreground",

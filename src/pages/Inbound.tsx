@@ -246,7 +246,7 @@ export default function Inbound() {
           updateInventoryMutation.mutate({
             sku: matchedShipment.product_sku,
             product_name: matchedShipment.product_name,
-            grade: selectedGrade as "A" | "B" | "C" | "new",
+            grade: selectedGrade as "A" | "B" | "C",
             quantity: 1,
           });
 
@@ -314,7 +314,7 @@ export default function Inbound() {
         // 先扣减库存
         decreaseInventoryMutation.mutate({
           sku: itemToDelete.product_sku,
-          grade: itemToDelete.grade as "A" | "B" | "C" | "new",
+          grade: itemToDelete.grade as "A" | "B" | "C",
           quantity: 1,
         });
       }
@@ -599,7 +599,6 @@ export default function Inbound() {
                   <SelectValue placeholder="选择产品级别" />
                 </SelectTrigger>
                 <SelectContent>
-                  <SelectItem value="new">全新 - 未拆封</SelectItem>
                   <SelectItem value="A">A级 - 轻微使用痕迹</SelectItem>
                   <SelectItem value="B">B级 - 明显使用痕迹或缺少配件</SelectItem>
                   <SelectItem value="C">C级 - 功能或外观有问题</SelectItem>
@@ -705,7 +704,7 @@ export default function Inbound() {
                         <span className="line-clamp-1" title={item.product_name}>{item.product_name}</span>
                       </TableCell>
                       <TableCell>
-                        <GradeBadge grade={item.grade} />
+                        <GradeBadge grade={item.grade as "A" | "B" | "C"} />
                       </TableCell>
                       <TableCell className="text-muted-foreground">
                         {item.missing_parts && item.missing_parts.length > 0

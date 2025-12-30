@@ -42,12 +42,11 @@ export default function Dashboard() {
 
   const stockByGrade = (inventory || []).reduce(
     (acc, item) => ({
-      new: acc.new + item.new_stock,
       gradeA: acc.gradeA + item.grade_a_stock,
       gradeB: acc.gradeB + item.grade_b_stock,
       gradeC: acc.gradeC + item.grade_c_stock,
     }),
-    { new: 0, gradeA: 0, gradeB: 0, gradeC: 0 }
+    { gradeA: 0, gradeB: 0, gradeC: 0 }
   );
 
   const shippingCount = (shipments || []).filter(
@@ -144,20 +143,6 @@ export default function Dashboard() {
             <TrendingUp className="h-5 w-5 text-muted-foreground" />
           </div>
           <div className="space-y-4">
-            <div className="flex items-center justify-between">
-              <span className="text-sm text-muted-foreground">全新</span>
-              <div className="flex items-center gap-2">
-                <div className="h-2 w-32 overflow-hidden rounded-full bg-muted">
-                  <div
-                    className="h-full rounded-full bg-success"
-                    style={{
-                      width: `${totalStock > 0 ? (stockByGrade.new / totalStock) * 100 : 0}%`,
-                    }}
-                  />
-                </div>
-                <span className="text-sm font-medium">{stockByGrade.new}</span>
-              </div>
-            </div>
             <div className="flex items-center justify-between">
               <span className="text-sm text-muted-foreground">A级翻新</span>
               <div className="flex items-center gap-2">

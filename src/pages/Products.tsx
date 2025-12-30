@@ -56,6 +56,7 @@ import { supabase } from "@/integrations/supabase/client";
 
 export default function Products() {
   const [searchTerm, setSearchTerm] = useState("");
+  const [selectedCategories, setSelectedCategories] = useState<string[]>([]);
   const [isDialogOpen, setIsDialogOpen] = useState(false);
   const [editingProduct, setEditingProduct] = useState<Product | null>(null);
   const [deleteId, setDeleteId] = useState<string | null>(null);
@@ -88,11 +89,24 @@ export default function Products() {
   const createCategoryMutation = useCreateProductCategory();
   const deleteCategoryMutation = useDeleteProductCategory();
 
+  const toggleCategoryFilter = (categoryName: string) => {
+    setSelectedCategories(prev =>
+      prev.includes(categoryName)
+        ? prev.filter(c => c !== categoryName)
+        : [...prev, categoryName]
+    );
+  };
+
   const filteredData = (products || []).filter((item) => {
     const matchesSearch =
       item.sku.toLowerCase().includes(searchTerm.toLowerCase()) ||
       item.name.toLowerCase().includes(searchTerm.toLowerCase());
-    return matchesSearch;
+    
+    const matchesCategory = 
+      selectedCategories.length === 0 || 
+      selectedCategories.includes(item.category || "未分类");
+    
+    return matchesSearch && matchesCategory;
   });
 
   const columns = [
@@ -376,9 +390,9 @@ export default function Products() {
         }
       />
 
-      {/* Search */}
+      {/* Search and Category Filter */}
       <Card>
-        <CardContent className="pt-6">
+        <CardContent className="pt-6 space-y-4">
           <div className="flex gap-4">
             <div className="relative flex-1">
               <Search className="absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-muted-foreground" />
@@ -390,6 +404,36 @@ export default function Products() {
               />
             </div>
           </div>
+          {/* Category Filter */}
+          {categories && categories.length > 0 && (
+            <div className="flex flex-wrap gap-2">
+              <span className="text-sm text-muted-foreground py-1">分类筛选:</span>
+              <Badge
+                variant={selectedCategories.length === 0 ? "default" : "outline"}
+                className="cursor-pointer"
+                onClick={() => setSelectedCategories([])}
+              >
+                全部
+              </Badge>
+              {categories.map((cat) => (
+                <Badge
+                  key={cat.id}
+                  variant={selectedCategories.includes(cat.name) ? "default" : "outline"}
+                  className="cursor-pointer"
+                  onClick={() => toggleCategoryFilter(cat.name)}
+                >
+                  {cat.name}
+                </Badge>
+              ))}
+              <Badge
+                variant={selectedCategories.includes("未分类") ? "default" : "outline"}
+                className="cursor-pointer"
+                onClick={() => toggleCategoryFilter("未分类")}
+              >
+                未分类
+              </Badge>
+            </div>
+          )}
         </CardContent>
       </Card>
 

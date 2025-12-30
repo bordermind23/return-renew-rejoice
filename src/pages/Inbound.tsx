@@ -14,13 +14,6 @@ import {
 } from "@/components/ui/dialog";
 import { Label } from "@/components/ui/label";
 import { Textarea } from "@/components/ui/textarea";
-import {
-  Select,
-  SelectContent,
-  SelectItem,
-  SelectTrigger,
-  SelectValue,
-} from "@/components/ui/select";
 import { Checkbox } from "@/components/ui/checkbox";
 import {
   AlertDialog,
@@ -51,17 +44,11 @@ import {
 import { useRemovalShipments, useUpdateRemovalShipment, type RemovalShipment } from "@/hooks/useRemovalShipments";
 import { useOrders, type Order } from "@/hooks/useOrders";
 import { useUpdateInventoryStock, useDecreaseInventoryStock } from "@/hooks/useInventoryItems";
+import { useProducts, useProductParts, type ProductPart } from "@/hooks/useProducts";
 import { Skeleton } from "@/components/ui/skeleton";
 import { toast } from "sonner";
 import { Scanner } from "@/components/Scanner";
-
-const missingPartsList = [
-  { id: "earbuds", label: "耳塞套" },
-  { id: "cable", label: "充电线" },
-  { id: "manual", label: "说明书" },
-  { id: "box", label: "原装包装盒" },
-  { id: "adapter", label: "电源适配器" },
-];
+import { cn } from "@/lib/utils";
 
 type InboundStep = "scan_tracking" | "scan_lpn" | "process";
 
@@ -70,7 +57,7 @@ export default function Inbound() {
   const [trackingInput, setTrackingInput] = useState("");
   const [lpnInput, setLpnInput] = useState("");
   const [matchedShipment, setMatchedShipment] = useState<RemovalShipment | null>(null);
-  const [matchedOrder, setMatchedOrder] = useState<Order | null>(null);
+  const [matchedOrders, setMatchedOrders] = useState<Order[]>([]);
   const [scannedLpns, setScannedLpns] = useState<string[]>([]);
   const [currentLpn, setCurrentLpn] = useState("");
   
@@ -87,11 +74,18 @@ export default function Inbound() {
   const { data: inboundItems, isLoading: inboundLoading } = useInboundItems();
   const { data: shipments, isLoading: shipmentsLoading } = useRemovalShipments();
   const { data: orders, isLoading: ordersLoading } = useOrders();
+  const { data: products } = useProducts();
   const createMutation = useCreateInboundItem();
   const deleteMutation = useDeleteInboundItem();
   const updateShipmentMutation = useUpdateRemovalShipment();
   const updateInventoryMutation = useUpdateInventoryStock();
   const decreaseInventoryMutation = useDecreaseInventoryStock();
+
+  // 通过 SKU 找到对应产品并获取其配件
+  const matchedProduct = matchedShipment 
+    ? products?.find(p => p.sku === matchedShipment.product_sku)
+    : null;
+  const { data: productParts } = useProductParts(matchedProduct?.id || null);
 
   // 自动聚焦输入框
   useEffect(() => {
@@ -135,13 +129,13 @@ export default function Inbound() {
     toast.success(`匹配成功: ${found.product_name}`);
   };
 
-  // 验证 LPN 是否存在于退货订单列表并获取订单信息
-  const getOrderByLpn = (lpn: string) => {
-    return orders?.find(o => o.lpn === lpn);
+  // 验证 LPN 是否存在于退货订单列表并获取所有匹配的订单
+  const getOrdersByLpn = (lpn: string) => {
+    return orders?.filter(o => o.lpn === lpn) || [];
   };
 
   const validateLpnExists = (lpn: string): boolean => {
-    return !!getOrderByLpn(lpn);
+    return getOrdersByLpn(lpn).length > 0;
   };
 
   // 扫描 LPN (支持手动输入和摄像头扫码)
@@ -176,7 +170,7 @@ export default function Inbound() {
     }
 
     setCurrentLpn(lpn);
-    setMatchedOrder(getOrderByLpn(lpn) || null);
+    setMatchedOrders(getOrdersByLpn(lpn));
     setIsProcessDialogOpen(true);
     setLpnInput("");
   };
@@ -222,9 +216,8 @@ export default function Inbound() {
       return;
     }
 
-    const missingPartsLabels = selectedMissingParts.map(
-      (id) => missingPartsList.find((p) => p.id === id)?.label || id
-    );
+    // 配件标签直接使用选中的配件名称
+    const missingPartsLabels = selectedMissingParts;
 
     createMutation.mutate(
       {
@@ -513,136 +506,180 @@ export default function Inbound() {
 
       {/* 处理对话框 */}
       <Dialog open={isProcessDialogOpen} onOpenChange={setIsProcessDialogOpen}>
-        <DialogContent className="max-w-2xl">
-          <DialogHeader>
+        <DialogContent className="max-w-2xl max-h-[90vh] overflow-hidden flex flex-col">
+          <DialogHeader className="flex-shrink-0">
             <DialogTitle className="flex items-center gap-2">
               <Package className="h-5 w-5 text-primary" />
               产品入库处理 - {currentLpn}
             </DialogTitle>
           </DialogHeader>
-          <div className="grid gap-6 py-4">
-            {/* 退货订单信息 */}
-            {matchedOrder && (
-              <div className="rounded-lg bg-blue-50 dark:bg-blue-950/30 p-4 border border-blue-200 dark:border-blue-800">
-                <h4 className="font-semibold text-blue-900 dark:text-blue-100 mb-3">退货订单信息</h4>
-                <div className="grid grid-cols-2 gap-3 text-sm">
-                  <div><p className="text-muted-foreground">产品名称</p><p className="font-medium">{matchedOrder.product_name || "-"}</p></div>
-                  <div><p className="text-muted-foreground">产品SKU</p><p className="font-medium">{matchedOrder.product_sku || "-"}</p></div>
-                  <div><p className="text-muted-foreground">退货原因</p><p className="font-medium">{matchedOrder.return_reason || "-"}</p></div>
-                  <div><p className="text-muted-foreground">买家备注</p><p className="font-medium">{matchedOrder.buyer_note || "-"}</p></div>
-                  <div><p className="text-muted-foreground">店铺</p><p className="font-medium">{matchedOrder.store_name}</p></div>
-                  <div><p className="text-muted-foreground">国家</p><p className="font-medium">{matchedOrder.country || "-"}</p></div>
-                  <div><p className="text-muted-foreground">FNSKU</p><p className="font-medium">{matchedOrder.fnsku || "-"}</p></div>
-                  <div><p className="text-muted-foreground">ASIN</p><p className="font-medium">{matchedOrder.asin || "-"}</p></div>
-                </div>
-              </div>
-            )}
-
-            {/* 产品信息（只读） */}
-            {matchedShipment && (
-              <div className="rounded-lg bg-muted/50 p-4">
-                <div className="grid grid-cols-2 gap-4 text-sm">
-                  <div>
-                    <p className="text-muted-foreground">产品名称</p>
-                    <p className="font-medium">{matchedShipment.product_name}</p>
-                  </div>
-                  <div>
-                    <p className="text-muted-foreground">产品SKU</p>
-                    <p className="font-medium">{matchedShipment.product_sku}</p>
+          <ScrollArea className="flex-1 pr-4">
+            <div className="grid gap-4 py-4">
+              {/* 退货订单信息 - 显示所有匹配的订单 */}
+              {matchedOrders.length > 0 && (
+                <div className="rounded-lg bg-blue-50 dark:bg-blue-950/30 p-4 border border-blue-200 dark:border-blue-800">
+                  <h4 className="font-semibold text-blue-900 dark:text-blue-100 mb-3">
+                    退货订单信息 {matchedOrders.length > 1 && <Badge variant="secondary" className="ml-2">{matchedOrders.length}条记录</Badge>}
+                  </h4>
+                  <div className="space-y-3">
+                    {matchedOrders.map((order, index) => (
+                      <div key={order.id} className={cn("grid grid-cols-2 gap-2 text-sm", index > 0 && "pt-3 border-t border-blue-200 dark:border-blue-700")}>
+                        {matchedOrders.length > 1 && (
+                          <div className="col-span-2 text-xs text-blue-600 dark:text-blue-400 font-medium">订单 {index + 1}</div>
+                        )}
+                        <div><p className="text-muted-foreground text-xs">产品名称</p><p className="font-medium text-sm">{order.product_name || "-"}</p></div>
+                        <div><p className="text-muted-foreground text-xs">产品SKU</p><p className="font-medium text-sm">{order.product_sku || "-"}</p></div>
+                        <div><p className="text-muted-foreground text-xs">退货原因</p><p className="font-medium text-sm">{order.return_reason || "-"}</p></div>
+                        <div><p className="text-muted-foreground text-xs">买家备注</p><p className="font-medium text-sm">{order.buyer_note || "-"}</p></div>
+                        <div><p className="text-muted-foreground text-xs">店铺</p><p className="font-medium text-sm">{order.store_name}</p></div>
+                        <div><p className="text-muted-foreground text-xs">订单号</p><p className="font-medium text-sm">{order.order_number}</p></div>
+                      </div>
+                    ))}
                   </div>
                 </div>
-              </div>
-            )}
+              )}
 
-            {/* 退货理由 */}
-            <div className="space-y-2">
-              <Label htmlFor="return_reason">退货理由</Label>
-              <Input
-                id="return_reason"
-                placeholder="输入退货理由（可选）"
-                value={returnReason}
-                onChange={(e) => setReturnReason(e.target.value)}
-              />
-            </div>
+              {/* 产品信息（只读） */}
+              {matchedShipment && (
+                <div className="rounded-lg bg-muted/50 p-3">
+                  <div className="grid grid-cols-2 gap-3 text-sm">
+                    <div>
+                      <p className="text-muted-foreground text-xs">产品名称</p>
+                      <p className="font-medium">{matchedShipment.product_name}</p>
+                    </div>
+                    <div>
+                      <p className="text-muted-foreground text-xs">产品SKU</p>
+                      <p className="font-medium">{matchedShipment.product_sku}</p>
+                    </div>
+                  </div>
+                </div>
+              )}
 
-            {/* 拍照上传 */}
-            <div className="grid grid-cols-2 gap-4">
+              {/* 退货理由 */}
               <div className="space-y-2">
-                <Label>产品包装照片</Label>
-                <div className="flex h-32 cursor-pointer items-center justify-center rounded-lg border-2 border-dashed border-muted-foreground/30 transition-colors hover:border-primary/50 hover:bg-primary/5">
-                  <div className="text-center">
-                    <Camera className="mx-auto h-8 w-8 text-muted-foreground" />
-                    <span className="mt-2 block text-sm text-muted-foreground">
-                      点击上传
-                    </span>
+                <Label htmlFor="return_reason" className="text-sm">退货理由</Label>
+                <Input
+                  id="return_reason"
+                  placeholder="输入退货理由（可选）"
+                  value={returnReason}
+                  onChange={(e) => setReturnReason(e.target.value)}
+                  className="h-9"
+                />
+              </div>
+
+              {/* 拍照上传 */}
+              <div className="grid grid-cols-2 gap-3">
+                <div className="space-y-2">
+                  <Label className="text-sm">产品包装照片</Label>
+                  <div className="flex h-24 cursor-pointer items-center justify-center rounded-lg border-2 border-dashed border-muted-foreground/30 transition-colors hover:border-primary/50 hover:bg-primary/5">
+                    <div className="text-center">
+                      <Camera className="mx-auto h-6 w-6 text-muted-foreground" />
+                      <span className="mt-1 block text-xs text-muted-foreground">点击上传</span>
+                    </div>
+                  </div>
+                </div>
+                <div className="space-y-2">
+                  <Label className="text-sm">产品内部照片</Label>
+                  <div className="flex h-24 cursor-pointer items-center justify-center rounded-lg border-2 border-dashed border-muted-foreground/30 transition-colors hover:border-primary/50 hover:bg-primary/5">
+                    <div className="text-center">
+                      <Camera className="mx-auto h-6 w-6 text-muted-foreground" />
+                      <span className="mt-1 block text-xs text-muted-foreground">点击上传</span>
+                    </div>
                   </div>
                 </div>
               </div>
+
+              {/* 级别选择 - 改为点击框 */}
               <div className="space-y-2">
-                <Label>产品内部照片</Label>
-                <div className="flex h-32 cursor-pointer items-center justify-center rounded-lg border-2 border-dashed border-muted-foreground/30 transition-colors hover:border-primary/50 hover:bg-primary/5">
-                  <div className="text-center">
-                    <Camera className="mx-auto h-8 w-8 text-muted-foreground" />
-                    <span className="mt-2 block text-sm text-muted-foreground">
-                      点击上传
-                    </span>
-                  </div>
-                </div>
-              </div>
-            </div>
-
-            {/* 级别选择 */}
-            <div className="space-y-2">
-              <Label>设定产品级别 *</Label>
-              <Select value={selectedGrade} onValueChange={setSelectedGrade}>
-                <SelectTrigger>
-                  <SelectValue placeholder="选择产品级别" />
-                </SelectTrigger>
-                <SelectContent>
-                  <SelectItem value="A">A级 - 轻微使用痕迹</SelectItem>
-                  <SelectItem value="B">B级 - 明显使用痕迹或缺少配件</SelectItem>
-                  <SelectItem value="C">C级 - 功能或外观有问题</SelectItem>
-                </SelectContent>
-              </Select>
-            </div>
-
-            {/* 缺少配件 */}
-            <div className="space-y-3">
-              <Label>缺少配件 (可多选)</Label>
-              <div className="grid grid-cols-2 gap-3 sm:grid-cols-3">
-                {missingPartsList.map((part) => (
-                  <div
-                    key={part.id}
-                    className="flex items-center space-x-2 rounded-lg border p-3"
+                <Label className="text-sm">设定产品级别 *</Label>
+                <div className="grid grid-cols-3 gap-3">
+                  <button
+                    type="button"
+                    onClick={() => setSelectedGrade("A")}
+                    className={cn(
+                      "flex flex-col items-center justify-center p-4 rounded-lg border-2 transition-all",
+                      selectedGrade === "A"
+                        ? "border-info bg-info/10 ring-2 ring-info/30"
+                        : "border-muted hover:border-info/50 hover:bg-info/5"
+                    )}
                   >
-                    <Checkbox
-                      id={part.id}
-                      checked={selectedMissingParts.includes(part.id)}
-                      onCheckedChange={() => toggleMissingPart(part.id)}
-                    />
-                    <label
-                      htmlFor={part.id}
-                      className="text-sm font-medium leading-none cursor-pointer"
-                    >
-                      {part.label}
-                    </label>
+                    <GradeBadge grade="A" />
+                    <span className="mt-2 text-xs text-muted-foreground">轻微使用痕迹</span>
+                  </button>
+                  <button
+                    type="button"
+                    onClick={() => setSelectedGrade("B")}
+                    className={cn(
+                      "flex flex-col items-center justify-center p-4 rounded-lg border-2 transition-all",
+                      selectedGrade === "B"
+                        ? "border-warning bg-warning/10 ring-2 ring-warning/30"
+                        : "border-muted hover:border-warning/50 hover:bg-warning/5"
+                    )}
+                  >
+                    <GradeBadge grade="B" />
+                    <span className="mt-2 text-xs text-muted-foreground">明显使用痕迹</span>
+                  </button>
+                  <button
+                    type="button"
+                    onClick={() => setSelectedGrade("C")}
+                    className={cn(
+                      "flex flex-col items-center justify-center p-4 rounded-lg border-2 transition-all",
+                      selectedGrade === "C"
+                        ? "border-destructive bg-destructive/10 ring-2 ring-destructive/30"
+                        : "border-muted hover:border-destructive/50 hover:bg-destructive/5"
+                    )}
+                  >
+                    <GradeBadge grade="C" />
+                    <span className="mt-2 text-xs text-muted-foreground">功能外观问题</span>
+                  </button>
+                </div>
+              </div>
+
+              {/* 缺少配件 - 使用产品配件列表 */}
+              <div className="space-y-2">
+                <Label className="text-sm">缺少配件 (可多选)</Label>
+                {productParts && productParts.length > 0 ? (
+                  <div className="grid grid-cols-2 gap-2 sm:grid-cols-3">
+                    {productParts.map((part) => (
+                      <div
+                        key={part.id}
+                        className="flex items-center space-x-2 rounded-lg border p-2"
+                      >
+                        <Checkbox
+                          id={part.id}
+                          checked={selectedMissingParts.includes(part.name)}
+                          onCheckedChange={() => toggleMissingPart(part.name)}
+                        />
+                        <label
+                          htmlFor={part.id}
+                          className="text-sm font-medium leading-none cursor-pointer flex-1"
+                        >
+                          {part.name} {part.quantity > 1 && <span className="text-muted-foreground">x{part.quantity}</span>}
+                        </label>
+                      </div>
+                    ))}
                   </div>
-                ))}
+                ) : (
+                  <p className="text-sm text-muted-foreground p-3 rounded-lg bg-muted/50">
+                    {matchedProduct ? "该产品暂无配件信息，请在产品管理中添加" : "未匹配到产品配件信息"}
+                  </p>
+                )}
+              </div>
+
+              {/* 备注 */}
+              <div className="space-y-2">
+                <Label htmlFor="notes" className="text-sm">备注</Label>
+                <Textarea
+                  id="notes"
+                  placeholder="输入其他备注信息..."
+                  value={notes}
+                  onChange={(e) => setNotes(e.target.value)}
+                  className="min-h-[60px]"
+                />
               </div>
             </div>
-
-            {/* 备注 */}
-            <div className="space-y-2">
-              <Label htmlFor="notes">备注</Label>
-              <Textarea
-                id="notes"
-                placeholder="输入其他备注信息..."
-                value={notes}
-                onChange={(e) => setNotes(e.target.value)}
-              />
-            </div>
-          </div>
-          <div className="flex justify-end gap-3">
+          </ScrollArea>
+          <div className="flex justify-end gap-3 pt-4 border-t flex-shrink-0">
             <Button variant="outline" onClick={() => {
               setIsProcessDialogOpen(false);
               resetProcessForm();

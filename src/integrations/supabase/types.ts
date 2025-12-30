@@ -167,46 +167,61 @@ export type Database = {
       removal_shipments: {
         Row: {
           carrier: string
+          country: string | null
           created_at: string
           fnsku: string
           id: string
+          msku: string | null
           note: string | null
           order_id: string
           product_image: string | null
           product_name: string
           product_sku: string
+          product_type: string | null
           quantity: number
+          ship_date: string | null
           status: string
+          store_name: string | null
           tracking_number: string
           updated_at: string
         }
         Insert: {
           carrier: string
+          country?: string | null
           created_at?: string
           fnsku: string
           id?: string
+          msku?: string | null
           note?: string | null
           order_id: string
           product_image?: string | null
           product_name: string
           product_sku: string
+          product_type?: string | null
           quantity?: number
+          ship_date?: string | null
           status?: string
+          store_name?: string | null
           tracking_number: string
           updated_at?: string
         }
         Update: {
           carrier?: string
+          country?: string | null
           created_at?: string
           fnsku?: string
           id?: string
+          msku?: string | null
           note?: string | null
           order_id?: string
           product_image?: string | null
           product_name?: string
           product_sku?: string
+          product_type?: string | null
           quantity?: number
+          ship_date?: string | null
           status?: string
+          store_name?: string | null
           tracking_number?: string
           updated_at?: string
         }

@@ -14,6 +14,11 @@ export interface RemovalShipment {
   fnsku: string;
   quantity: number;
   status: "shipping" | "arrived" | "inbound" | "shelved";
+  store_name: string | null;
+  country: string | null;
+  ship_date: string | null;
+  msku: string | null;
+  product_type: string | null;
   created_at: string;
   updated_at: string;
 }
@@ -56,6 +61,29 @@ export const useCreateRemovalShipment = () => {
     },
     onError: (error) => {
       toast.error("创建失败: " + error.message);
+    },
+  });
+};
+
+export const useBulkCreateRemovalShipments = () => {
+  const queryClient = useQueryClient();
+
+  return useMutation({
+    mutationFn: async (shipments: RemovalShipmentInsert[]) => {
+      const { data, error } = await supabase
+        .from("removal_shipments")
+        .insert(shipments)
+        .select();
+
+      if (error) throw error;
+      return data;
+    },
+    onSuccess: (data) => {
+      queryClient.invalidateQueries({ queryKey: ["removal_shipments"] });
+      toast.success(`成功导入 ${data.length} 条货件记录`);
+    },
+    onError: (error) => {
+      toast.error("批量导入失败: " + error.message);
     },
   });
 };

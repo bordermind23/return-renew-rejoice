@@ -1,9 +1,8 @@
 import { useState, useRef } from "react";
-import { Plus, Search, Filter, Trash2, Edit, Upload, Download, FileSpreadsheet } from "lucide-react";
+import { Plus, Search, Filter, Trash2, Edit, Upload, Download, FileSpreadsheet, ChevronDown, AlertCircle, CheckCircle2, Loader2 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { PageHeader } from "@/components/ui/page-header";
-import { DataTable } from "@/components/ui/data-table";
 import { StatusBadge } from "@/components/ui/status-badge";
 import {
   Dialog,
@@ -34,8 +33,20 @@ import {
   DropdownMenu,
   DropdownMenuContent,
   DropdownMenuItem,
+  DropdownMenuSeparator,
   DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu";
+import {
+  Table,
+  TableBody,
+  TableCell,
+  TableHead,
+  TableHeader,
+  TableRow,
+} from "@/components/ui/table";
+import { Card, CardContent } from "@/components/ui/card";
+import { ScrollArea, ScrollBar } from "@/components/ui/scroll-area";
+import { Progress } from "@/components/ui/progress";
 import {
   useRemovalShipments,
   useCreateRemovalShipment,
@@ -50,6 +61,20 @@ import { Skeleton } from "@/components/ui/skeleton";
 import { toast } from "sonner";
 import * as XLSX from "xlsx";
 
+interface ImportError {
+  row: number;
+  message: string;
+}
+
+interface ImportProgress {
+  isImporting: boolean;
+  total: number;
+  processed: number;
+  errors: ImportError[];
+  showResult: boolean;
+  successCount: number;
+}
+
 export default function Removals() {
   const [searchTerm, setSearchTerm] = useState("");
   const [statusFilter, setStatusFilter] = useState<string>("all");
@@ -59,6 +84,15 @@ export default function Removals() {
   const [customCarrier, setCustomCarrier] = useState("");
   const [useCustomCarrier, setUseCustomCarrier] = useState(false);
   const fileInputRef = useRef<HTMLInputElement>(null);
+  
+  const [importProgress, setImportProgress] = useState<ImportProgress>({
+    isImporting: false,
+    total: 0,
+    processed: 0,
+    errors: [],
+    showResult: false,
+    successCount: 0,
+  });
 
   // Form state
   const [formData, setFormData] = useState({
@@ -96,72 +130,6 @@ export default function Removals() {
 
     return matchesSearch && matchesStatus;
   });
-
-  const columns = [
-    {
-      key: "order_id",
-      header: "移除订单号",
-      render: (item: RemovalShipment) => (
-        <span className="font-medium text-primary">{item.order_id}</span>
-      ),
-    },
-    { key: "store_name", header: "店铺", render: (item: RemovalShipment) => item.store_name || "-" },
-    { key: "country", header: "国家", render: (item: RemovalShipment) => item.country || "-" },
-    { key: "product_sku", header: "产品SKU" },
-    { key: "msku", header: "MSKU", render: (item: RemovalShipment) => item.msku || "-" },
-    { key: "product_name", header: "产品名称" },
-    { key: "product_type", header: "商品类型", render: (item: RemovalShipment) => item.product_type || "-" },
-    { key: "fnsku", header: "FNSKU" },
-    {
-      key: "quantity",
-      header: "退件数量",
-      render: (item: RemovalShipment) => (
-        <span className="font-semibold">{item.quantity}</span>
-      ),
-    },
-    { key: "carrier", header: "物流承运商" },
-    { key: "tracking_number", header: "物流跟踪号" },
-    {
-      key: "ship_date",
-      header: "发货日期",
-      render: (item: RemovalShipment) =>
-        item.ship_date ? new Date(item.ship_date).toLocaleDateString("zh-CN") : "-",
-    },
-    {
-      key: "status",
-      header: "状态",
-      render: (item: RemovalShipment) => <StatusBadge status={item.status} />,
-    },
-    {
-      key: "actions",
-      header: "操作",
-      render: (item: RemovalShipment) => (
-        <div className="flex gap-2">
-          <Button
-            size="sm"
-            variant="ghost"
-            onClick={(e) => {
-              e.stopPropagation();
-              handleEdit(item);
-            }}
-          >
-            <Edit className="h-4 w-4" />
-          </Button>
-          <Button
-            size="sm"
-            variant="ghost"
-            className="text-destructive"
-            onClick={(e) => {
-              e.stopPropagation();
-              setDeleteId(item.id);
-            }}
-          >
-            <Trash2 className="h-4 w-4" />
-          </Button>
-        </div>
-      ),
-    },
-  ];
 
   const resetForm = () => {
     setFormData({
@@ -268,12 +236,11 @@ export default function Removals() {
     const templateData = [
       templateHeaders,
       ["RM-001", "店铺A", "美国", "SKU-001", "MSKU-001", "示例产品", "电子产品", "FNSKU-001", "10", "顺丰速运", "SF123456789", "2024-01-15", "shipping", "这是备注"],
+      ["RM-002", "店铺B", "德国", "SKU-002", "MSKU-002", "示例产品2", "服装", "FNSKU-002", "5", "德邦快递", "DB987654321", "2024-01-16", "shipping", ""],
     ];
 
     const ws = XLSX.utils.aoa_to_sheet(templateData);
-    
-    // 设置列宽
-    ws["!cols"] = templateHeaders.map(() => ({ wch: 15 }));
+    ws["!cols"] = templateHeaders.map((_, i) => ({ wch: i === 5 ? 20 : 15 }));
 
     const wb = XLSX.utils.book_new();
     XLSX.utils.book_append_sheet(wb, ws, "移除货件模板");
@@ -310,7 +277,7 @@ export default function Removals() {
     ];
 
     const ws = XLSX.utils.aoa_to_sheet(data);
-    ws["!cols"] = templateHeaders.map(() => ({ wch: 15 }));
+    ws["!cols"] = templateHeaders.map((_, i) => ({ wch: i === 5 ? 20 : 15 }));
     
     const wb = XLSX.utils.book_new();
     XLSX.utils.book_append_sheet(wb, ws, "移除货件");
@@ -319,10 +286,78 @@ export default function Removals() {
     toast.success("导出成功");
   };
 
+  // 验证行数据
+  const validateRow = (row: string[], rowIndex: number): { valid: boolean; error?: string; data?: RemovalShipmentInsert } => {
+    const errors: string[] = [];
+    
+    if (!row[0]?.trim()) {
+      errors.push("移除订单号不能为空");
+    }
+    if (!row[3]?.trim()) {
+      errors.push("产品SKU不能为空");
+    }
+    if (!row[5]?.trim()) {
+      errors.push("产品名称不能为空");
+    }
+    if (!row[7]?.trim()) {
+      errors.push("FNSKU不能为空");
+    }
+    if (!row[9]?.trim()) {
+      errors.push("物流承运商不能为空");
+    }
+    if (!row[10]?.trim()) {
+      errors.push("物流跟踪号不能为空");
+    }
+
+    const quantity = parseInt(String(row[8])) || 0;
+    if (quantity <= 0) {
+      errors.push("退件数量必须大于0");
+    }
+
+    const validStatuses = ["shipping", "arrived", "inbound", "shelved"];
+    const status = String(row[12] || "shipping").toLowerCase();
+    if (!validStatuses.includes(status)) {
+      errors.push(`状态值无效，应为: ${validStatuses.join(", ")}`);
+    }
+
+    if (errors.length > 0) {
+      return { valid: false, error: errors.join("; ") };
+    }
+
+    return {
+      valid: true,
+      data: {
+        order_id: String(row[0]).trim(),
+        store_name: row[1] ? String(row[1]).trim() : null,
+        country: row[2] ? String(row[2]).trim() : null,
+        product_sku: String(row[3]).trim(),
+        msku: row[4] ? String(row[4]).trim() : null,
+        product_name: String(row[5]).trim(),
+        product_type: row[6] ? String(row[6]).trim() : null,
+        fnsku: String(row[7]).trim(),
+        quantity: parseInt(String(row[8])) || 1,
+        carrier: String(row[9]).trim(),
+        tracking_number: String(row[10]).trim(),
+        ship_date: row[11] ? String(row[11]).trim() : null,
+        status: status as "shipping" | "arrived" | "inbound" | "shelved",
+        note: row[13] ? String(row[13]).trim() : null,
+      }
+    };
+  };
+
   // 导入 Excel/CSV
   const handleImport = (event: React.ChangeEvent<HTMLInputElement>) => {
     const file = event.target.files?.[0];
     if (!file) return;
+
+    setImportProgress({
+      isImporting: true,
+      total: 0,
+      processed: 0,
+      errors: [],
+      showResult: false,
+      successCount: 0,
+    });
 
     const reader = new FileReader();
     reader.onload = (e) => {
@@ -334,48 +369,77 @@ export default function Removals() {
         const jsonData = XLSX.utils.sheet_to_json<string[]>(worksheet, { header: 1 });
 
         if (jsonData.length < 2) {
-          toast.error("文件格式错误或没有数据");
+          setImportProgress(prev => ({
+            ...prev,
+            isImporting: false,
+            showResult: true,
+            errors: [{ row: 0, message: "文件格式错误或没有数据" }]
+          }));
           return;
         }
 
-        // 跳过标题行
-        const dataRows = jsonData.slice(1);
-        const importShipments: RemovalShipmentInsert[] = [];
+        const dataRows = jsonData.slice(1).filter(row => row.length > 0 && row.some(cell => cell));
+        const total = dataRows.length;
+        const importErrors: ImportError[] = [];
+        const validShipments: RemovalShipmentInsert[] = [];
 
-        for (const row of dataRows) {
-          if (row.length >= 10 && row[0]) {
-            importShipments.push({
-              order_id: String(row[0] || `ORD-${Date.now()}`),
-              store_name: row[1] ? String(row[1]) : null,
-              country: row[2] ? String(row[2]) : null,
-              product_sku: String(row[3] || ""),
-              msku: row[4] ? String(row[4]) : null,
-              product_name: String(row[5] || ""),
-              product_type: row[6] ? String(row[6]) : null,
-              fnsku: String(row[7] || ""),
-              quantity: parseInt(String(row[8])) || 1,
-              carrier: String(row[9] || ""),
-              tracking_number: String(row[10] || ""),
-              ship_date: row[11] ? String(row[11]) : null,
-              status: (String(row[12] || "shipping") as "shipping" | "arrived" | "inbound" | "shelved"),
-              note: row[13] ? String(row[13]) : null,
-            });
+        setImportProgress(prev => ({ ...prev, total }));
+
+        dataRows.forEach((row, index) => {
+          const rowNumber = index + 2; // Excel行号从2开始（1是表头）
+          const result = validateRow(row, rowNumber);
+          
+          if (result.valid && result.data) {
+            validShipments.push(result.data);
+          } else {
+            importErrors.push({ row: rowNumber, message: result.error || "未知错误" });
           }
-        }
+        });
 
-        if (importShipments.length === 0) {
-          toast.error("未能解析任何有效数据");
+        setImportProgress(prev => ({
+          ...prev,
+          processed: total,
+          errors: importErrors,
+        }));
+
+        if (validShipments.length === 0) {
+          setImportProgress(prev => ({
+            ...prev,
+            isImporting: false,
+            showResult: true,
+          }));
           return;
         }
 
-        bulkCreateMutation.mutate(importShipments);
+        bulkCreateMutation.mutate(validShipments, {
+          onSuccess: () => {
+            setImportProgress(prev => ({
+              ...prev,
+              isImporting: false,
+              showResult: true,
+              successCount: validShipments.length,
+            }));
+          },
+          onError: (error) => {
+            setImportProgress(prev => ({
+              ...prev,
+              isImporting: false,
+              showResult: true,
+              errors: [...prev.errors, { row: 0, message: `数据库写入失败: ${error.message}` }],
+            }));
+          }
+        });
       } catch (error) {
-        toast.error("解析文件失败");
+        setImportProgress(prev => ({
+          ...prev,
+          isImporting: false,
+          showResult: true,
+          errors: [{ row: 0, message: "解析文件失败，请检查文件格式" }]
+        }));
       }
     };
     reader.readAsArrayBuffer(file);
     
-    // 清除input以允许重复选择同一文件
     if (fileInputRef.current) {
       fileInputRef.current.value = "";
     }
@@ -404,18 +468,34 @@ export default function Removals() {
               onChange={handleImport}
               className="hidden"
             />
-            <Button variant="outline" onClick={handleDownloadTemplate}>
-              <FileSpreadsheet className="mr-2 h-4 w-4" />
-              下载模板
-            </Button>
-            <Button variant="outline" onClick={() => fileInputRef.current?.click()}>
-              <Upload className="mr-2 h-4 w-4" />
-              批量导入
-            </Button>
+            
+            {/* 批量导入下拉菜单 */}
+            <DropdownMenu>
+              <DropdownMenuTrigger asChild>
+                <Button variant="outline">
+                  <Upload className="mr-2 h-4 w-4" />
+                  批量导入
+                  <ChevronDown className="ml-2 h-4 w-4" />
+                </Button>
+              </DropdownMenuTrigger>
+              <DropdownMenuContent align="end" className="bg-popover">
+                <DropdownMenuItem onClick={handleDownloadTemplate}>
+                  <FileSpreadsheet className="mr-2 h-4 w-4" />
+                  下载导入模板
+                </DropdownMenuItem>
+                <DropdownMenuSeparator />
+                <DropdownMenuItem onClick={() => fileInputRef.current?.click()}>
+                  <Upload className="mr-2 h-4 w-4" />
+                  选择文件导入
+                </DropdownMenuItem>
+              </DropdownMenuContent>
+            </DropdownMenu>
+
             <Button variant="outline" onClick={handleExportExcel}>
               <Download className="mr-2 h-4 w-4" />
               批量导出
             </Button>
+            
             <Dialog
               open={isDialogOpen}
               onOpenChange={(open) => {
@@ -438,7 +518,7 @@ export default function Removals() {
                 <div className="grid gap-4 py-4">
                   <div className="grid grid-cols-3 gap-4">
                     <div className="space-y-2">
-                      <Label htmlFor="orderId">移除订单号</Label>
+                      <Label htmlFor="orderId">移除订单号 *</Label>
                       <Input
                         id="orderId"
                         placeholder="输入订单号"
@@ -473,7 +553,7 @@ export default function Removals() {
                   </div>
                   <div className="grid grid-cols-3 gap-4">
                     <div className="space-y-2">
-                      <Label htmlFor="sku">产品SKU</Label>
+                      <Label htmlFor="sku">产品SKU *</Label>
                       <Input
                         id="sku"
                         placeholder="输入SKU"
@@ -495,7 +575,7 @@ export default function Removals() {
                       />
                     </div>
                     <div className="space-y-2">
-                      <Label htmlFor="fnsku">FNSKU</Label>
+                      <Label htmlFor="fnsku">FNSKU *</Label>
                       <Input
                         id="fnsku"
                         placeholder="输入FNSKU"
@@ -508,7 +588,7 @@ export default function Removals() {
                   </div>
                   <div className="grid grid-cols-2 gap-4">
                     <div className="space-y-2">
-                      <Label htmlFor="productName">产品名称</Label>
+                      <Label htmlFor="productName">产品名称 *</Label>
                       <Input
                         id="productName"
                         placeholder="输入产品名称"
@@ -532,7 +612,7 @@ export default function Removals() {
                   </div>
                   <div className="grid grid-cols-3 gap-4">
                     <div className="space-y-2">
-                      <Label htmlFor="quantity">退件数量</Label>
+                      <Label htmlFor="quantity">退件数量 *</Label>
                       <Input
                         id="quantity"
                         type="number"
@@ -558,7 +638,7 @@ export default function Removals() {
                       />
                     </div>
                     <div className="space-y-2">
-                      <Label htmlFor="tracking">物流跟踪号</Label>
+                      <Label htmlFor="tracking">物流跟踪号 *</Label>
                       <Input
                         id="tracking"
                         placeholder="输入跟踪号"
@@ -574,7 +654,7 @@ export default function Removals() {
                   </div>
                   <div className="space-y-2">
                     <div className="flex items-center justify-between">
-                      <Label htmlFor="carrier">物流承运商</Label>
+                      <Label htmlFor="carrier">物流承运商 *</Label>
                       <Button
                         type="button"
                         variant="ghost"
@@ -646,6 +726,64 @@ export default function Removals() {
         }
       />
 
+      {/* 导入进度和结果 */}
+      {(importProgress.isImporting || importProgress.showResult) && (
+        <Card>
+          <CardContent className="pt-6">
+            {importProgress.isImporting ? (
+              <div className="space-y-4">
+                <div className="flex items-center gap-3">
+                  <Loader2 className="h-5 w-5 animate-spin text-primary" />
+                  <span className="font-medium">正在导入数据...</span>
+                </div>
+                <Progress value={importProgress.total > 0 ? (importProgress.processed / importProgress.total) * 100 : 0} />
+                <p className="text-sm text-muted-foreground">
+                  已处理 {importProgress.processed} / {importProgress.total} 行
+                </p>
+              </div>
+            ) : (
+              <div className="space-y-4">
+                <div className="flex items-center justify-between">
+                  <div className="flex items-center gap-3">
+                    {importProgress.errors.length === 0 ? (
+                      <CheckCircle2 className="h-5 w-5 text-green-500" />
+                    ) : (
+                      <AlertCircle className="h-5 w-5 text-amber-500" />
+                    )}
+                    <span className="font-medium">
+                      导入完成：成功 {importProgress.successCount} 条
+                      {importProgress.errors.length > 0 && `，失败 ${importProgress.errors.length} 条`}
+                    </span>
+                  </div>
+                  <Button
+                    variant="ghost"
+                    size="sm"
+                    onClick={() => setImportProgress(prev => ({ ...prev, showResult: false }))}
+                  >
+                    关闭
+                  </Button>
+                </div>
+                
+                {importProgress.errors.length > 0 && (
+                  <div className="rounded-lg border bg-destructive/5 p-4">
+                    <p className="font-medium text-destructive mb-2">错误详情：</p>
+                    <ScrollArea className="h-32">
+                      <div className="space-y-1">
+                        {importProgress.errors.map((error, index) => (
+                          <p key={index} className="text-sm text-muted-foreground">
+                            {error.row > 0 ? `第 ${error.row} 行：` : ""}{error.message}
+                          </p>
+                        ))}
+                      </div>
+                    </ScrollArea>
+                  </div>
+                )}
+              </div>
+            )}
+          </CardContent>
+        </Card>
+      )}
+
       {/* Filters */}
       <div className="flex flex-col gap-4 sm:flex-row">
         <div className="relative flex-1">
@@ -672,12 +810,93 @@ export default function Removals() {
         </Select>
       </div>
 
-      {/* Data Table */}
-      <DataTable
-        columns={columns}
-        data={filteredData}
-        emptyMessage="暂无移除货件记录"
-      />
+      {/* 优化后的数据表格 */}
+      <Card>
+        <ScrollArea className="w-full">
+          <Table>
+            <TableHeader>
+              <TableRow className="bg-muted/50 hover:bg-muted/50">
+                <TableHead className="font-semibold min-w-[140px]">移除订单号</TableHead>
+                <TableHead className="font-semibold min-w-[100px]">店铺</TableHead>
+                <TableHead className="font-semibold min-w-[80px]">国家</TableHead>
+                <TableHead className="font-semibold min-w-[120px]">产品SKU</TableHead>
+                <TableHead className="font-semibold min-w-[180px]">产品名称</TableHead>
+                <TableHead className="font-semibold min-w-[80px] text-center">数量</TableHead>
+                <TableHead className="font-semibold min-w-[100px]">承运商</TableHead>
+                <TableHead className="font-semibold min-w-[140px]">跟踪号</TableHead>
+                <TableHead className="font-semibold min-w-[100px]">发货日期</TableHead>
+                <TableHead className="font-semibold min-w-[80px]">状态</TableHead>
+                <TableHead className="font-semibold min-w-[80px] text-center">操作</TableHead>
+              </TableRow>
+            </TableHeader>
+            <TableBody>
+              {filteredData.length === 0 ? (
+                <TableRow>
+                  <TableCell colSpan={11} className="h-32 text-center text-muted-foreground">
+                    暂无移除货件记录
+                  </TableCell>
+                </TableRow>
+              ) : (
+                filteredData.map((item) => (
+                  <TableRow key={item.id} className="hover:bg-muted/30">
+                    <TableCell>
+                      <span className="font-medium text-primary">{item.order_id}</span>
+                    </TableCell>
+                    <TableCell className="text-muted-foreground">{item.store_name || "-"}</TableCell>
+                    <TableCell className="text-muted-foreground">{item.country || "-"}</TableCell>
+                    <TableCell>
+                      <code className="text-xs bg-muted px-1.5 py-0.5 rounded">{item.product_sku}</code>
+                    </TableCell>
+                    <TableCell>
+                      <span className="line-clamp-1" title={item.product_name}>{item.product_name}</span>
+                    </TableCell>
+                    <TableCell className="text-center">
+                      <span className="font-semibold">{item.quantity}</span>
+                    </TableCell>
+                    <TableCell className="text-muted-foreground">{item.carrier}</TableCell>
+                    <TableCell>
+                      <code className="text-xs bg-muted px-1.5 py-0.5 rounded">{item.tracking_number}</code>
+                    </TableCell>
+                    <TableCell className="text-muted-foreground">
+                      {item.ship_date ? new Date(item.ship_date).toLocaleDateString("zh-CN") : "-"}
+                    </TableCell>
+                    <TableCell>
+                      <StatusBadge status={item.status} />
+                    </TableCell>
+                    <TableCell>
+                      <div className="flex justify-center gap-1">
+                        <Button
+                          size="icon"
+                          variant="ghost"
+                          className="h-8 w-8"
+                          onClick={() => handleEdit(item)}
+                        >
+                          <Edit className="h-4 w-4" />
+                        </Button>
+                        <Button
+                          size="icon"
+                          variant="ghost"
+                          className="h-8 w-8 text-destructive hover:text-destructive"
+                          onClick={() => setDeleteId(item.id)}
+                        >
+                          <Trash2 className="h-4 w-4" />
+                        </Button>
+                      </div>
+                    </TableCell>
+                  </TableRow>
+                ))
+              )}
+            </TableBody>
+          </Table>
+          <ScrollBar orientation="horizontal" />
+        </ScrollArea>
+      </Card>
+
+      {/* 数据统计 */}
+      <div className="text-sm text-muted-foreground">
+        共 {filteredData.length} 条记录
+        {statusFilter !== "all" && ` (已筛选)`}
+      </div>
 
       {/* Delete Confirmation */}
       <AlertDialog open={!!deleteId} onOpenChange={() => setDeleteId(null)}>

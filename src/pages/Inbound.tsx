@@ -1,4 +1,5 @@
 import { useState, useRef, useEffect } from "react";
+import { useNavigate } from "react-router-dom";
 import { ScanLine, Camera, Package, CheckCircle, Trash2, Search, PackageCheck, AlertCircle, ChevronRight } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -51,10 +52,13 @@ import { toast } from "sonner";
 import { Scanner } from "@/components/Scanner";
 import { SequentialPhotoCapture } from "@/components/SequentialPhotoCapture";
 import { cn } from "@/lib/utils";
+import { useIsMobile } from "@/hooks/use-mobile";
 
 type InboundStep = "scan_tracking" | "scan_lpn" | "process";
 
 export default function Inbound() {
+  const navigate = useNavigate();
+  const isMobile = useIsMobile();
   const [currentStep, setCurrentStep] = useState<InboundStep>("scan_tracking");
   const [trackingInput, setTrackingInput] = useState("");
   const [lpnInput, setLpnInput] = useState("");

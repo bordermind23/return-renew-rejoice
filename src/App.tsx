@@ -9,6 +9,7 @@ import Dashboard from "./pages/Dashboard";
 import Products from "./pages/Products";
 import Removals from "./pages/Removals";
 import Inbound from "./pages/Inbound";
+import InboundProcess from "./pages/InboundProcess";
 import Inventory from "./pages/Inventory";
 import Orders from "./pages/Orders";
 import Outbound from "./pages/Outbound";
@@ -66,6 +67,14 @@ const App = () => (
                 <MainLayout>
                   <Inbound />
                 </MainLayout>
+              </ProtectedRoute>
+            }
+          />
+          <Route
+            path="/inbound/process"
+            element={
+              <ProtectedRoute>
+                <InboundProcess />
               </ProtectedRoute>
             }
           />

@@ -49,8 +49,10 @@ import {
   type InboundItem,
 } from "@/hooks/useInboundItems";
 import { useRemovalShipments, useUpdateRemovalShipment, type RemovalShipment } from "@/hooks/useRemovalShipments";
+import { useOrders } from "@/hooks/useOrders";
 import { Skeleton } from "@/components/ui/skeleton";
 import { toast } from "sonner";
+import { Scanner } from "@/components/Scanner";
 
 const missingPartsList = [
   { id: "earbuds", label: "耳塞套" },
@@ -82,6 +84,7 @@ export default function Inbound() {
 
   const { data: inboundItems, isLoading: inboundLoading } = useInboundItems();
   const { data: shipments, isLoading: shipmentsLoading } = useRemovalShipments();
+  const { data: orders, isLoading: ordersLoading } = useOrders();
   const createMutation = useCreateInboundItem();
   const deleteMutation = useDeleteInboundItem();
   const updateShipmentMutation = useUpdateRemovalShipment();
@@ -128,31 +131,76 @@ export default function Inbound() {
     toast.success(`匹配成功: ${found.product_name}`);
   };
 
-  // 扫描 LPN
-  const handleScanLpn = () => {
-    if (!lpnInput.trim()) {
+  // 验证 LPN 是否存在于退货订单列表
+  const validateLpnExists = (lpn: string): boolean => {
+    const orderWithLpn = orders?.find(o => o.lpn === lpn);
+    return !!orderWithLpn;
+  };
+
+  // 扫描 LPN (支持手动输入和摄像头扫码)
+  const handleScanLpn = (lpnValue?: string) => {
+    const lpn = (lpnValue || lpnInput).trim();
+    
+    if (!lpn) {
       toast.error("请输入LPN号");
       return;
     }
 
+    // 检查LPN是否存在于退货订单列表
+    if (!validateLpnExists(lpn)) {
+      toast.error(`LPN号 "${lpn}" 不存在于退货订单列表中，请先在退货订单列表中添加该LPN`);
+      setLpnInput("");
+      return;
+    }
+
     // 检查是否已扫描过
-    if (scannedLpns.includes(lpnInput.trim())) {
+    if (scannedLpns.includes(lpn)) {
       toast.error("该LPN已扫描过");
       setLpnInput("");
       return;
     }
 
-    // 检查是否已存在于数据库
-    const existingItem = inboundItems?.find(item => item.lpn === lpnInput.trim());
+    // 检查是否已存在于入库记录
+    const existingItem = inboundItems?.find(item => item.lpn === lpn);
     if (existingItem) {
       toast.error("该LPN已入库");
       setLpnInput("");
       return;
     }
 
-    setCurrentLpn(lpnInput.trim());
+    setCurrentLpn(lpn);
     setIsProcessDialogOpen(true);
     setLpnInput("");
+  };
+
+  // 处理摄像头扫描物流号
+  const handleCameraScanTracking = (code: string) => {
+    setTrackingInput(code);
+    // 自动触发扫描
+    const found = shipments?.find(
+      s => s.tracking_number.toLowerCase() === code.trim().toLowerCase()
+    );
+
+    if (!found) {
+      toast.error(`未找到物流跟踪号: ${code}`);
+      return;
+    }
+
+    const inboundedCount = getInboundedCount(found.tracking_number);
+    if (inboundedCount >= found.quantity) {
+      toast.warning(`该物流号下的 ${found.quantity} 件货物已全部入库`);
+      return;
+    }
+
+    setMatchedShipment(found);
+    setScannedLpns([]);
+    setCurrentStep("scan_lpn");
+    toast.success(`匹配成功: ${found.product_name}`);
+  };
+
+  // 处理摄像头扫描LPN
+  const handleCameraScanLpn = (code: string) => {
+    handleScanLpn(code);
   };
 
   // 完成单个 LPN 处理
@@ -250,7 +298,7 @@ export default function Inbound() {
     }
   };
 
-  const isLoading = inboundLoading || shipmentsLoading;
+  const isLoading = inboundLoading || shipmentsLoading || ordersLoading;
 
   if (isLoading) {
     return (
@@ -314,6 +362,7 @@ export default function Inbound() {
                 <ScanLine className="mr-2 h-4 w-4" />
                 确认扫描
               </Button>
+              <Scanner onScan={handleCameraScanTracking} buttonLabel="摄像头" />
             </div>
           </CardContent>
         </Card>
@@ -409,10 +458,11 @@ export default function Inbound() {
                     className="text-lg"
                   />
                 </div>
-                <Button onClick={handleScanLpn} className="gradient-primary">
+                <Button onClick={() => handleScanLpn()} className="gradient-primary">
                   <ScanLine className="mr-2 h-4 w-4" />
                   确认扫描
                 </Button>
+                <Scanner onScan={handleCameraScanLpn} buttonLabel="摄像头" />
               </div>
 
               {/* 本次已扫描的 LPN 列表 */}

@@ -935,13 +935,17 @@ export default function Orders() {
                               <TableCell><span className="line-clamp-1 text-sm">{item.product_name || "-"}</span></TableCell>
                               <TableCell><code className="text-xs bg-muted px-1.5 py-0.5 rounded">{item.product_sku || "-"}</code></TableCell>
                               <TableCell className="text-center">
-                                <button
-                                  className="inline-flex items-center gap-1 px-2 py-1 rounded hover:bg-muted transition-colors"
-                                  onClick={() => setGradeEditOrder(item)}
-                                >
-                                  {displayGrade ? <GradeBadge grade={displayGrade as "A" | "B" | "C"} /> : <span className="text-muted-foreground text-xs">未评级</span>}
-                                  <Pencil className="h-3 w-3 text-muted-foreground" />
-                                </button>
+                                {inboundItem ? (
+                                  <button
+                                    className="inline-flex items-center gap-1 px-2 py-1 rounded hover:bg-muted transition-colors"
+                                    onClick={() => setGradeEditOrder(item)}
+                                  >
+                                    {displayGrade ? <GradeBadge grade={displayGrade as "A" | "B" | "C"} /> : <span className="text-muted-foreground text-xs">未评级</span>}
+                                    <Pencil className="h-3 w-3 text-muted-foreground" />
+                                  </button>
+                                ) : (
+                                  <span className="text-muted-foreground text-xs">-</span>
+                                )}
                               </TableCell>
                               <TableCell className="text-center">
                                 {hasPhotos ? (
@@ -999,13 +1003,17 @@ export default function Orders() {
                         <TableCell><span className="line-clamp-1">{item.product_name || "-"}</span></TableCell>
                         <TableCell><code className="text-xs bg-muted px-1.5 py-0.5 rounded">{item.product_sku || "-"}</code></TableCell>
                         <TableCell className="text-center">
-                          <button
-                            className="inline-flex items-center gap-1 px-2 py-1 rounded hover:bg-muted transition-colors"
-                            onClick={() => setGradeEditOrder(item)}
-                          >
-                            {displayGrade ? <GradeBadge grade={displayGrade as "A" | "B" | "C"} /> : <span className="text-muted-foreground text-xs">未评级</span>}
-                            <Pencil className="h-3 w-3 text-muted-foreground" />
-                          </button>
+                          {inboundItem ? (
+                            <button
+                              className="inline-flex items-center gap-1 px-2 py-1 rounded hover:bg-muted transition-colors"
+                              onClick={() => setGradeEditOrder(item)}
+                            >
+                              {displayGrade ? <GradeBadge grade={displayGrade as "A" | "B" | "C"} /> : <span className="text-muted-foreground text-xs">未评级</span>}
+                              <Pencil className="h-3 w-3 text-muted-foreground" />
+                            </button>
+                          ) : (
+                            <span className="text-muted-foreground text-xs">-</span>
+                          )}
                         </TableCell>
                         <TableCell className="text-center">
                           {hasPhotos ? (

@@ -504,16 +504,16 @@ export default function Orders() {
         title="退货订单列表"
         description="查看和管理所有退货订单"
         actions={
-          <div className="flex gap-2 flex-wrap">
+          <div className="flex gap-2 flex-wrap justify-end">
             <DropdownMenu>
               <DropdownMenuTrigger asChild>
-                <Button variant="outline">
-                  <Upload className="mr-2 h-4 w-4" />
-                  批量导入
-                  <ChevronDown className="ml-2 h-4 w-4" />
+                <Button variant="outline" size="sm" className="h-9">
+                  <Upload className="h-4 w-4 sm:mr-2" />
+                  <span className="hidden sm:inline">批量导入</span>
+                  <ChevronDown className="ml-1 h-4 w-4" />
                 </Button>
               </DropdownMenuTrigger>
-              <DropdownMenuContent align="end">
+              <DropdownMenuContent align="end" className="bg-popover">
                 <DropdownMenuItem onClick={handleDownloadTemplate}>
                   <FileSpreadsheet className="mr-2 h-4 w-4" />
                   下载模板
@@ -533,16 +533,17 @@ export default function Orders() {
               onChange={handleImport}
             />
 
-            <Button variant="outline" onClick={handleExportExcel}>
-              <Download className="mr-2 h-4 w-4" />
-              批量导出
+            <Button variant="outline" size="sm" className="h-9" onClick={handleExportExcel}>
+              <Download className="h-4 w-4 sm:mr-2" />
+              <span className="hidden sm:inline">批量导出</span>
             </Button>
 
             <Dialog open={isDialogOpen} onOpenChange={(open) => { setIsDialogOpen(open); if (!open) resetForm(); }}>
               <DialogTrigger asChild>
-                <Button className="gradient-primary">
-                  <Plus className="mr-2 h-4 w-4" />
-                  创建订单
+                <Button className="gradient-primary h-9" size="sm">
+                  <Plus className="h-4 w-4 sm:mr-2" />
+                  <span className="hidden sm:inline">创建订单</span>
+                  <span className="sm:hidden">新建</span>
                 </Button>
               </DialogTrigger>
               <DialogContent className="max-w-3xl max-h-[90vh] overflow-y-auto">
@@ -550,7 +551,7 @@ export default function Orders() {
                   <DialogTitle>创建新订单</DialogTitle>
                 </DialogHeader>
                 <div className="grid gap-4 py-4">
-                  <div className="grid grid-cols-3 gap-4">
+                  <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
                     <div className="space-y-2">
                       <Label htmlFor="lpn">LPN编号 *</Label>
                       <Input id="lpn" value={formData.lpn} onChange={(e) => setFormData({ ...formData, lpn: e.target.value })} />
@@ -564,7 +565,7 @@ export default function Orders() {
                       <Input id="store_name" value={formData.store_name} onChange={(e) => setFormData({ ...formData, store_name: e.target.value })} />
                     </div>
                   </div>
-                  <div className="grid grid-cols-3 gap-4">
+                  <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
                     <div className="space-y-2">
                       <Label htmlFor="product_name">产品名称</Label>
                       <Input id="product_name" value={formData.product_name || ""} onChange={(e) => setFormData({ ...formData, product_name: e.target.value || null })} />
@@ -578,7 +579,7 @@ export default function Orders() {
                       <Input id="warehouse_location" value={formData.warehouse_location || ""} onChange={(e) => setFormData({ ...formData, warehouse_location: e.target.value || null })} />
                     </div>
                   </div>
-                  <div className="grid grid-cols-3 gap-4">
+                  <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
                     <div className="space-y-2">
                       <Label htmlFor="country">国家</Label>
                       <Input id="country" value={formData.country || ""} onChange={(e) => setFormData({ ...formData, country: e.target.value || null })} />
@@ -592,7 +593,7 @@ export default function Orders() {
                       <Input id="asin" value={formData.asin || ""} onChange={(e) => setFormData({ ...formData, asin: e.target.value || null })} />
                     </div>
                   </div>
-                  <div className="grid grid-cols-3 gap-4">
+                  <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
                     <div className="space-y-2">
                       <Label htmlFor="msku">MSKU</Label>
                       <Input id="msku" value={formData.msku || ""} onChange={(e) => setFormData({ ...formData, msku: e.target.value || null })} />
@@ -606,7 +607,7 @@ export default function Orders() {
                       <Input id="inventory_attribute" value={formData.inventory_attribute || ""} onChange={(e) => setFormData({ ...formData, inventory_attribute: e.target.value || null })} />
                     </div>
                   </div>
-                  <div className="grid grid-cols-3 gap-4">
+                  <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
                     <div className="space-y-2">
                       <Label htmlFor="return_quantity">退货数量</Label>
                       <Input id="return_quantity" type="number" value={formData.return_quantity} onChange={(e) => setFormData({ ...formData, return_quantity: parseInt(e.target.value) || 1 })} />
@@ -686,18 +687,18 @@ export default function Orders() {
       {/* 批量操作栏 */}
       {selectedIds.length > 0 && (
         <Card className="bg-primary/5 border-primary/20">
-          <CardContent className="py-3 flex items-center justify-between">
+          <CardContent className="py-3 flex flex-col sm:flex-row items-start sm:items-center justify-between gap-2">
             <span className="text-sm font-medium">已选择 {selectedIds.length} 条记录</span>
-            <div className="flex gap-2">
+            <div className="flex gap-2 flex-wrap">
               <Button variant="outline" size="sm" onClick={() => setIsBulkEditOpen(true)}>
-                <Edit className="mr-2 h-4 w-4" />
-                批量编辑
+                <Edit className="h-4 w-4 sm:mr-2" />
+                <span className="hidden sm:inline">批量编辑</span>
               </Button>
               <Button variant="destructive" size="sm" onClick={() => setIsBulkDeleteOpen(true)}>
-                <Trash2 className="mr-2 h-4 w-4" />
-                批量删除
+                <Trash2 className="h-4 w-4 sm:mr-2" />
+                <span className="hidden sm:inline">批量删除</span>
               </Button>
-              <Button variant="ghost" size="sm" onClick={() => setSelectedIds([])}>取消选择</Button>
+              <Button variant="ghost" size="sm" onClick={() => setSelectedIds([])}>取消</Button>
             </div>
           </CardContent>
         </Card>

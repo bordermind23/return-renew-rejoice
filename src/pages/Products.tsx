@@ -286,7 +286,12 @@ export default function Products() {
                   setFormData({ ...formData, sku: e.target.value })
                 }
                 placeholder="输入产品SKU"
+                disabled={!!editingProduct}
+                className={editingProduct ? "bg-muted cursor-not-allowed" : ""}
               />
+              {editingProduct && (
+                <p className="text-xs text-muted-foreground">SKU创建后不可修改</p>
+              )}
             </div>
             <div className="space-y-2">
               <Label htmlFor="name">产品名称 *</Label>

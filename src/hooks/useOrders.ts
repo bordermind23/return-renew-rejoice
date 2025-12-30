@@ -23,7 +23,7 @@ export interface Order {
   asin: string | null;
   fnsku: string | null;
   return_quantity: number;
-  warehouse_quantity: number;
+  warehouse_location: string | null;
   return_time: string | null;
   order_time: string | null;
 }

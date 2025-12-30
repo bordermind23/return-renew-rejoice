@@ -180,9 +180,9 @@ export default function Orders() {
       return;
     }
 
-    const existingOrder = orders?.find(o => o.order_number === formData.order_number.trim());
-    if (existingOrder) {
-      toast.error(`订单号 "${formData.order_number}" 已存在，不能重复添加`);
+    const existingLpn = orders?.find(o => o.lpn === formData.lpn.trim());
+    if (existingLpn) {
+      toast.error(`LPN号 "${formData.lpn}" 已存在，不能重复添加`);
       return;
     }
 
@@ -311,8 +311,8 @@ export default function Orders() {
 
           const errors: ImportError[] = [];
           const validItems: OrderInsert[] = [];
-          const existingOrderNumbers = new Set((orders || []).map(o => o.order_number));
-          const importedOrderNumbers = new Set<string>();
+          const existingLpns = new Set((orders || []).map(o => o.lpn));
+          const importedLpns = new Set<string>();
 
           for (let i = 0; i < dataRows.length; i++) {
             const row = dataRows[i];
@@ -325,19 +325,18 @@ export default function Orders() {
             }
 
             const lpn = String(row[0]).trim();
-            const orderNumber = String(row[8]).trim();
 
-            if (existingOrderNumbers.has(orderNumber)) {
-              errors.push({ row: rowIndex, message: `第${rowIndex}行：订单号 "${orderNumber}" 已存在于系统中` });
+            if (existingLpns.has(lpn)) {
+              errors.push({ row: rowIndex, message: `第${rowIndex}行：LPN号 "${lpn}" 已存在于系统中` });
               continue;
             }
 
-            if (importedOrderNumbers.has(orderNumber)) {
-              errors.push({ row: rowIndex, message: `第${rowIndex}行：订单号 "${orderNumber}" 在导入文件中重复` });
+            if (importedLpns.has(lpn)) {
+              errors.push({ row: rowIndex, message: `第${rowIndex}行：LPN号 "${lpn}" 在导入文件中重复` });
               continue;
             }
 
-            importedOrderNumbers.add(orderNumber);
+            importedLpns.add(lpn);
 
             validItems.push({
               lpn,

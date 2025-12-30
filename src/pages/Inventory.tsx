@@ -364,11 +364,6 @@ export default function Inventory() {
                           })
                         }
                       />
-                            ...formData,
-                            grade_a_stock: parseInt(e.target.value) || 0,
-                          })
-                        }
-                      />
                     </div>
                     <div className="space-y-2">
                       <Label htmlFor="grade_b_stock">B级库存</Label>

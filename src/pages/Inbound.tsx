@@ -1,5 +1,5 @@
 import { useState, useRef, useEffect } from "react";
-import { useNavigate } from "react-router-dom";
+import { useNavigate, useSearchParams } from "react-router-dom";
 import { ScanLine, Camera, Package, CheckCircle, Trash2, Search, PackageCheck, AlertCircle, ChevronRight } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -58,6 +58,7 @@ type InboundStep = "scan_tracking" | "scan_lpn" | "process";
 
 export default function Inbound() {
   const navigate = useNavigate();
+  const [searchParams] = useSearchParams();
   const isMobile = useIsMobile();
   const [currentStep, setCurrentStep] = useState<InboundStep>("scan_tracking");
   const [trackingInput, setTrackingInput] = useState("");
@@ -103,6 +104,24 @@ export default function Inbound() {
       lpnInputRef.current.focus();
     }
   }, [currentStep]);
+
+  // 从 URL 参数恢复物流号状态（手机端入库完成后返回）
+  useEffect(() => {
+    const trackingFromUrl = searchParams.get("tracking");
+    if (trackingFromUrl && shipments) {
+      const found = shipments.find(
+        s => s.tracking_number.toLowerCase() === trackingFromUrl.toLowerCase()
+      );
+      if (found) {
+        const inboundedCount = getInboundedCount(found.tracking_number);
+        if (inboundedCount < found.quantity) {
+          setMatchedShipment(found);
+          setTrackingInput(found.tracking_number);
+          setCurrentStep("scan_lpn");
+        }
+      }
+    }
+  }, [searchParams, shipments]);
 
   // 获取该物流号已入库的LPN数量
   const getInboundedCount = (trackingNumber: string) => {
@@ -173,6 +192,13 @@ export default function Inbound() {
     const existingItem = inboundItems?.find(item => item.lpn === lpn);
     if (existingItem) {
       toast.error("该LPN已入库");
+      setLpnInput("");
+      return;
+    }
+
+    // 手机端跳转到新页面处理
+    if (isMobile && matchedShipment) {
+      navigate(`/inbound/process?lpn=${encodeURIComponent(lpn)}&tracking=${encodeURIComponent(matchedShipment.tracking_number)}`);
       setLpnInput("");
       return;
     }

@@ -39,7 +39,16 @@ export function Scanner({
         .then((devices) => {
           if (devices && devices.length > 0) {
             setCameras(devices);
-            startScanner(devices[0].id);
+            // 优先选择后置摄像头
+            const backCameraIndex = devices.findIndex(
+              (device) => device.label.toLowerCase().includes("back") || 
+                          device.label.toLowerCase().includes("rear") ||
+                          device.label.toLowerCase().includes("environment") ||
+                          device.label.includes("后置")
+            );
+            const preferredIndex = backCameraIndex >= 0 ? backCameraIndex : 0;
+            setCurrentCameraIndex(preferredIndex);
+            startScanner(devices[preferredIndex].id);
           } else {
             setError("未找到摄像头设备");
           }

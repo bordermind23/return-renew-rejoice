@@ -12,6 +12,7 @@ import Inbound from "./pages/Inbound";
 import Inventory from "./pages/Inventory";
 import Orders from "./pages/Orders";
 import Outbound from "./pages/Outbound";
+import UserManagement from "./pages/UserManagement";
 import Auth from "./pages/Auth";
 import NotFound from "./pages/NotFound";
 
@@ -94,6 +95,16 @@ const App = () => (
               <ProtectedRoute>
                 <MainLayout>
                   <Outbound />
+                </MainLayout>
+              </ProtectedRoute>
+            }
+          />
+          <Route
+            path="/users"
+            element={
+              <ProtectedRoute>
+                <MainLayout>
+                  <UserManagement />
                 </MainLayout>
               </ProtectedRoute>
             }

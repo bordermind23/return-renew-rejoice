@@ -13,11 +13,13 @@ import {
   Menu,
   X,
   LogOut,
+  Users,
 } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { Button } from "@/components/ui/button";
 import { Sheet, SheetContent, SheetTrigger } from "@/components/ui/sheet";
 import { useAuth } from "@/hooks/useAuth";
+import { useCurrentUserRole } from "@/hooks/useUserManagement";
 import { toast } from "sonner";
 
 const navItems = [
@@ -30,11 +32,17 @@ const navItems = [
   { to: "/outbound", icon: PackageOpen, label: "出库管理" },
 ];
 
+const adminNavItems = [
+  { to: "/users", icon: Users, label: "用户管理" },
+];
+
 // 移动端侧边栏内容
 function MobileSidebarContent({ onClose }: { onClose: () => void }) {
   const location = useLocation();
   const navigate = useNavigate();
   const { signOut, user } = useAuth();
+  const { data: userRole } = useCurrentUserRole();
+  const isAdmin = userRole === "admin";
 
   const handleLogout = async () => {
     const { error } = await signOut();
@@ -46,6 +54,8 @@ function MobileSidebarContent({ onClose }: { onClose: () => void }) {
     }
     onClose();
   };
+
+  const allNavItems = isAdmin ? [...navItems, ...adminNavItems] : navItems;
 
   return (
     <div className="flex h-full flex-col bg-sidebar">
@@ -66,7 +76,7 @@ function MobileSidebarContent({ onClose }: { onClose: () => void }) {
 
       {/* Navigation */}
       <nav className="flex-1 space-y-1 px-3 py-4">
-        {navItems.map((item) => {
+        {allNavItems.map((item) => {
           const isActive = location.pathname === item.to;
           return (
             <NavLink
@@ -111,6 +121,8 @@ function DesktopSidebar({ collapsed, setCollapsed }: { collapsed: boolean; setCo
   const location = useLocation();
   const navigate = useNavigate();
   const { signOut, user } = useAuth();
+  const { data: userRole } = useCurrentUserRole();
+  const isAdmin = userRole === "admin";
 
   const handleLogout = async () => {
     const { error } = await signOut();
@@ -121,6 +133,8 @@ function DesktopSidebar({ collapsed, setCollapsed }: { collapsed: boolean; setCo
       navigate("/auth");
     }
   };
+
+  const allNavItems = isAdmin ? [...navItems, ...adminNavItems] : navItems;
 
   return (
     <aside
@@ -151,7 +165,7 @@ function DesktopSidebar({ collapsed, setCollapsed }: { collapsed: boolean; setCo
 
         {/* Navigation */}
         <nav className="flex-1 space-y-1 px-3 py-4">
-          {navItems.map((item) => {
+          {allNavItems.map((item) => {
             const isActive = location.pathname === item.to;
             return (
               <NavLink

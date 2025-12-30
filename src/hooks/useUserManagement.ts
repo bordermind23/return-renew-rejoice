@@ -84,6 +84,40 @@ export function useUpdateUserRole() {
   });
 }
 
+export function useCreateUser() {
+  const queryClient = useQueryClient();
+
+  return useMutation({
+    mutationFn: async ({
+      email,
+      password,
+      role,
+    }: {
+      email: string;
+      password: string;
+      role: AppRole;
+    }) => {
+      // Use Supabase Admin API via edge function to create user
+      const { data, error } = await supabase.functions.invoke("create-user", {
+        body: { email, password, role },
+      });
+
+      if (error) throw error;
+      if (data?.error) throw new Error(data.error);
+
+      return data;
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ["users-with-roles"] });
+      toast.success("用户创建成功");
+    },
+    onError: (error) => {
+      console.error("Failed to create user:", error);
+      toast.error(`创建用户失败: ${error.message}`);
+    },
+  });
+}
+
 export function useCurrentUserRole() {
   return useQuery({
     queryKey: ["current-user-role"],

@@ -845,6 +845,13 @@ export default function Removals() {
           </SelectContent>
         </Select>
       </div>
+
+      {/* 优化后的数据表格 */}
+      <Card>
+        <ScrollArea className="w-full">
+          <Table>
+            <TableHeader>
+              <TableRow className="bg-muted/50 hover:bg-muted/50">
                 <TableHead className="w-10">
                   <Checkbox checked={selectedIds.length === filteredData.length && filteredData.length > 0} onCheckedChange={toggleSelectAll} />
                 </TableHead>
@@ -874,6 +881,7 @@ export default function Removals() {
                     <TableCell>
                       <Checkbox checked={selectedIds.includes(item.id)} onCheckedChange={() => toggleSelect(item.id)} />
                     </TableCell>
+                    <TableCell>
                       <span className="font-medium text-primary">{item.order_id}</span>
                     </TableCell>
                     <TableCell className="text-muted-foreground">{item.store_name || "-"}</TableCell>

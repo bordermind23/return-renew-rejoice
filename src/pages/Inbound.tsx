@@ -176,6 +176,11 @@ export default function Inbound() {
     setMatchedOrder(getOrderByLpn(lpn) || null);
     setIsProcessDialogOpen(true);
     setLpnInput("");
+  };
+
+  // 处理摄像头扫描物流号
+  const handleCameraScanTracking = (code: string) => {
+    setTrackingInput(code);
     const found = shipments?.find(
       s => s.tracking_number.toLowerCase() === code.trim().toLowerCase()
     );

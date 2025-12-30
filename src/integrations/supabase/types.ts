@@ -47,6 +47,8 @@ export type Database = {
           product_sku: string
           removal_order_id: string
           return_reason: string | null
+          shipment_id: string | null
+          tracking_number: string | null
         }
         Insert: {
           created_at?: string
@@ -62,6 +64,8 @@ export type Database = {
           product_sku: string
           removal_order_id: string
           return_reason?: string | null
+          shipment_id?: string | null
+          tracking_number?: string | null
         }
         Update: {
           created_at?: string
@@ -77,6 +81,8 @@ export type Database = {
           product_sku?: string
           removal_order_id?: string
           return_reason?: string | null
+          shipment_id?: string | null
+          tracking_number?: string | null
         }
         Relationships: []
       }

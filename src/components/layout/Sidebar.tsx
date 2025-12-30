@@ -1,5 +1,5 @@
 import { useState, useEffect } from "react";
-import { NavLink, useLocation } from "react-router-dom";
+import { NavLink, useLocation, useNavigate } from "react-router-dom";
 import {
   LayoutDashboard,
   PackageX,
@@ -12,10 +12,13 @@ import {
   Package,
   Menu,
   X,
+  LogOut,
 } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { Button } from "@/components/ui/button";
 import { Sheet, SheetContent, SheetTrigger } from "@/components/ui/sheet";
+import { useAuth } from "@/hooks/useAuth";
+import { toast } from "sonner";
 
 const navItems = [
   { to: "/", icon: LayoutDashboard, label: "仪表盘" },
@@ -30,6 +33,19 @@ const navItems = [
 // 移动端侧边栏内容
 function MobileSidebarContent({ onClose }: { onClose: () => void }) {
   const location = useLocation();
+  const navigate = useNavigate();
+  const { signOut, user } = useAuth();
+
+  const handleLogout = async () => {
+    const { error } = await signOut();
+    if (error) {
+      toast.error("退出失败");
+    } else {
+      toast.success("已退出登录");
+      navigate("/auth");
+    }
+    onClose();
+  };
 
   return (
     <div className="flex h-full flex-col bg-sidebar">
@@ -70,6 +86,22 @@ function MobileSidebarContent({ onClose }: { onClose: () => void }) {
           );
         })}
       </nav>
+
+      {/* User & Logout */}
+      <div className="border-t border-sidebar-border p-3 space-y-2">
+        {user && (
+          <div className="px-3 py-2 text-xs text-sidebar-foreground/70 truncate">
+            {user.email}
+          </div>
+        )}
+        <button
+          onClick={handleLogout}
+          className="flex w-full items-center gap-3 rounded-lg px-3 py-2 text-sm text-sidebar-foreground transition-colors hover:bg-destructive/10 hover:text-destructive"
+        >
+          <LogOut className="h-5 w-5" />
+          <span>退出登录</span>
+        </button>
+      </div>
     </div>
   );
 }
@@ -77,6 +109,18 @@ function MobileSidebarContent({ onClose }: { onClose: () => void }) {
 // 桌面端侧边栏
 function DesktopSidebar({ collapsed, setCollapsed }: { collapsed: boolean; setCollapsed: (v: boolean) => void }) {
   const location = useLocation();
+  const navigate = useNavigate();
+  const { signOut, user } = useAuth();
+
+  const handleLogout = async () => {
+    const { error } = await signOut();
+    if (error) {
+      toast.error("退出失败");
+    } else {
+      toast.success("已退出登录");
+      navigate("/auth");
+    }
+  };
 
   return (
     <aside
@@ -127,8 +171,24 @@ function DesktopSidebar({ collapsed, setCollapsed }: { collapsed: boolean; setCo
           })}
         </nav>
 
-        {/* Collapse Button */}
-        <div className="border-t border-sidebar-border p-3">
+        {/* User info & Actions */}
+        <div className="border-t border-sidebar-border p-3 space-y-2">
+          {!collapsed && user && (
+            <div className="px-3 py-1 text-xs text-sidebar-foreground/70 truncate">
+              {user.email}
+            </div>
+          )}
+          <button
+            onClick={handleLogout}
+            className={cn(
+              "flex w-full items-center gap-2 rounded-lg px-3 py-2 text-sm text-sidebar-foreground transition-colors hover:bg-destructive/10 hover:text-destructive",
+              collapsed && "justify-center"
+            )}
+            title="退出登录"
+          >
+            <LogOut className="h-5 w-5" />
+            {!collapsed && <span>退出登录</span>}
+          </button>
           <button
             onClick={() => setCollapsed(!collapsed)}
             className="flex w-full items-center justify-center gap-2 rounded-lg px-3 py-2 text-sm text-sidebar-foreground transition-colors hover:bg-sidebar-accent"

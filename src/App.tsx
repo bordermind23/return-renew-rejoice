@@ -4,6 +4,7 @@ import { TooltipProvider } from "@/components/ui/tooltip";
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
 import { BrowserRouter, Routes, Route } from "react-router-dom";
 import { MainLayout } from "@/components/layout/MainLayout";
+import { ProtectedRoute } from "@/components/ProtectedRoute";
 import Dashboard from "./pages/Dashboard";
 import Products from "./pages/Products";
 import Removals from "./pages/Removals";
@@ -11,6 +12,7 @@ import Inbound from "./pages/Inbound";
 import Inventory from "./pages/Inventory";
 import Orders from "./pages/Orders";
 import Outbound from "./pages/Outbound";
+import Auth from "./pages/Auth";
 import NotFound from "./pages/NotFound";
 
 const queryClient = new QueryClient();
@@ -22,60 +24,78 @@ const App = () => (
       <Sonner />
       <BrowserRouter>
         <Routes>
+          {/* Public route */}
+          <Route path="/auth" element={<Auth />} />
+          
+          {/* Protected routes */}
           <Route
             path="/"
             element={
-              <MainLayout>
-                <Dashboard />
-              </MainLayout>
+              <ProtectedRoute>
+                <MainLayout>
+                  <Dashboard />
+                </MainLayout>
+              </ProtectedRoute>
             }
           />
           <Route
             path="/products"
             element={
-              <MainLayout>
-                <Products />
-              </MainLayout>
+              <ProtectedRoute>
+                <MainLayout>
+                  <Products />
+                </MainLayout>
+              </ProtectedRoute>
             }
           />
           <Route
             path="/removals"
             element={
-              <MainLayout>
-                <Removals />
-              </MainLayout>
+              <ProtectedRoute>
+                <MainLayout>
+                  <Removals />
+                </MainLayout>
+              </ProtectedRoute>
             }
           />
           <Route
             path="/inbound"
             element={
-              <MainLayout>
-                <Inbound />
-              </MainLayout>
+              <ProtectedRoute>
+                <MainLayout>
+                  <Inbound />
+                </MainLayout>
+              </ProtectedRoute>
             }
           />
           <Route
             path="/inventory"
             element={
-              <MainLayout>
-                <Inventory />
-              </MainLayout>
+              <ProtectedRoute>
+                <MainLayout>
+                  <Inventory />
+                </MainLayout>
+              </ProtectedRoute>
             }
           />
           <Route
             path="/orders"
             element={
-              <MainLayout>
-                <Orders />
-              </MainLayout>
+              <ProtectedRoute>
+                <MainLayout>
+                  <Orders />
+                </MainLayout>
+              </ProtectedRoute>
             }
           />
           <Route
             path="/outbound"
             element={
-              <MainLayout>
-                <Outbound />
-              </MainLayout>
+              <ProtectedRoute>
+                <MainLayout>
+                  <Outbound />
+                </MainLayout>
+              </ProtectedRoute>
             }
           />
           <Route path="*" element={<NotFound />} />

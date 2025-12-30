@@ -1,5 +1,5 @@
 import { useState, useRef } from "react";
-import { Plus, Search, Filter, Trash2, Edit, Upload, Download } from "lucide-react";
+import { Plus, Search, Filter, Trash2, Edit, Upload, Download, FileSpreadsheet } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { PageHeader } from "@/components/ui/page-header";
@@ -31,6 +31,12 @@ import {
   AlertDialogTitle,
 } from "@/components/ui/alert-dialog";
 import {
+  DropdownMenu,
+  DropdownMenuContent,
+  DropdownMenuItem,
+  DropdownMenuTrigger,
+} from "@/components/ui/dropdown-menu";
+import {
   useRemovalShipments,
   useCreateRemovalShipment,
   useUpdateRemovalShipment,
@@ -42,6 +48,7 @@ import {
 import { useCarriers } from "@/hooks/useCarriers";
 import { Skeleton } from "@/components/ui/skeleton";
 import { toast } from "sonner";
+import * as XLSX from "xlsx";
 
 export default function Removals() {
   const [searchTerm, setSearchTerm] = useState("");
@@ -250,48 +257,69 @@ export default function Removals() {
     }
   };
 
-  // 导出CSV
-  const handleExport = () => {
+  // 模板字段定义
+  const templateHeaders = [
+    "移除订单号", "店铺", "国家", "产品SKU", "MSKU", "产品名称", "商品类型",
+    "FNSKU", "退件数量", "物流承运商", "物流跟踪号", "发货日期", "状态", "备注"
+  ];
+
+  // 下载 Excel 模板
+  const handleDownloadTemplate = () => {
+    const templateData = [
+      templateHeaders,
+      ["RM-001", "店铺A", "美国", "SKU-001", "MSKU-001", "示例产品", "电子产品", "FNSKU-001", "10", "顺丰速运", "SF123456789", "2024-01-15", "shipping", "这是备注"],
+    ];
+
+    const ws = XLSX.utils.aoa_to_sheet(templateData);
+    
+    // 设置列宽
+    ws["!cols"] = templateHeaders.map(() => ({ wch: 15 }));
+
+    const wb = XLSX.utils.book_new();
+    XLSX.utils.book_append_sheet(wb, ws, "移除货件模板");
+
+    XLSX.writeFile(wb, "移除货件导入模板.xlsx");
+    toast.success("模板下载成功");
+  };
+
+  // 导出 Excel
+  const handleExportExcel = () => {
     if (!shipments || shipments.length === 0) {
       toast.error("没有数据可导出");
       return;
     }
 
-    const headers = [
-      "移除订单号", "店铺", "国家", "产品SKU", "MSKU", "产品名称", "商品类型",
-      "FNSKU", "退件数量", "物流承运商", "物流跟踪号", "发货日期", "状态", "备注"
+    const data = [
+      templateHeaders,
+      ...shipments.map(item => [
+        item.order_id,
+        item.store_name || "",
+        item.country || "",
+        item.product_sku,
+        item.msku || "",
+        item.product_name,
+        item.product_type || "",
+        item.fnsku,
+        item.quantity,
+        item.carrier,
+        item.tracking_number,
+        item.ship_date || "",
+        item.status,
+        item.note || "",
+      ])
     ];
 
-    const rows = shipments.map(item => [
-      item.order_id,
-      item.store_name || "",
-      item.country || "",
-      item.product_sku,
-      item.msku || "",
-      item.product_name,
-      item.product_type || "",
-      item.fnsku,
-      item.quantity.toString(),
-      item.carrier,
-      item.tracking_number,
-      item.ship_date || "",
-      item.status,
-      item.note || "",
-    ]);
+    const ws = XLSX.utils.aoa_to_sheet(data);
+    ws["!cols"] = templateHeaders.map(() => ({ wch: 15 }));
+    
+    const wb = XLSX.utils.book_new();
+    XLSX.utils.book_append_sheet(wb, ws, "移除货件");
 
-    const csvContent = [headers, ...rows]
-      .map(row => row.map(cell => `"${cell.replace(/"/g, '""')}"`).join(","))
-      .join("\n");
-
-    const blob = new Blob(["\uFEFF" + csvContent], { type: "text/csv;charset=utf-8;" });
-    const link = document.createElement("a");
-    link.href = URL.createObjectURL(blob);
-    link.download = `移除货件_${new Date().toLocaleDateString("zh-CN")}.csv`;
-    link.click();
+    XLSX.writeFile(wb, `移除货件_${new Date().toLocaleDateString("zh-CN")}.xlsx`);
     toast.success("导出成功");
   };
 
-  // 导入CSV
+  // 导入 Excel/CSV
   const handleImport = (event: React.ChangeEvent<HTMLInputElement>) => {
     const file = event.target.files?.[0];
     if (!file) return;
@@ -299,55 +327,53 @@ export default function Removals() {
     const reader = new FileReader();
     reader.onload = (e) => {
       try {
-        const text = e.target?.result as string;
-        const lines = text.split("\n").filter(line => line.trim());
-        
-        if (lines.length < 2) {
-          toast.error("CSV文件格式错误或没有数据");
+        const data = new Uint8Array(e.target?.result as ArrayBuffer);
+        const workbook = XLSX.read(data, { type: "array" });
+        const sheetName = workbook.SheetNames[0];
+        const worksheet = workbook.Sheets[sheetName];
+        const jsonData = XLSX.utils.sheet_to_json<string[]>(worksheet, { header: 1 });
+
+        if (jsonData.length < 2) {
+          toast.error("文件格式错误或没有数据");
           return;
         }
 
         // 跳过标题行
-        const dataLines = lines.slice(1);
-        const shipments: RemovalShipmentInsert[] = [];
+        const dataRows = jsonData.slice(1);
+        const importShipments: RemovalShipmentInsert[] = [];
 
-        for (const line of dataLines) {
-          const cells = line.match(/("([^"]*(?:""[^"]*)*)"|[^,]*)/g) || [];
-          const cleanCells = cells.map(cell => 
-            cell.replace(/^"|"$/g, "").replace(/""/g, '"').trim()
-          );
-
-          if (cleanCells.length >= 10) {
-            shipments.push({
-              order_id: cleanCells[0] || `ORD-${Date.now()}`,
-              store_name: cleanCells[1] || null,
-              country: cleanCells[2] || null,
-              product_sku: cleanCells[3] || "",
-              msku: cleanCells[4] || null,
-              product_name: cleanCells[5] || "",
-              product_type: cleanCells[6] || null,
-              fnsku: cleanCells[7] || "",
-              quantity: parseInt(cleanCells[8]) || 1,
-              carrier: cleanCells[9] || "",
-              tracking_number: cleanCells[10] || "",
-              ship_date: cleanCells[11] || null,
-              status: (cleanCells[12] as "shipping" | "arrived" | "inbound" | "shelved") || "shipping",
-              note: cleanCells[13] || null,
+        for (const row of dataRows) {
+          if (row.length >= 10 && row[0]) {
+            importShipments.push({
+              order_id: String(row[0] || `ORD-${Date.now()}`),
+              store_name: row[1] ? String(row[1]) : null,
+              country: row[2] ? String(row[2]) : null,
+              product_sku: String(row[3] || ""),
+              msku: row[4] ? String(row[4]) : null,
+              product_name: String(row[5] || ""),
+              product_type: row[6] ? String(row[6]) : null,
+              fnsku: String(row[7] || ""),
+              quantity: parseInt(String(row[8])) || 1,
+              carrier: String(row[9] || ""),
+              tracking_number: String(row[10] || ""),
+              ship_date: row[11] ? String(row[11]) : null,
+              status: (String(row[12] || "shipping") as "shipping" | "arrived" | "inbound" | "shelved"),
+              note: row[13] ? String(row[13]) : null,
             });
           }
         }
 
-        if (shipments.length === 0) {
+        if (importShipments.length === 0) {
           toast.error("未能解析任何有效数据");
           return;
         }
 
-        bulkCreateMutation.mutate(shipments);
+        bulkCreateMutation.mutate(importShipments);
       } catch (error) {
-        toast.error("解析CSV文件失败");
+        toast.error("解析文件失败");
       }
     };
-    reader.readAsText(file);
+    reader.readAsArrayBuffer(file);
     
     // 清除input以允许重复选择同一文件
     if (fileInputRef.current) {
@@ -370,19 +396,23 @@ export default function Removals() {
         title="移除货件列表"
         description="管理所有退货和移除货件"
         actions={
-          <div className="flex gap-2">
+          <div className="flex gap-2 flex-wrap">
             <input
               type="file"
               ref={fileInputRef}
-              accept=".csv"
+              accept=".xlsx,.xls,.csv"
               onChange={handleImport}
               className="hidden"
             />
+            <Button variant="outline" onClick={handleDownloadTemplate}>
+              <FileSpreadsheet className="mr-2 h-4 w-4" />
+              下载模板
+            </Button>
             <Button variant="outline" onClick={() => fileInputRef.current?.click()}>
               <Upload className="mr-2 h-4 w-4" />
               批量导入
             </Button>
-            <Button variant="outline" onClick={handleExport}>
+            <Button variant="outline" onClick={handleExportExcel}>
               <Download className="mr-2 h-4 w-4" />
               批量导出
             </Button>

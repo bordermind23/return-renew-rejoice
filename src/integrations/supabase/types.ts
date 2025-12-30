@@ -168,6 +168,7 @@ export type Database = {
           grade: string | null
           id: string
           inbound_at: string | null
+          internal_order_no: string | null
           inventory_attribute: string | null
           lpn: string
           msku: string | null
@@ -193,6 +194,7 @@ export type Database = {
           grade?: string | null
           id?: string
           inbound_at?: string | null
+          internal_order_no?: string | null
           inventory_attribute?: string | null
           lpn: string
           msku?: string | null
@@ -218,6 +220,7 @@ export type Database = {
           grade?: string | null
           id?: string
           inbound_at?: string | null
+          internal_order_no?: string | null
           inventory_attribute?: string | null
           lpn?: string
           msku?: string | null

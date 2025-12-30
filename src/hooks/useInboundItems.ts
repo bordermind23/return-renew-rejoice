@@ -16,9 +16,14 @@ export interface InboundItem {
   processed_at: string;
   processed_by: string;
   created_at: string;
+  tracking_number: string | null;
+  shipment_id: string | null;
 }
 
-export type InboundItemInsert = Omit<InboundItem, "id" | "created_at" | "package_photo" | "product_photo"> & { package_photo?: string | null; product_photo?: string | null };
+export type InboundItemInsert = Omit<InboundItem, "id" | "created_at" | "package_photo" | "product_photo"> & { 
+  package_photo?: string | null; 
+  product_photo?: string | null;
+};
 export type InboundItemUpdate = Partial<InboundItemInsert>;
 
 export const useInboundItems = () => {

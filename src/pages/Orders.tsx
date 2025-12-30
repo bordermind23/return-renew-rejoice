@@ -1,5 +1,5 @@
 import { useState, useRef } from "react";
-import { Search, Filter, Eye, Plus, Trash2, Upload, Download, FileSpreadsheet, ChevronDown, AlertCircle, CheckCircle2, Loader2, Edit, ChevronLeft, ChevronRight, ChevronsLeft, ChevronsRight, Camera } from "lucide-react";
+import { Search, Filter, Eye, Plus, Trash2, Upload, Download, FileSpreadsheet, ChevronDown, AlertCircle, CheckCircle2, Loader2, Edit, ChevronLeft, ChevronRight, ChevronsLeft, ChevronsRight, Camera, Pencil } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { PageHeader } from "@/components/ui/page-header";
@@ -53,6 +53,8 @@ import {
 import { ScrollArea, ScrollBar } from "@/components/ui/scroll-area";
 import { Checkbox } from "@/components/ui/checkbox";
 import { GradeBadge } from "@/components/ui/grade-badge";
+import { GradeEditDialog } from "@/components/GradeEditDialog";
+import { PhotoViewDialog } from "@/components/PhotoViewDialog";
 import {
   useOrdersPaginated,
   useOrderStores,
@@ -105,6 +107,8 @@ export default function Orders() {
   const [isBulkDeleteOpen, setIsBulkDeleteOpen] = useState(false);
   const [isBulkEditOpen, setIsBulkEditOpen] = useState(false);
   const [bulkEditData, setBulkEditData] = useState<OrderUpdate>({});
+  const [gradeEditOrder, setGradeEditOrder] = useState<Order | null>(null);
+  const [photoViewOrder, setPhotoViewOrder] = useState<Order | null>(null);
   const fileInputRef = useRef<HTMLInputElement>(null);
   const searchTimeoutRef = useRef<NodeJS.Timeout>();
 
@@ -153,7 +157,40 @@ export default function Orders() {
   }, {} as Record<string, typeof inboundItems[0]>);
 
   const [photoViewLpn, setPhotoViewLpn] = useState<string | null>(null);
-  const photoInboundItem = photoViewLpn ? inboundByLpn[photoViewLpn] : null;
+  const photoInboundItem = photoViewOrder ? inboundByLpn[photoViewOrder.lpn] : null;
+  
+  // 构建照片列表
+  const getPhotoList = (item: typeof inboundItems[0] | undefined) => {
+    if (!item) return [];
+    const photoFields = [
+      { key: 'lpn_label_photo', label: 'LPN标签' },
+      { key: 'packaging_photo_1', label: '包装照片1' },
+      { key: 'packaging_photo_2', label: '包装照片2' },
+      { key: 'packaging_photo_3', label: '包装照片3' },
+      { key: 'packaging_photo_4', label: '包装照片4' },
+      { key: 'packaging_photo_5', label: '包装照片5' },
+      { key: 'packaging_photo_6', label: '包装照片6' },
+      { key: 'accessories_photo', label: '配件照片' },
+      { key: 'detail_photo', label: '细节照片' },
+    ] as const;
+    return photoFields
+      .filter(f => item[f.key])
+      .map(f => ({ key: f.key, label: f.label, url: item[f.key] as string }));
+  };
+
+  const handleGradeSave = (grade: string, reason: string, photos: string[]) => {
+    if (!gradeEditOrder) return;
+    updateOrderMutation.mutate(
+      { id: gradeEditOrder.id, grade },
+      {
+        onSuccess: () => {
+          toast.success("等级已更新");
+          setGradeEditOrder(null);
+        },
+      }
+    );
+  };
+
   const createMutation = useCreateOrder();
   const deleteMutation = useDeleteOrder();
   const bulkDeleteMutation = useBulkDeleteOrders();
@@ -767,27 +804,13 @@ export default function Orders() {
                       <TableCell><span className="line-clamp-1">{item.product_name || "-"}</span></TableCell>
                       <TableCell><code className="text-xs bg-muted px-1.5 py-0.5 rounded">{item.product_sku || "-"}</code></TableCell>
                       <TableCell className="text-center">
-                        <Select
-                          value={item.grade || "none"}
-                          onValueChange={(value) => {
-                            updateOrderMutation.mutate({
-                              id: item.id,
-                              grade: value === "none" ? null : value,
-                            });
-                          }}
+                        <button
+                          className="inline-flex items-center gap-1 px-2 py-1 rounded hover:bg-muted transition-colors"
+                          onClick={() => setGradeEditOrder(item)}
                         >
-                          <SelectTrigger className="h-7 w-16 text-xs">
-                            <SelectValue>
-                              {displayGrade ? <GradeBadge grade={displayGrade as "A" | "B" | "C"} /> : "-"}
-                            </SelectValue>
-                          </SelectTrigger>
-                          <SelectContent>
-                            <SelectItem value="none">未评级</SelectItem>
-                            <SelectItem value="A"><GradeBadge grade="A" /></SelectItem>
-                            <SelectItem value="B"><GradeBadge grade="B" /></SelectItem>
-                            <SelectItem value="C"><GradeBadge grade="C" /></SelectItem>
-                          </SelectContent>
-                        </Select>
+                          {displayGrade ? <GradeBadge grade={displayGrade as "A" | "B" | "C"} /> : <span className="text-muted-foreground text-xs">未评级</span>}
+                          <Pencil className="h-3 w-3 text-muted-foreground" />
+                        </button>
                       </TableCell>
                       <TableCell className="text-center">
                         {hasPhotos ? (
@@ -795,7 +818,7 @@ export default function Orders() {
                             size="icon"
                             variant="ghost"
                             className="h-8 w-8 text-primary"
-                            onClick={() => setPhotoViewLpn(item.lpn)}
+                            onClick={() => setPhotoViewOrder(item)}
                           >
                             <Camera className="h-4 w-4" />
                           </Button>
@@ -973,6 +996,24 @@ export default function Orders() {
           </AlertDialogFooter>
         </AlertDialogContent>
       </AlertDialog>
+
+      {/* 等级修改弹窗 */}
+      <GradeEditDialog
+        open={!!gradeEditOrder}
+        onOpenChange={() => setGradeEditOrder(null)}
+        lpn={gradeEditOrder?.lpn || ""}
+        currentGrade={gradeEditOrder?.grade || null}
+        onSave={handleGradeSave}
+        isLoading={updateOrderMutation.isPending}
+      />
+
+      {/* 照片查看弹窗 */}
+      <PhotoViewDialog
+        open={!!photoViewOrder}
+        onOpenChange={() => setPhotoViewOrder(null)}
+        title={`产品照片 - ${photoViewOrder?.lpn || ""}`}
+        photos={getPhotoList(photoInboundItem)}
+      />
     </div>
   );
 }

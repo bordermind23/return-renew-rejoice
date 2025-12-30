@@ -1,5 +1,5 @@
-import { useState } from "react";
-import { Search, Plus, Trash2, Edit, Package, Puzzle } from "lucide-react";
+import { useState, useRef } from "react";
+import { Search, Plus, Trash2, Edit, Package, Puzzle, Upload, X } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { PageHeader } from "@/components/ui/page-header";
@@ -22,6 +22,11 @@ import {
   AlertDialogTitle,
 } from "@/components/ui/alert-dialog";
 import {
+  HoverCard,
+  HoverCardContent,
+  HoverCardTrigger,
+} from "@/components/ui/hover-card";
+import {
   useProducts,
   useCreateProduct,
   useUpdateProduct,
@@ -36,6 +41,7 @@ import { Skeleton } from "@/components/ui/skeleton";
 import { toast } from "sonner";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
+import { supabase } from "@/integrations/supabase/client";
 
 export default function Products() {
   const [searchTerm, setSearchTerm] = useState("");
@@ -45,6 +51,9 @@ export default function Products() {
   const [selectedProductId, setSelectedProductId] = useState<string | null>(null);
   const [isPartsDialogOpen, setIsPartsDialogOpen] = useState(false);
   const [newPartName, setNewPartName] = useState("");
+  const [isUploading, setIsUploading] = useState(false);
+  const [imagePreview, setImagePreview] = useState<string | null>(null);
+  const fileInputRef = useRef<HTMLInputElement>(null);
 
   const [formData, setFormData] = useState({
     sku: "",
@@ -73,19 +82,32 @@ export default function Products() {
       key: "image",
       header: "图片",
       render: (item: Product) => (
-        <div className="h-12 w-12 rounded-lg bg-muted overflow-hidden">
-          {item.image ? (
-            <img
-              src={item.image}
-              alt={item.name}
-              className="h-full w-full object-cover"
-            />
-          ) : (
-            <div className="h-full w-full flex items-center justify-center">
-              <Package className="h-6 w-6 text-muted-foreground" />
+        <HoverCard openDelay={200} closeDelay={100}>
+          <HoverCardTrigger asChild>
+            <div className="h-12 w-12 rounded-lg bg-muted overflow-hidden cursor-pointer">
+              {item.image ? (
+                <img
+                  src={item.image}
+                  alt={item.name}
+                  className="h-full w-full object-cover"
+                />
+              ) : (
+                <div className="h-full w-full flex items-center justify-center">
+                  <Package className="h-6 w-6 text-muted-foreground" />
+                </div>
+              )}
             </div>
+          </HoverCardTrigger>
+          {item.image && (
+            <HoverCardContent className="w-64 p-2" side="right">
+              <img
+                src={item.image}
+                alt={item.name}
+                className="w-full h-auto rounded-lg"
+              />
+            </HoverCardContent>
           )}
-        </div>
+        </HoverCard>
       ),
     },
     {
@@ -154,7 +176,62 @@ export default function Products() {
       category: item.category || "",
       image: item.image || "",
     });
+    setImagePreview(item.image || null);
     setIsDialogOpen(true);
+  };
+
+  const handleImageUpload = async (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
+    if (!file) return;
+
+    // Validate file type
+    if (!file.type.startsWith("image/")) {
+      toast.error("请上传图片文件");
+      return;
+    }
+
+    // Validate file size (max 5MB)
+    if (file.size > 5 * 1024 * 1024) {
+      toast.error("图片大小不能超过5MB");
+      return;
+    }
+
+    setIsUploading(true);
+    try {
+      // Generate unique filename
+      const fileExt = file.name.split(".").pop();
+      const fileName = `${Date.now()}-${Math.random().toString(36).substring(2)}.${fileExt}`;
+      const filePath = `products/${fileName}`;
+
+      // Upload to Supabase storage
+      const { data, error } = await supabase.storage
+        .from("product-images")
+        .upload(filePath, file);
+
+      if (error) throw error;
+
+      // Get public URL
+      const { data: urlData } = supabase.storage
+        .from("product-images")
+        .getPublicUrl(filePath);
+
+      setFormData({ ...formData, image: urlData.publicUrl });
+      setImagePreview(urlData.publicUrl);
+      toast.success("图片上传成功");
+    } catch (error) {
+      console.error("Upload error:", error);
+      toast.error("图片上传失败");
+    } finally {
+      setIsUploading(false);
+    }
+  };
+
+  const handleRemoveImage = () => {
+    setFormData({ ...formData, image: "" });
+    setImagePreview(null);
+    if (fileInputRef.current) {
+      fileInputRef.current.value = "";
+    }
   };
 
   const handleSubmit = async () => {
@@ -219,6 +296,10 @@ export default function Products() {
     setFormData({ sku: "", name: "", category: "", image: "" });
     setEditingProduct(null);
     setIsDialogOpen(false);
+    setImagePreview(null);
+    if (fileInputRef.current) {
+      fileInputRef.current.value = "";
+    }
   };
 
   const selectedProduct = products?.find((p) => p.id === selectedProductId);
@@ -320,15 +401,57 @@ export default function Products() {
               />
             </div>
             <div className="space-y-2">
-              <Label htmlFor="image">图片URL</Label>
-              <Input
-                id="image"
-                value={formData.image}
-                onChange={(e) =>
-                  setFormData({ ...formData, image: e.target.value })
-                }
-                placeholder="输入图片URL"
+              <Label>产品图片</Label>
+              <input
+                ref={fileInputRef}
+                type="file"
+                accept="image/*"
+                onChange={handleImageUpload}
+                className="hidden"
+                id="image-upload"
               />
+              {imagePreview ? (
+                <HoverCard openDelay={200} closeDelay={100}>
+                  <HoverCardTrigger asChild>
+                    <div className="relative w-24 h-24 rounded-lg overflow-hidden border border-border cursor-pointer group">
+                      <img
+                        src={imagePreview}
+                        alt="产品图片预览"
+                        className="w-full h-full object-cover"
+                      />
+                      <button
+                        type="button"
+                        onClick={handleRemoveImage}
+                        className="absolute top-1 right-1 p-1 bg-destructive text-destructive-foreground rounded-full opacity-0 group-hover:opacity-100 transition-opacity"
+                      >
+                        <X className="h-3 w-3" />
+                      </button>
+                    </div>
+                  </HoverCardTrigger>
+                  <HoverCardContent className="w-64 p-2" side="right">
+                    <img
+                      src={imagePreview}
+                      alt="产品图片预览"
+                      className="w-full h-auto rounded-lg"
+                    />
+                  </HoverCardContent>
+                </HoverCard>
+              ) : (
+                <label
+                  htmlFor="image-upload"
+                  className="flex flex-col items-center justify-center w-24 h-24 border-2 border-dashed border-border rounded-lg cursor-pointer hover:border-primary transition-colors"
+                >
+                  {isUploading ? (
+                    <div className="animate-spin rounded-full h-6 w-6 border-2 border-primary border-t-transparent" />
+                  ) : (
+                    <>
+                      <Upload className="h-6 w-6 text-muted-foreground" />
+                      <span className="text-xs text-muted-foreground mt-1">上传图片</span>
+                    </>
+                  )}
+                </label>
+              )}
+              <p className="text-xs text-muted-foreground">支持 JPG、PNG 格式，最大 5MB</p>
             </div>
           </div>
           <div className="flex justify-end gap-3 mt-4">

@@ -1,5 +1,5 @@
-import { useState, useRef } from "react";
-import { Search, Filter, Eye, Plus, Trash2, Upload, Download, FileSpreadsheet, ChevronDown, AlertCircle, CheckCircle2, Loader2, Edit, ChevronLeft, ChevronRight, ChevronsLeft, ChevronsRight, Camera, Pencil } from "lucide-react";
+import { useState, useRef, useMemo } from "react";
+import { Search, Filter, Eye, Plus, Trash2, Upload, Download, FileSpreadsheet, ChevronDown, AlertCircle, CheckCircle2, Loader2, Edit, ChevronLeft, ChevronRight, ChevronsLeft, ChevronsRight, Camera, Pencil, List, Layers, ChevronUp } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { PageHeader } from "@/components/ui/page-header";
@@ -109,6 +109,8 @@ export default function Orders() {
   const [bulkEditData, setBulkEditData] = useState<OrderUpdate>({});
   const [gradeEditOrder, setGradeEditOrder] = useState<Order | null>(null);
   const [photoViewOrder, setPhotoViewOrder] = useState<Order | null>(null);
+  const [viewMode, setViewMode] = useState<"list" | "grouped">("list");
+  const [expandedGroups, setExpandedGroups] = useState<Set<string>>(new Set());
   const fileInputRef = useRef<HTMLInputElement>(null);
   const searchTimeoutRef = useRef<NodeJS.Timeout>();
 
@@ -200,6 +202,45 @@ export default function Orders() {
   const orders = paginatedData?.data || [];
   const totalCount = paginatedData?.totalCount || 0;
   const totalPages = paginatedData?.totalPages || 1;
+
+  // 按内部订单号分组
+  const groupedOrders = useMemo(() => {
+    const groups: Record<string, Order[]> = {};
+    orders.forEach(order => {
+      const key = order.internal_order_no || `no-group-${order.id}`;
+      if (!groups[key]) {
+        groups[key] = [];
+      }
+      groups[key].push(order);
+    });
+    return Object.entries(groups).map(([key, items]) => ({
+      internalOrderNo: key.startsWith('no-group-') ? null : key,
+      orders: items,
+      totalQuantity: items.reduce((sum, o) => sum + o.return_quantity, 0),
+    }));
+  }, [orders]);
+
+  // 切换分组展开/折叠
+  const toggleGroup = (groupKey: string) => {
+    setExpandedGroups(prev => {
+      const next = new Set(prev);
+      if (next.has(groupKey)) {
+        next.delete(groupKey);
+      } else {
+        next.add(groupKey);
+      }
+      return next;
+    });
+  };
+
+  // 展开/折叠全部
+  const toggleAllGroups = () => {
+    if (expandedGroups.size === groupedOrders.length) {
+      setExpandedGroups(new Set());
+    } else {
+      setExpandedGroups(new Set(groupedOrders.map(g => g.internalOrderNo || g.orders[0].id)));
+    }
+  };
 
   // 搜索防抖
   const handleSearchChange = (value: string) => {
@@ -742,117 +783,273 @@ export default function Orders() {
       )}
 
       {/* 筛选 */}
-      <div className="flex flex-col gap-4 sm:flex-row">
+      <div className="flex flex-col gap-4 sm:flex-row sm:items-center">
         <div className="relative flex-1">
           <Search className="absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-muted-foreground" />
           <Input placeholder="搜索订单号、LPN或店铺名称..." value={searchTerm} onChange={(e) => handleSearchChange(e.target.value)} className="pl-10" />
         </div>
-        <Select value={storeFilter} onValueChange={handleStoreFilterChange}>
-          <SelectTrigger className="w-full sm:w-48">
-            <Filter className="mr-2 h-4 w-4" />
-            <SelectValue placeholder="店铺筛选" />
-          </SelectTrigger>
-          <SelectContent>
-            <SelectItem value="all">全部店铺</SelectItem>
-            {stores.map((store) => (
-              <SelectItem key={store} value={store}>{store}</SelectItem>
-            ))}
-          </SelectContent>
-        </Select>
+        <div className="flex gap-2">
+          <Select value={storeFilter} onValueChange={handleStoreFilterChange}>
+            <SelectTrigger className="w-full sm:w-48">
+              <Filter className="mr-2 h-4 w-4" />
+              <SelectValue placeholder="店铺筛选" />
+            </SelectTrigger>
+            <SelectContent>
+              <SelectItem value="all">全部店铺</SelectItem>
+              {stores.map((store) => (
+                <SelectItem key={store} value={store}>{store}</SelectItem>
+              ))}
+            </SelectContent>
+          </Select>
+          {/* 视图切换 */}
+          <div className="flex rounded-lg border overflow-hidden">
+            <Button
+              variant={viewMode === "list" ? "secondary" : "ghost"}
+              size="sm"
+              className="rounded-none h-10 px-3"
+              onClick={() => setViewMode("list")}
+            >
+              <List className="h-4 w-4 mr-1" />
+              <span className="hidden sm:inline">列表</span>
+            </Button>
+            <Button
+              variant={viewMode === "grouped" ? "secondary" : "ghost"}
+              size="sm"
+              className="rounded-none h-10 px-3"
+              onClick={() => setViewMode("grouped")}
+            >
+              <Layers className="h-4 w-4 mr-1" />
+              <span className="hidden sm:inline">分组</span>
+            </Button>
+          </div>
+        </div>
       </div>
 
       {/* 数据表格 */}
       <Card>
         <ScrollArea className="w-full">
-          <Table>
-            <TableHeader>
-              <TableRow className="bg-muted/50 hover:bg-muted/50">
-                <TableHead className="w-10">
-                  <Checkbox checked={selectedIds.length === orders.length && orders.length > 0} onCheckedChange={toggleSelectAll} />
-                </TableHead>
-                <TableHead className="font-semibold min-w-[110px]">内部订单号</TableHead>
-                <TableHead className="font-semibold min-w-[100px]">LPN编号</TableHead>
-                <TableHead className="font-semibold min-w-[120px]">产品名称</TableHead>
-                <TableHead className="font-semibold min-w-[100px]">产品SKU</TableHead>
-                <TableHead className="font-semibold min-w-[70px] text-center">等级</TableHead>
-                <TableHead className="font-semibold min-w-[60px] text-center">照片</TableHead>
-                <TableHead className="font-semibold min-w-[80px]">店铺</TableHead>
-                <TableHead className="font-semibold min-w-[60px]">国家</TableHead>
-                <TableHead className="font-semibold min-w-[100px]">退货原因</TableHead>
-                <TableHead className="font-semibold min-w-[60px] text-center">退货数量</TableHead>
-                <TableHead className="font-semibold min-w-[80px]">订单号</TableHead>
-                <TableHead className="font-semibold min-w-[80px] text-center">操作</TableHead>
-              </TableRow>
-            </TableHeader>
-            <TableBody>
-              {orders.length === 0 ? (
-                <TableRow>
-                  <TableCell colSpan={13} className="h-32 text-center text-muted-foreground">暂无订单记录</TableCell>
+          {viewMode === "list" ? (
+            /* 列表视图 */
+            <Table>
+              <TableHeader>
+                <TableRow className="bg-muted/50 hover:bg-muted/50">
+                  <TableHead className="w-10">
+                    <Checkbox checked={selectedIds.length === orders.length && orders.length > 0} onCheckedChange={toggleSelectAll} />
+                  </TableHead>
+                  <TableHead className="font-semibold min-w-[110px]">内部订单号</TableHead>
+                  <TableHead className="font-semibold min-w-[100px]">LPN编号</TableHead>
+                  <TableHead className="font-semibold min-w-[120px]">产品名称</TableHead>
+                  <TableHead className="font-semibold min-w-[100px]">产品SKU</TableHead>
+                  <TableHead className="font-semibold min-w-[70px] text-center">等级</TableHead>
+                  <TableHead className="font-semibold min-w-[60px] text-center">照片</TableHead>
+                  <TableHead className="font-semibold min-w-[80px]">店铺</TableHead>
+                  <TableHead className="font-semibold min-w-[60px]">国家</TableHead>
+                  <TableHead className="font-semibold min-w-[100px]">退货原因</TableHead>
+                  <TableHead className="font-semibold min-w-[60px] text-center">退货数量</TableHead>
+                  <TableHead className="font-semibold min-w-[80px]">订单号</TableHead>
+                  <TableHead className="font-semibold min-w-[80px] text-center">操作</TableHead>
                 </TableRow>
-              ) : (
-                orders.map((item) => {
-                  const inboundItem = inboundByLpn[item.lpn];
-                  const hasPhotos = inboundItem?.product_photo || inboundItem?.package_photo;
-                  // 优先显示订单表中的 grade，否则显示入库记录的 grade
-                  const displayGrade = item.grade || inboundItem?.grade;
-                  
-                  return (
-                    <TableRow key={item.id} className="hover:bg-muted/30">
-                      <TableCell>
-                        <Checkbox checked={selectedIds.includes(item.id)} onCheckedChange={() => toggleSelect(item.id)} />
-                      </TableCell>
-                      <TableCell>
-                        <code className="text-xs bg-primary/10 text-primary px-1.5 py-0.5 rounded font-medium">
-                          {item.internal_order_no || "-"}
-                        </code>
-                      </TableCell>
-                      <TableCell><code className="text-xs bg-muted px-1.5 py-0.5 rounded font-medium">{item.lpn}</code></TableCell>
-                      <TableCell><span className="line-clamp-1">{item.product_name || "-"}</span></TableCell>
-                      <TableCell><code className="text-xs bg-muted px-1.5 py-0.5 rounded">{item.product_sku || "-"}</code></TableCell>
-                      <TableCell className="text-center">
-                        <button
-                          className="inline-flex items-center gap-1 px-2 py-1 rounded hover:bg-muted transition-colors"
-                          onClick={() => setGradeEditOrder(item)}
-                        >
-                          {displayGrade ? <GradeBadge grade={displayGrade as "A" | "B" | "C"} /> : <span className="text-muted-foreground text-xs">未评级</span>}
-                          <Pencil className="h-3 w-3 text-muted-foreground" />
-                        </button>
-                      </TableCell>
-                      <TableCell className="text-center">
-                        {hasPhotos ? (
-                          <Button
-                            size="icon"
-                            variant="ghost"
-                            className="h-8 w-8 text-primary"
-                            onClick={() => setPhotoViewOrder(item)}
-                          >
-                            <Camera className="h-4 w-4" />
-                          </Button>
-                        ) : (
-                          <span className="text-muted-foreground text-xs">-</span>
-                        )}
-                      </TableCell>
-                      <TableCell className="text-muted-foreground">{item.store_name}</TableCell>
-                      <TableCell className="text-muted-foreground">{item.country || "-"}</TableCell>
-                      <TableCell className="text-muted-foreground">{item.return_reason || "-"}</TableCell>
-                      <TableCell className="text-center font-semibold">{item.return_quantity}</TableCell>
-                      <TableCell className="font-medium">{item.order_number}</TableCell>
-                      <TableCell>
-                        <div className="flex justify-center gap-1">
-                          <Button size="icon" variant="ghost" className="h-8 w-8" onClick={() => setSelectedOrder(item)}>
-                            <Eye className="h-4 w-4" />
-                          </Button>
-                          <Button size="icon" variant="ghost" className="h-8 w-8 text-destructive hover:text-destructive" onClick={() => setDeleteId(item.id)}>
-                          <Trash2 className="h-4 w-4" />
-                        </Button>
-                      </div>
-                    </TableCell>
+              </TableHeader>
+              <TableBody>
+                {orders.length === 0 ? (
+                  <TableRow>
+                    <TableCell colSpan={13} className="h-32 text-center text-muted-foreground">暂无订单记录</TableCell>
                   </TableRow>
-                  );
-                })
-              )}
-            </TableBody>
-          </Table>
+                ) : (
+                  orders.map((item) => {
+                    const inboundItem = inboundByLpn[item.lpn];
+                    const hasPhotos = inboundItem?.product_photo || inboundItem?.package_photo;
+                    const displayGrade = item.grade || inboundItem?.grade;
+                    
+                    return (
+                      <TableRow key={item.id} className="hover:bg-muted/30">
+                        <TableCell>
+                          <Checkbox checked={selectedIds.includes(item.id)} onCheckedChange={() => toggleSelect(item.id)} />
+                        </TableCell>
+                        <TableCell>
+                          <code className="text-xs bg-primary/10 text-primary px-1.5 py-0.5 rounded font-medium">
+                            {item.internal_order_no || "-"}
+                          </code>
+                        </TableCell>
+                        <TableCell><code className="text-xs bg-muted px-1.5 py-0.5 rounded font-medium">{item.lpn}</code></TableCell>
+                        <TableCell><span className="line-clamp-1">{item.product_name || "-"}</span></TableCell>
+                        <TableCell><code className="text-xs bg-muted px-1.5 py-0.5 rounded">{item.product_sku || "-"}</code></TableCell>
+                        <TableCell className="text-center">
+                          <button
+                            className="inline-flex items-center gap-1 px-2 py-1 rounded hover:bg-muted transition-colors"
+                            onClick={() => setGradeEditOrder(item)}
+                          >
+                            {displayGrade ? <GradeBadge grade={displayGrade as "A" | "B" | "C"} /> : <span className="text-muted-foreground text-xs">未评级</span>}
+                            <Pencil className="h-3 w-3 text-muted-foreground" />
+                          </button>
+                        </TableCell>
+                        <TableCell className="text-center">
+                          {hasPhotos ? (
+                            <Button
+                              size="icon"
+                              variant="ghost"
+                              className="h-8 w-8 text-primary"
+                              onClick={() => setPhotoViewOrder(item)}
+                            >
+                              <Camera className="h-4 w-4" />
+                            </Button>
+                          ) : (
+                            <span className="text-muted-foreground text-xs">-</span>
+                          )}
+                        </TableCell>
+                        <TableCell className="text-muted-foreground">{item.store_name}</TableCell>
+                        <TableCell className="text-muted-foreground">{item.country || "-"}</TableCell>
+                        <TableCell className="text-muted-foreground">{item.return_reason || "-"}</TableCell>
+                        <TableCell className="text-center font-semibold">{item.return_quantity}</TableCell>
+                        <TableCell className="font-medium">{item.order_number}</TableCell>
+                        <TableCell>
+                          <div className="flex justify-center gap-1">
+                            <Button size="icon" variant="ghost" className="h-8 w-8" onClick={() => setSelectedOrder(item)}>
+                              <Eye className="h-4 w-4" />
+                            </Button>
+                            <Button size="icon" variant="ghost" className="h-8 w-8 text-destructive hover:text-destructive" onClick={() => setDeleteId(item.id)}>
+                              <Trash2 className="h-4 w-4" />
+                            </Button>
+                          </div>
+                        </TableCell>
+                      </TableRow>
+                    );
+                  })
+                )}
+              </TableBody>
+            </Table>
+          ) : (
+            /* 分组视图 */
+            <Table>
+              <TableHeader>
+                <TableRow className="bg-muted/50 hover:bg-muted/50">
+                  <TableHead className="w-10">
+                    <Button variant="ghost" size="sm" className="h-6 w-6 p-0" onClick={toggleAllGroups}>
+                      {expandedGroups.size === groupedOrders.length ? <ChevronUp className="h-4 w-4" /> : <ChevronDown className="h-4 w-4" />}
+                    </Button>
+                  </TableHead>
+                  <TableHead className="font-semibold min-w-[130px]">内部订单号</TableHead>
+                  <TableHead className="font-semibold min-w-[80px] text-center">LPN数量</TableHead>
+                  <TableHead className="font-semibold min-w-[120px]">产品名称</TableHead>
+                  <TableHead className="font-semibold min-w-[80px]">店铺</TableHead>
+                  <TableHead className="font-semibold min-w-[60px] text-center">总数量</TableHead>
+                  <TableHead className="font-semibold min-w-[80px] text-center">操作</TableHead>
+                </TableRow>
+              </TableHeader>
+              <TableBody>
+                {groupedOrders.length === 0 ? (
+                  <TableRow>
+                    <TableCell colSpan={7} className="h-32 text-center text-muted-foreground">暂无订单记录</TableCell>
+                  </TableRow>
+                ) : (
+                  groupedOrders.map((group) => {
+                    const groupKey = group.internalOrderNo || group.orders[0].id;
+                    const isExpanded = expandedGroups.has(groupKey);
+                    const firstOrder = group.orders[0];
+                    
+                    return (
+                      <>
+                        {/* 分组头部行 */}
+                        <TableRow 
+                          key={`group-${groupKey}`} 
+                          className="bg-muted/30 hover:bg-muted/50 cursor-pointer"
+                          onClick={() => toggleGroup(groupKey)}
+                        >
+                          <TableCell>
+                            <Button variant="ghost" size="sm" className="h-6 w-6 p-0">
+                              {isExpanded ? <ChevronUp className="h-4 w-4" /> : <ChevronDown className="h-4 w-4" />}
+                            </Button>
+                          </TableCell>
+                          <TableCell>
+                            <code className="text-xs bg-primary/10 text-primary px-2 py-1 rounded font-semibold">
+                              {group.internalOrderNo || "未分组"}
+                            </code>
+                          </TableCell>
+                          <TableCell className="text-center">
+                            <span className="inline-flex items-center justify-center h-6 w-6 rounded-full bg-primary/10 text-primary text-xs font-semibold">
+                              {group.orders.length}
+                            </span>
+                          </TableCell>
+                          <TableCell><span className="line-clamp-1 font-medium">{firstOrder.product_name || "-"}</span></TableCell>
+                          <TableCell className="text-muted-foreground">{firstOrder.store_name}</TableCell>
+                          <TableCell className="text-center font-semibold">{group.totalQuantity}</TableCell>
+                          <TableCell>
+                            <div className="flex justify-center">
+                              <Button 
+                                size="icon" 
+                                variant="ghost" 
+                                className="h-8 w-8" 
+                                onClick={(e) => { e.stopPropagation(); setSelectedOrder(firstOrder); }}
+                              >
+                                <Eye className="h-4 w-4" />
+                              </Button>
+                            </div>
+                          </TableCell>
+                        </TableRow>
+                        {/* 展开后的子行 */}
+                        {isExpanded && group.orders.map((item) => {
+                          const inboundItem = inboundByLpn[item.lpn];
+                          const hasPhotos = inboundItem?.product_photo || inboundItem?.package_photo;
+                          const displayGrade = item.grade || inboundItem?.grade;
+                          
+                          return (
+                            <TableRow key={item.id} className="bg-background hover:bg-muted/20 border-l-2 border-l-primary/30">
+                              <TableCell></TableCell>
+                              <TableCell>
+                                <div className="pl-4 flex items-center gap-2">
+                                  <span className="text-muted-foreground text-xs">LPN:</span>
+                                  <code className="text-xs bg-muted px-1.5 py-0.5 rounded font-medium">{item.lpn}</code>
+                                </div>
+                              </TableCell>
+                              <TableCell className="text-center">
+                                {displayGrade ? (
+                                  <button
+                                    className="inline-flex items-center gap-1 px-2 py-1 rounded hover:bg-muted transition-colors"
+                                    onClick={() => setGradeEditOrder(item)}
+                                  >
+                                    <GradeBadge grade={displayGrade as "A" | "B" | "C"} />
+                                  </button>
+                                ) : (
+                                  <span className="text-muted-foreground text-xs">未评级</span>
+                                )}
+                              </TableCell>
+                              <TableCell>
+                                <div className="flex items-center gap-2">
+                                  <span className="line-clamp-1 text-sm">{item.product_name || "-"}</span>
+                                  {hasPhotos && (
+                                    <Button
+                                      size="icon"
+                                      variant="ghost"
+                                      className="h-6 w-6 text-primary"
+                                      onClick={() => setPhotoViewOrder(item)}
+                                    >
+                                      <Camera className="h-3 w-3" />
+                                    </Button>
+                                  )}
+                                </div>
+                              </TableCell>
+                              <TableCell className="text-muted-foreground text-sm">{item.return_reason || "-"}</TableCell>
+                              <TableCell className="text-center text-sm">{item.return_quantity}</TableCell>
+                              <TableCell>
+                                <div className="flex justify-center gap-1">
+                                  <Button size="icon" variant="ghost" className="h-7 w-7" onClick={() => setSelectedOrder(item)}>
+                                    <Eye className="h-3.5 w-3.5" />
+                                  </Button>
+                                  <Button size="icon" variant="ghost" className="h-7 w-7 text-destructive hover:text-destructive" onClick={() => setDeleteId(item.id)}>
+                                    <Trash2 className="h-3.5 w-3.5" />
+                                  </Button>
+                                </div>
+                              </TableCell>
+                            </TableRow>
+                          );
+                        })}
+                      </>
+                    );
+                  })
+                )}
+              </TableBody>
+            </Table>
+          )}
           <ScrollBar orientation="horizontal" />
         </ScrollArea>
       </Card>

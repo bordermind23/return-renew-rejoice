@@ -170,7 +170,9 @@ export default function Inbound() {
     }
 
     setCurrentLpn(lpn);
-    setMatchedOrders(getOrdersByLpn(lpn));
+    const lpnOrders = getOrdersByLpn(lpn);
+    console.log("Found orders for LPN:", lpn, lpnOrders);
+    setMatchedOrders(lpnOrders);
     setIsProcessDialogOpen(true);
     setLpnInput("");
   };

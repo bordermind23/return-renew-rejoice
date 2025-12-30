@@ -101,12 +101,21 @@ export default function InboundProcess() {
       return;
     }
 
+    // 优先使用退货订单的 SKU 和产品名称（更准确）
+    const orderSku = matchedOrders.length > 0 && matchedOrders[0].product_sku 
+      ? matchedOrders[0].product_sku 
+      : matchedShipment.product_sku;
+    const orderProductName = matchedOrders.length > 0 && matchedOrders[0].product_name 
+      ? matchedOrders[0].product_name 
+      : matchedShipment.product_name;
+    const returnQty = matchedOrders.length > 0 ? (matchedOrders[0].return_quantity || 1) : 1;
+
     createMutation.mutate(
       {
         lpn: lpn,
         removal_order_id: matchedShipment.order_id,
-        product_sku: matchedShipment.product_sku,
-        product_name: matchedShipment.product_name,
+        product_sku: orderSku,
+        product_name: orderProductName,
         return_reason: returnReason || null,
         grade: selectedGrade as "A" | "B" | "C" | "new",
         missing_parts: selectedMissingParts.length > 0 ? selectedMissingParts : null,
@@ -126,11 +135,10 @@ export default function InboundProcess() {
       },
       {
         onSuccess: () => {
-          // 使用订单的 return_quantity
-          const returnQty = matchedOrders.length > 0 ? (matchedOrders[0].return_quantity || 1) : 1;
+          // 使用订单的 SKU 和数量更新库存
           updateInventoryMutation.mutate({
-            sku: matchedShipment.product_sku,
-            product_name: matchedShipment.product_name,
+            sku: orderSku,
+            product_name: orderProductName,
             grade: selectedGrade as "A" | "B" | "C",
             quantity: returnQty,
           });

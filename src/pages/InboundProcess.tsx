@@ -1,7 +1,8 @@
 import { useState, useEffect } from "react";
 import { useNavigate, useSearchParams } from "react-router-dom";
-import { Package, CheckCircle, Camera, ArrowLeft } from "lucide-react";
+import { Package, CheckCircle, Camera, ArrowLeft, AlertTriangle } from "lucide-react";
 import { Button } from "@/components/ui/button";
+import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Textarea } from "@/components/ui/textarea";
@@ -48,6 +49,18 @@ export default function InboundProcess() {
     ? products?.find(p => p.sku === matchedShipment.product_sku)
     : null;
   const { data: productParts } = useProductParts(matchedProduct?.id || null);
+
+  // 检查移除货件SKU与退货订单SKU是否一致
+  const skuMismatch = matchedShipment && matchedOrders.length > 0 
+    ? matchedOrders.some(order => 
+        order.product_sku && 
+        order.product_sku !== matchedShipment.product_sku
+      )
+    : false;
+  
+  const mismatchedOrders = matchedOrders.filter(order => 
+    order.product_sku && order.product_sku !== matchedShipment?.product_sku
+  );
 
   // 初始化数据
   useEffect(() => {
@@ -192,39 +205,100 @@ export default function InboundProcess() {
       <ScrollArea className="h-[calc(100vh-140px)]">
         <div className="p-4 space-y-4">
           {/* 退货订单信息 */}
+          {/* SKU不一致警告 */}
+          {skuMismatch && (
+            <Alert variant="destructive" className="border-2">
+              <AlertTriangle className="h-5 w-5" />
+              <AlertTitle className="font-semibold">SKU不一致警告</AlertTitle>
+              <AlertDescription className="mt-2 space-y-2">
+                <p>移除货件与退货订单的产品SKU不匹配，请核实后再处理！</p>
+                <div className="mt-3 p-3 bg-destructive/10 rounded-lg space-y-2 text-sm">
+                  <div className="flex items-center justify-between">
+                    <span className="text-muted-foreground">移除货件SKU:</span>
+                    <span className="font-mono font-semibold">{matchedShipment?.product_sku}</span>
+                  </div>
+                  {mismatchedOrders.map((order, idx) => (
+                    <div key={idx} className="flex items-center justify-between border-t border-destructive/20 pt-2">
+                      <span className="text-muted-foreground">退货订单SKU:</span>
+                      <span className="font-mono font-semibold text-destructive">{order.product_sku}</span>
+                    </div>
+                  ))}
+                </div>
+                <p className="text-xs text-muted-foreground mt-2">
+                  可能原因：亚马逊换货、贴错标签、数据导入错误等
+                </p>
+              </AlertDescription>
+            </Alert>
+          )}
+
           {matchedOrders.length > 0 && (
-            <Card className="border-blue-200 bg-blue-50 dark:bg-blue-950/30 dark:border-blue-800">
+            <Card className={cn(
+              "border-blue-200 bg-blue-50 dark:bg-blue-950/30 dark:border-blue-800",
+              skuMismatch && "border-orange-300 bg-orange-50 dark:bg-orange-950/30 dark:border-orange-700"
+            )}>
               <CardHeader className="pb-2">
-                <CardTitle className="text-base flex items-center gap-2 text-blue-900 dark:text-blue-100">
+                <CardTitle className={cn(
+                  "text-base flex items-center gap-2 text-blue-900 dark:text-blue-100",
+                  skuMismatch && "text-orange-900 dark:text-orange-100"
+                )}>
                   退货订单信息
                   {matchedOrders.length > 1 && (
                     <Badge variant="secondary">{matchedOrders.length}条</Badge>
                   )}
+                  {skuMismatch && (
+                    <Badge variant="destructive" className="ml-auto">
+                      <AlertTriangle className="w-3 h-3 mr-1" />
+                      SKU不一致
+                    </Badge>
+                  )}
                 </CardTitle>
               </CardHeader>
               <CardContent className="space-y-3">
-                {matchedOrders.map((order, index) => (
-                  <div key={order.id} className={cn("grid grid-cols-2 gap-2 text-sm", index > 0 && "pt-3 border-t border-blue-200")}>
-                    {order.internal_order_no && (
-                      <div className="col-span-2">
-                        <p className="text-xs text-muted-foreground">内部订单号</p>
-                        <p className="font-mono font-semibold text-primary">{order.internal_order_no}</p>
+                {matchedOrders.map((order, index) => {
+                  const isThisOrderMismatched = order.product_sku && order.product_sku !== matchedShipment?.product_sku;
+                  return (
+                    <div key={order.id} className={cn(
+                      "grid grid-cols-2 gap-2 text-sm", 
+                      index > 0 && "pt-3 border-t border-blue-200",
+                      isThisOrderMismatched && "bg-orange-100/50 dark:bg-orange-900/20 -mx-2 px-2 py-2 rounded-lg"
+                    )}>
+                      {order.internal_order_no && (
+                        <div className="col-span-2">
+                          <p className="text-xs text-muted-foreground">内部订单号</p>
+                          <p className="font-mono font-semibold text-primary">{order.internal_order_no}</p>
+                        </div>
+                      )}
+                      <div><p className="text-xs text-muted-foreground">LPN编号</p><p className="font-mono font-medium">{order.lpn}</p></div>
+                      <div>
+                        <p className="text-xs text-muted-foreground">产品SKU</p>
+                        <p className={cn(
+                          "font-mono font-medium",
+                          isThisOrderMismatched && "text-destructive font-bold"
+                        )}>
+                          {order.product_sku || "-"}
+                          {isThisOrderMismatched && " ⚠️"}
+                        </p>
                       </div>
-                    )}
-                    <div><p className="text-xs text-muted-foreground">LPN编号</p><p className="font-mono font-medium">{order.lpn}</p></div>
-                    <div><p className="text-xs text-muted-foreground">产品名称</p><p className="font-medium">{order.product_name || "-"}</p></div>
-                    <div><p className="text-xs text-muted-foreground">退货原因</p><p className="font-medium">{order.return_reason || "-"}</p></div>
-                    <div><p className="text-xs text-muted-foreground">买家备注</p><p className="font-medium">{order.buyer_note || "-"}</p></div>
-                    <div><p className="text-xs text-muted-foreground">店铺</p><p className="font-medium">{order.store_name}</p></div>
-                  </div>
-                ))}
+                      <div><p className="text-xs text-muted-foreground">产品名称</p><p className="font-medium">{order.product_name || "-"}</p></div>
+                      <div><p className="text-xs text-muted-foreground">退货原因</p><p className="font-medium">{order.return_reason || "-"}</p></div>
+                      <div><p className="text-xs text-muted-foreground">买家备注</p><p className="font-medium">{order.buyer_note || "-"}</p></div>
+                      <div><p className="text-xs text-muted-foreground">店铺</p><p className="font-medium">{order.store_name}</p></div>
+                    </div>
+                  );
+                })}
               </CardContent>
             </Card>
           )}
 
-          {/* 产品信息 */}
-          <Card>
-            <CardContent className="pt-4">
+          {/* 产品信息 - 货件来源 */}
+          <Card className={cn(skuMismatch && "border-primary")}>
+            <CardHeader className="pb-2">
+              <CardTitle className="text-sm flex items-center gap-2">
+                移除货件信息
+                {skuMismatch && <Badge variant="outline" className="text-xs">以此为准</Badge>}
+              </CardTitle>
+            </CardHeader>
+            <CardContent>
               <div className="grid grid-cols-2 gap-3 text-sm">
                 <div>
                   <p className="text-xs text-muted-foreground">产品名称</p>
@@ -232,7 +306,7 @@ export default function InboundProcess() {
                 </div>
                 <div>
                   <p className="text-xs text-muted-foreground">产品SKU</p>
-                  <p className="font-medium">{matchedShipment.product_sku}</p>
+                  <p className={cn("font-mono font-medium", skuMismatch && "text-primary font-bold")}>{matchedShipment.product_sku}</p>
                 </div>
               </div>
             </CardContent>

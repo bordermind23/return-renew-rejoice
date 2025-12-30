@@ -1,5 +1,5 @@
 import { useState, useRef, useEffect } from "react";
-import { ScanLine, Camera, Package, CheckCircle, Trash2, Search, PackageCheck, AlertCircle, ChevronRight, RefreshCw } from "lucide-react";
+import { ScanLine, Camera, Package, CheckCircle, Trash2, Search, PackageCheck, AlertCircle, ChevronRight } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { PageHeader } from "@/components/ui/page-header";
@@ -42,7 +42,8 @@ import {
   type InboundItem,
 } from "@/hooks/useInboundItems";
 import { useRemovalShipments, useUpdateRemovalShipment, type RemovalShipment } from "@/hooks/useRemovalShipments";
-import { useOrders, type Order } from "@/hooks/useOrders";
+import { type Order } from "@/hooks/useOrders";
+import { fetchOrdersByLpn } from "@/hooks/useOrdersByLpn";
 import { useUpdateInventoryStock, useDecreaseInventoryStock } from "@/hooks/useInventoryItems";
 import { useProducts, useProductParts, type ProductPart } from "@/hooks/useProducts";
 import { Skeleton } from "@/components/ui/skeleton";
@@ -73,7 +74,7 @@ export default function Inbound() {
 
   const { data: inboundItems, isLoading: inboundLoading } = useInboundItems();
   const { data: shipments, isLoading: shipmentsLoading } = useRemovalShipments();
-  const { data: orders, isLoading: ordersLoading, refetch: refetchOrders } = useOrders();
+  const ordersLoading = false;
   const { data: products } = useProducts();
   const createMutation = useCreateInboundItem();
   const deleteMutation = useDeleteInboundItem();
@@ -129,34 +130,26 @@ export default function Inbound() {
     toast.success(`匹配成功: ${found.product_name}`);
   };
 
-  // 验证 LPN 是否存在于退货订单列表并获取所有匹配的订单
-  const getOrdersByLpn = (lpn: string, ordersData?: Order[]) => {
-    const data = ordersData || orders;
-    const matchedOrders = data?.filter(o => o.lpn === lpn) || [];
+  // 通过后端按 LPN 精确查询（避免 1000 行上限导致漏数据）
+  const getOrdersByLpn = async (lpn: string) => {
+    const matchedOrders = await fetchOrdersByLpn(lpn);
     console.log(`[getOrdersByLpn] LPN: ${lpn}, 找到 ${matchedOrders.length} 条订单`, matchedOrders);
     return matchedOrders;
   };
 
-  const validateLpnExists = (lpn: string, ordersData?: Order[]): boolean => {
-    return getOrdersByLpn(lpn, ordersData).length > 0;
-  };
 
   // 扫描 LPN (支持手动输入和摄像头扫码)
   const handleScanLpn = async (lpnValue?: string) => {
     const lpn = (lpnValue || lpnInput).trim();
-    
+
     if (!lpn) {
       toast.error("请输入LPN号");
       return;
     }
 
-    // 先刷新订单数据确保是最新的
-    console.log("[handleScanLpn] 刷新订单数据...");
-    const { data: freshOrders } = await refetchOrders();
-    console.log("[handleScanLpn] 刷新完成，订单数量:", freshOrders?.length);
-
-    // 检查LPN是否存在于退货订单列表
-    if (!validateLpnExists(lpn, freshOrders)) {
+    // 检查LPN是否存在于退货订单列表（直接按LPN查询，避免 orders 1000 行上限）
+    const lpnOrders = await getOrdersByLpn(lpn);
+    if (lpnOrders.length === 0) {
       toast.error(`LPN号 "${lpn}" 不存在于退货订单列表中，请先在退货订单列表中添加该LPN`);
       setLpnInput("");
       return;
@@ -178,7 +171,6 @@ export default function Inbound() {
     }
 
     setCurrentLpn(lpn);
-    const lpnOrders = getOrdersByLpn(lpn, freshOrders);
     console.log("[handleScanLpn] Found orders for LPN:", lpn, lpnOrders);
     setMatchedOrders(lpnOrders);
     setIsProcessDialogOpen(true);
@@ -494,9 +486,6 @@ export default function Inbound() {
                   确认扫描
                 </Button>
                 <Scanner onScan={handleCameraScanLpn} buttonLabel="摄像头" />
-                <Button variant="outline" size="icon" onClick={() => refetchOrders()} title="刷新订单数据">
-                  <RefreshCw className="h-4 w-4" />
-                </Button>
               </div>
 
               {/* 本次已扫描的 LPN 列表 */}

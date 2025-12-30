@@ -7,6 +7,7 @@ import {
   DialogContent,
   DialogHeader,
   DialogTitle,
+  DialogDescription,
 } from "@/components/ui/dialog";
 
 interface ScannerProps {
@@ -150,6 +151,9 @@ export function Scanner({
               <Camera className="h-5 w-5" />
               扫描条码/二维码
             </DialogTitle>
+            <DialogDescription>
+              请允许摄像头权限，并将条码或二维码对准取景框。
+            </DialogDescription>
           </DialogHeader>
 
           <div className="space-y-4">

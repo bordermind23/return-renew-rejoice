@@ -175,7 +175,7 @@ export default function Removals() {
   const filteredData = (shipments || []).filter((item) => {
     const matchesSearch =
       item.order_id.toLowerCase().includes(searchTerm.toLowerCase()) ||
-      item.product_name.toLowerCase().includes(searchTerm.toLowerCase()) ||
+      (item.product_name || "").toLowerCase().includes(searchTerm.toLowerCase()) ||
       item.tracking_number.toLowerCase().includes(searchTerm.toLowerCase()) ||
       (item.store_name || "").toLowerCase().includes(searchTerm.toLowerCase());
 
@@ -410,12 +410,7 @@ export default function Removals() {
     if (!row[0]?.trim()) {
       errors.push("移除订单号不能为空");
     }
-    if (!row[3]?.trim()) {
-      errors.push("产品SKU不能为空");
-    }
-    if (!row[5]?.trim()) {
-      errors.push("产品名称不能为空");
-    }
+    // 产品SKU和产品名称允许为空
     if (!row[7]?.trim()) {
       errors.push("FNSKU不能为空");
     }
@@ -447,9 +442,9 @@ export default function Removals() {
         order_id: String(row[0]).trim(),
         store_name: row[1] ? String(row[1]).trim() : null,
         country: row[2] ? String(row[2]).trim() : null,
-        product_sku: String(row[3]).trim(),
+        product_sku: row[3] ? String(row[3]).trim() : null,
         msku: row[4] ? String(row[4]).trim() : null,
-        product_name: String(row[5]).trim(),
+        product_name: row[5] ? String(row[5]).trim() : null,
         product_type: row[6] ? String(row[6]).trim() : null,
         fnsku: String(row[7]).trim(),
         quantity: parseInt(String(row[8])) || 1,

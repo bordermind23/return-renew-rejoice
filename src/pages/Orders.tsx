@@ -1,18 +1,10 @@
 import React, { useState, useRef, useMemo } from "react";
-import { Search, Filter, Eye, Plus, Trash2, Upload, Download, FileSpreadsheet, ChevronDown, AlertCircle, CheckCircle2, Loader2, Edit, ChevronLeft, ChevronRight, ChevronsLeft, ChevronsRight, Camera, Pencil, ChevronUp, X } from "lucide-react";
+import { Eye, Plus, Trash2, Upload, Download, FileSpreadsheet, ChevronDown, AlertCircle, CheckCircle2, Loader2, Edit, ChevronUp } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { PageHeader } from "@/components/ui/page-header";
 import { Card, CardContent } from "@/components/ui/card";
-import { Badge } from "@/components/ui/badge";
 import { Progress } from "@/components/ui/progress";
-import {
-  Select,
-  SelectContent,
-  SelectItem,
-  SelectTrigger,
-  SelectValue,
-} from "@/components/ui/select";
 import {
   Dialog,
   DialogContent,
@@ -39,11 +31,6 @@ import {
   AlertDialogTitle,
 } from "@/components/ui/alert-dialog";
 import {
-  HoverCard,
-  HoverCardContent,
-  HoverCardTrigger,
-} from "@/components/ui/hover-card";
-import {
   Table,
   TableBody,
   TableCell,
@@ -57,6 +44,10 @@ import { GradeBadge } from "@/components/ui/grade-badge";
 import { OrderStatusBadge } from "@/components/ui/order-status-badge";
 import { GradeEditDialog } from "@/components/GradeEditDialog";
 import { PhotoViewDialog } from "@/components/PhotoViewDialog";
+import { OrderFilters } from "@/components/orders/OrderFilters";
+import { OrderStatsCards } from "@/components/orders/OrderStatsCards";
+import { OrderPagination } from "@/components/orders/OrderPagination";
+import { OrderTableRow } from "@/components/orders/OrderTableRow";
 import {
   useOrdersPaginated,
   useOrderStores,
@@ -89,7 +80,6 @@ interface ImportProgress {
   successCount: number;
 }
 
-// 模板字段
 const templateHeaders = [
   "LPN编号", "产品名称", "买家备注", "退货原因", "库存属性", "店铺", "国家",
   "产品SKU", "订单号", "MSKU", "ASIN", "FNSKU", "退货数量", "发货仓库编号",
@@ -97,26 +87,36 @@ const templateHeaders = [
 ];
 
 export default function Orders() {
+  // 筛选状态
   const [searchTerm, setSearchTerm] = useState("");
   const [debouncedSearch, setDebouncedSearch] = useState("");
   const [storeFilter, setStoreFilter] = useState<string>("all");
   const [statusFilters, setStatusFilters] = useState<("未到货" | "到货" | "出库")[]>([]);
   const [gradeFilter, setGradeFilter] = useState<string>("all");
+  
+  // 分页状态
   const [currentPage, setCurrentPage] = useState(1);
   const [pageSize, setPageSize] = useState(50);
+  
+  // 对话框状态
   const [selectedOrder, setSelectedOrder] = useState<Order | null>(null);
   const [isDialogOpen, setIsDialogOpen] = useState(false);
   const [deleteId, setDeleteId] = useState<string | null>(null);
-  const [selectedIds, setSelectedIds] = useState<string[]>([]);
   const [isBulkDeleteOpen, setIsBulkDeleteOpen] = useState(false);
   const [isBulkEditOpen, setIsBulkEditOpen] = useState(false);
-  const [bulkEditData, setBulkEditData] = useState<OrderUpdate>({});
   const [gradeEditOrder, setGradeEditOrder] = useState<Order | null>(null);
   const [photoViewOrder, setPhotoViewOrder] = useState<Order | null>(null);
+  
+  // 选择状态
+  const [selectedIds, setSelectedIds] = useState<string[]>([]);
   const [expandedGroups, setExpandedGroups] = useState<Set<string>>(new Set());
+  
+  // 批量编辑数据
+  const [bulkEditData, setBulkEditData] = useState<OrderUpdate>({});
+  
+  // 导入相关
   const fileInputRef = useRef<HTMLInputElement>(null);
   const searchTimeoutRef = useRef<NodeJS.Timeout>();
-
   const [importProgress, setImportProgress] = useState<ImportProgress>({
     isImporting: false,
     total: 0,
@@ -126,6 +126,7 @@ export default function Orders() {
     successCount: 0,
   });
 
+  // 表单数据
   const [formData, setFormData] = useState<OrderInsert>({
     lpn: "",
     removal_order_id: "",
@@ -150,21 +151,80 @@ export default function Orders() {
     grade: null,
   });
 
-  const { data: paginatedData, isLoading } = useOrdersPaginated(currentPage, pageSize, { searchTerm: debouncedSearch, storeFilter, statusFilters, gradeFilter });
+  // 数据查询
+  const { data: paginatedData, isLoading } = useOrdersPaginated(currentPage, pageSize, { 
+    searchTerm: debouncedSearch, 
+    storeFilter, 
+    statusFilters, 
+    gradeFilter 
+  });
   const { data: stores = [] } = useOrderStores();
   const { data: inboundItems } = useInboundItems();
-  const updateOrderMutation = useUpdateOrder();
-
-  // 创建 LPN 到入库记录的映射
-  const inboundByLpn = (inboundItems || []).reduce((acc, item) => {
-    acc[item.lpn] = item;
-    return acc;
-  }, {} as Record<string, typeof inboundItems[0]>);
-
-  const [photoViewLpn, setPhotoViewLpn] = useState<string | null>(null);
-  const photoInboundItem = photoViewOrder ? inboundByLpn[photoViewOrder.lpn] : null;
   
-  // 构建照片列表
+  // Mutations
+  const createMutation = useCreateOrder();
+  const updateOrderMutation = useUpdateOrder();
+  const deleteMutation = useDeleteOrder();
+  const bulkDeleteMutation = useBulkDeleteOrders();
+  const bulkUpdateMutation = useBulkUpdateOrders();
+  const bulkCreateMutation = useBulkCreateOrders();
+
+  // 派生数据
+  const orders = paginatedData?.data || [];
+  const totalCount = paginatedData?.totalCount || 0;
+  const totalPages = paginatedData?.totalPages || 1;
+
+  // LPN 到入库记录的映射
+  const inboundByLpn = useMemo(() => {
+    return (inboundItems || []).reduce((acc, item) => {
+      acc[item.lpn] = item;
+      return acc;
+    }, {} as Record<string, typeof inboundItems[0]>);
+  }, [inboundItems]);
+
+  // 统计数据
+  const stats = useMemo(() => {
+    const allOrders = orders;
+    return {
+      total: totalCount,
+      pending: allOrders.filter(o => o.status === "未到货").length,
+      arrived: allOrders.filter(o => o.status === "到货").length,
+      shipped: allOrders.filter(o => o.status === "出库").length,
+    };
+  }, [orders, totalCount]);
+
+  // 按内部订单号分组
+  const { groupedOrders, singleOrders } = useMemo(() => {
+    const groups: Record<string, Order[]> = {};
+    orders.forEach(order => {
+      const key = order.internal_order_no || `no-group-${order.id}`;
+      if (!groups[key]) groups[key] = [];
+      groups[key].push(order);
+    });
+
+    const multiLpnGroups: { internalOrderNo: string | null; orders: Order[]; totalQuantity: number }[] = [];
+    const singles: Order[] = [];
+
+    Object.entries(groups).forEach(([key, items]) => {
+      if (items.length >= 2 && !key.startsWith('no-group-')) {
+        multiLpnGroups.push({
+          internalOrderNo: key,
+          orders: items,
+          totalQuantity: items.reduce((sum, o) => sum + o.return_quantity, 0),
+        });
+      } else {
+        singles.push(...items);
+      }
+    });
+
+    return { groupedOrders: multiLpnGroups, singleOrders: singles };
+  }, [orders]);
+
+  const hasGroups = groupedOrders.length > 0;
+  const hasActiveFilters = debouncedSearch || storeFilter !== "all" || statusFilters.length > 0 || gradeFilter !== "all";
+  const photoInboundItem = photoViewOrder ? inboundByLpn[photoViewOrder.lpn] : null;
+
+  // 照片列表构建
   const getPhotoList = (item: typeof inboundItems[0] | undefined) => {
     if (!item) return [];
     const photoFields = [
@@ -183,120 +243,33 @@ export default function Orders() {
       .map(f => ({ key: f.key, label: f.label, url: item[f.key] as string }));
   };
 
-  const handleGradeSave = (grade: string, reason: string, photos: string[]) => {
-    if (!gradeEditOrder) return;
-    updateOrderMutation.mutate(
-      { id: gradeEditOrder.id, grade },
-      {
-        onSuccess: () => {
-          toast.success("等级已更新");
-          setGradeEditOrder(null);
-        },
-      }
-    );
-  };
-
-  const createMutation = useCreateOrder();
-  const deleteMutation = useDeleteOrder();
-  const bulkDeleteMutation = useBulkDeleteOrders();
-  const bulkUpdateMutation = useBulkUpdateOrders();
-  const bulkCreateMutation = useBulkCreateOrders();
-
-  const orders = paginatedData?.data || [];
-  const totalCount = paginatedData?.totalCount || 0;
-  const totalPages = paginatedData?.totalPages || 1;
-
-  // 按内部订单号分组（只分组有2个或以上LPN的订单）
-  const { groupedOrders, singleOrders } = useMemo(() => {
-    const groups: Record<string, Order[]> = {};
-    orders.forEach(order => {
-      const key = order.internal_order_no || `no-group-${order.id}`;
-      if (!groups[key]) {
-        groups[key] = [];
-      }
-      groups[key].push(order);
-    });
-    
-    const multiLpnGroups: { internalOrderNo: string | null; orders: Order[]; totalQuantity: number }[] = [];
-    const singles: Order[] = [];
-    
-    Object.entries(groups).forEach(([key, items]) => {
-      if (items.length >= 2 && !key.startsWith('no-group-')) {
-        multiLpnGroups.push({
-          internalOrderNo: key,
-          orders: items,
-          totalQuantity: items.reduce((sum, o) => sum + o.return_quantity, 0),
-        });
-      } else {
-        singles.push(...items);
-      }
-    });
-    
-    return { groupedOrders: multiLpnGroups, singleOrders: singles };
-  }, [orders]);
-
-  // 切换分组展开/折叠
-  const toggleGroup = (groupKey: string) => {
-    setExpandedGroups(prev => {
-      const next = new Set(prev);
-      if (next.has(groupKey)) {
-        next.delete(groupKey);
-      } else {
-        next.add(groupKey);
-      }
-      return next;
-    });
-  };
-
-  // 展开/折叠全部分组
-  const toggleAllGroups = () => {
-    if (expandedGroups.size === groupedOrders.length) {
-      setExpandedGroups(new Set());
-    } else {
-      setExpandedGroups(new Set(groupedOrders.map(g => g.internalOrderNo || g.orders[0].id)));
-    }
-  };
-  
-  // 是否有可折叠的分组
-  const hasGroups = groupedOrders.length > 0;
-
-  // 搜索防抖
+  // 事件处理
   const handleSearchChange = (value: string) => {
     setSearchTerm(value);
-    if (searchTimeoutRef.current) {
-      clearTimeout(searchTimeoutRef.current);
-    }
+    if (searchTimeoutRef.current) clearTimeout(searchTimeoutRef.current);
     searchTimeoutRef.current = setTimeout(() => {
       setDebouncedSearch(value);
       setCurrentPage(1);
     }, 300);
   };
 
-  // 店铺筛选变化时重置页码
   const handleStoreFilterChange = (value: string) => {
     setStoreFilter(value);
     setCurrentPage(1);
   };
 
-  // 状态筛选变化时重置页码
   const handleStatusFilterChange = (status: "未到货" | "到货" | "出库") => {
-    setStatusFilters(prev => {
-      if (prev.includes(status)) {
-        return prev.filter(s => s !== status);
-      } else {
-        return [...prev, status];
-      }
-    });
+    setStatusFilters(prev =>
+      prev.includes(status) ? prev.filter(s => s !== status) : [...prev, status]
+    );
     setCurrentPage(1);
   };
 
-  // 等级筛选变化时重置页码
   const handleGradeFilterChange = (value: string) => {
     setGradeFilter(value);
     setCurrentPage(1);
   };
 
-  // 清除所有筛选
   const clearAllFilters = () => {
     setSearchTerm("");
     setDebouncedSearch("");
@@ -306,7 +279,33 @@ export default function Orders() {
     setCurrentPage(1);
   };
 
-  const hasActiveFilters = debouncedSearch || storeFilter !== "all" || statusFilters.length > 0 || gradeFilter !== "all";
+  const toggleGroup = (groupKey: string) => {
+    setExpandedGroups(prev => {
+      const next = new Set(prev);
+      if (next.has(groupKey)) next.delete(groupKey);
+      else next.add(groupKey);
+      return next;
+    });
+  };
+
+  const toggleAllGroups = () => {
+    if (expandedGroups.size === groupedOrders.length) {
+      setExpandedGroups(new Set());
+    } else {
+      setExpandedGroups(new Set(groupedOrders.map(g => g.internalOrderNo || g.orders[0].id)));
+    }
+  };
+
+  const toggleSelectAll = () => {
+    if (selectedIds.length === orders.length) setSelectedIds([]);
+    else setSelectedIds(orders.map(item => item.id));
+  };
+
+  const toggleSelect = (id: string) => {
+    setSelectedIds(prev =>
+      prev.includes(id) ? prev.filter(i => i !== id) : [...prev, id]
+    );
+  };
 
   const resetForm = () => {
     setFormData({
@@ -347,10 +346,7 @@ export default function Orders() {
     }
 
     createMutation.mutate(
-      {
-        ...formData,
-        removed_at: new Date().toISOString(),
-      },
+      { ...formData, removed_at: new Date().toISOString() },
       {
         onSuccess: () => {
           setIsDialogOpen(false);
@@ -368,22 +364,6 @@ export default function Orders() {
     }
   };
 
-  // 批量选择
-  const toggleSelectAll = () => {
-    if (selectedIds.length === orders.length) {
-      setSelectedIds([]);
-    } else {
-      setSelectedIds(orders.map(item => item.id));
-    }
-  };
-
-  const toggleSelect = (id: string) => {
-    setSelectedIds(prev =>
-      prev.includes(id) ? prev.filter(i => i !== id) : [...prev, id]
-    );
-  };
-
-  // 批量删除
   const handleBulkDelete = () => {
     bulkDeleteMutation.mutate(selectedIds, {
       onSuccess: () => {
@@ -393,7 +373,6 @@ export default function Orders() {
     });
   };
 
-  // 批量编辑
   const handleBulkEdit = () => {
     const updates: OrderUpdate = {};
     if (bulkEditData.store_name) updates.store_name = bulkEditData.store_name;
@@ -414,21 +393,31 @@ export default function Orders() {
     });
   };
 
-  // 下载模板
+  const handleGradeSave = (grade: string, reason: string, photos: string[]) => {
+    if (!gradeEditOrder) return;
+    updateOrderMutation.mutate(
+      { id: gradeEditOrder.id, grade },
+      {
+        onSuccess: () => {
+          toast.success("等级已更新");
+          setGradeEditOrder(null);
+        },
+      }
+    );
+  };
+
   const handleDownloadTemplate = () => {
     const ws = XLSX.utils.aoa_to_sheet([
       templateHeaders,
-      ["LPN123456", "示例产品", "请小心处理", "商品有缺陷", "可售", "示例店铺", "美国", "SKU-001", "ORDER-001", "MSKU-001", "B08XXX", "FNSKU-001", "1", "0", "2024-01-15", "2024-01-10", "REMOVAL-001", "FBA-US"]
+      ["LPN123456", "示例产品", "请小心处理", "商品有缺陷", "可售", "示例店铺", "美国", "SKU-001", "ORDER-001", "MSKU-001", "B08XXX", "FNSKU-001", "1", "0", "2024-01-15", "2024-01-10"]
     ]);
     ws["!cols"] = templateHeaders.map(() => ({ wch: 15 }));
-
     const wb = XLSX.utils.book_new();
     XLSX.utils.book_append_sheet(wb, ws, "退货订单模板");
     XLSX.writeFile(wb, "退货订单导入模板.xlsx");
     toast.success("模板下载成功");
   };
 
-  // 验证行数据
   const validateRow = (row: string[], rowIndex: number): { valid: boolean; error?: string } => {
     if (!row[0]?.trim()) return { valid: false, error: `第${rowIndex}行：LPN编号不能为空` };
     if (!row[5]?.trim()) return { valid: false, error: `第${rowIndex}行：店铺不能为空` };
@@ -436,7 +425,6 @@ export default function Orders() {
     return { valid: true };
   };
 
-  // 导入文件
   const handleImport = async (e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0];
     if (!file) return;
@@ -471,22 +459,16 @@ export default function Orders() {
 
           const errors: ImportError[] = [];
           const validItems: OrderInsert[] = [];
-          // 存储现有数据的 LPN+订单号 组合
           const existingLpnOrderMap = new Map<string, Set<string>>();
           (orders || []).forEach(o => {
-            if (!existingLpnOrderMap.has(o.lpn)) {
-              existingLpnOrderMap.set(o.lpn, new Set());
-            }
+            if (!existingLpnOrderMap.has(o.lpn)) existingLpnOrderMap.set(o.lpn, new Set());
             existingLpnOrderMap.get(o.lpn)!.add(o.order_number);
           });
-          
-          // 存储导入文件中的 LPN+订单号 组合
           const importedLpnOrderMap = new Map<string, Set<string>>();
 
           for (let i = 0; i < dataRows.length; i++) {
             const row = dataRows[i];
             const rowIndex = i + 2;
-
             const validation = validateRow(row, rowIndex);
             if (!validation.valid) {
               errors.push({ row: rowIndex, message: validation.error! });
@@ -496,22 +478,17 @@ export default function Orders() {
             const lpn = String(row[0]).trim();
             const orderNumber = String(row[8]).trim();
 
-            // 检查系统中是否存在相同 LPN 且相同订单号
             if (existingLpnOrderMap.has(lpn) && existingLpnOrderMap.get(lpn)!.has(orderNumber)) {
               errors.push({ row: rowIndex, message: `第${rowIndex}行：LPN号 "${lpn}" 与订单号 "${orderNumber}" 的组合已存在于系统中` });
               continue;
             }
 
-            // 检查导入文件中是否存在相同 LPN 且相同订单号
             if (importedLpnOrderMap.has(lpn) && importedLpnOrderMap.get(lpn)!.has(orderNumber)) {
               errors.push({ row: rowIndex, message: `第${rowIndex}行：LPN号 "${lpn}" 与订单号 "${orderNumber}" 的组合在导入文件中重复` });
               continue;
             }
 
-            // 记录当前行的 LPN+订单号 组合
-            if (!importedLpnOrderMap.has(lpn)) {
-              importedLpnOrderMap.set(lpn, new Set());
-            }
+            if (!importedLpnOrderMap.has(lpn)) importedLpnOrderMap.set(lpn, new Set());
             importedLpnOrderMap.get(lpn)!.add(orderNumber);
 
             validItems.push({
@@ -523,7 +500,7 @@ export default function Orders() {
               store_name: String(row[5]).trim(),
               country: row[6] ? String(row[6]).trim() : null,
               product_sku: row[7] ? String(row[7]).trim() : null,
-              order_number: String(row[8]).trim(),
+              order_number: orderNumber,
               msku: row[9] ? String(row[9]).trim() : null,
               asin: row[10] ? String(row[10]).trim() : null,
               fnsku: row[11] ? String(row[11]).trim() : null,
@@ -578,7 +555,6 @@ export default function Orders() {
     if (fileInputRef.current) fileInputRef.current.value = "";
   };
 
-  // 导出
   const handleExportExcel = () => {
     if (!orders || orders.length === 0) {
       toast.error("没有数据可导出");
@@ -619,13 +595,17 @@ export default function Orders() {
     return (
       <div className="space-y-6">
         <Skeleton className="h-10 w-48" />
-        <Skeleton className="h-64 w-full" />
+        <div className="grid grid-cols-2 lg:grid-cols-4 gap-3">
+          {[1, 2, 3, 4].map(i => <Skeleton key={i} className="h-20" />)}
+        </div>
+        <Skeleton className="h-16 w-full" />
+        <Skeleton className="h-[400px] w-full" />
       </div>
     );
   }
 
   return (
-    <div className="space-y-6 animate-fade-in">
+    <div className="space-y-4 animate-fade-in">
       <PageHeader
         title="退货订单列表"
         description="查看和管理所有退货订单"
@@ -754,6 +734,9 @@ export default function Orders() {
         }
       />
 
+      {/* 统计卡片 */}
+      <OrderStatsCards stats={stats} />
+
       {/* 导入进度 */}
       {(importProgress.isImporting || importProgress.showResult) && (
         <Card>
@@ -812,7 +795,7 @@ export default function Orders() {
 
       {/* 批量操作栏 */}
       {selectedIds.length > 0 && (
-        <Card className="bg-primary/5 border-primary/20">
+        <Card className="bg-primary/5 border-primary/20 sticky top-0 z-10">
           <CardContent className="py-3 flex flex-col sm:flex-row items-start sm:items-center justify-between gap-2">
             <span className="text-sm font-medium">已选择 {selectedIds.length} 条记录</span>
             <div className="flex gap-2 flex-wrap">
@@ -830,154 +813,92 @@ export default function Orders() {
         </Card>
       )}
 
-      {/* 筛选 */}
-      <div className="flex flex-col gap-4">
-        <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:flex-wrap">
-          {/* 搜索框 */}
-          <div className="relative flex-1 min-w-[200px]">
-            <Search className="absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-muted-foreground" />
-            <Input placeholder="搜索订单号、LPN、产品名称..." value={searchTerm} onChange={(e) => handleSearchChange(e.target.value)} className="pl-10" />
-          </div>
-          
-          {/* 状态筛选 - 多选 */}
-          <DropdownMenu>
-            <DropdownMenuTrigger asChild>
-              <Button variant="outline" className="h-10 min-w-[120px]">
-                <Filter className="mr-2 h-4 w-4" />
-                状态
-                {statusFilters.length > 0 && (
-                  <Badge variant="secondary" className="ml-2 px-1.5 py-0">{statusFilters.length}</Badge>
-                )}
-              </Button>
-            </DropdownMenuTrigger>
-            <DropdownMenuContent align="start" className="w-40 bg-popover">
-              {(["未到货", "到货", "出库"] as const).map((status) => (
-                <DropdownMenuItem 
-                  key={status} 
-                  onClick={(e) => {
-                    e.preventDefault();
-                    handleStatusFilterChange(status);
-                  }}
-                  className="flex items-center gap-2"
-                >
-                  <Checkbox 
-                    checked={statusFilters.includes(status)} 
-                    className="pointer-events-none"
-                  />
-                  <OrderStatusBadge status={status} />
-                </DropdownMenuItem>
-              ))}
-            </DropdownMenuContent>
-          </DropdownMenu>
-          
-          {/* 等级筛选 */}
-          <Select value={gradeFilter} onValueChange={handleGradeFilterChange}>
-            <SelectTrigger className="w-[120px]">
-              <SelectValue placeholder="全部等级" />
-            </SelectTrigger>
-            <SelectContent>
-              <SelectItem value="all">全部等级</SelectItem>
-              <SelectItem value="A">A级</SelectItem>
-              <SelectItem value="B">B级</SelectItem>
-              <SelectItem value="C">C级</SelectItem>
-            </SelectContent>
-          </Select>
-          
-          {/* 店铺筛选 */}
-          <Select value={storeFilter} onValueChange={handleStoreFilterChange}>
-            <SelectTrigger className="w-full sm:w-48">
-              <SelectValue placeholder="全部店铺" />
-            </SelectTrigger>
-            <SelectContent>
-              <SelectItem value="all">全部店铺</SelectItem>
-              {stores.map((store) => (
-                <SelectItem key={store} value={store}>{store}</SelectItem>
-              ))}
-            </SelectContent>
-          </Select>
-          
-          {/* 清除筛选 */}
-          {hasActiveFilters && (
-            <Button variant="ghost" size="sm" onClick={clearAllFilters} className="h-10">
-              <X className="h-4 w-4 mr-1" />
-              清除筛选
-            </Button>
-          )}
-          
-          {/* 展开/折叠全部分组 */}
-          {hasGroups && (
-            <Button
-              variant="outline"
-              size="sm"
-              className="h-10"
-              onClick={toggleAllGroups}
-            >
-              {expandedGroups.size === groupedOrders.length ? <ChevronUp className="h-4 w-4 mr-1" /> : <ChevronDown className="h-4 w-4 mr-1" />}
-              <span className="hidden sm:inline">{expandedGroups.size === groupedOrders.length ? "折叠全部" : "展开全部"}</span>
-            </Button>
-          )}
-        </div>
-        
-        {/* 筛选结果统计 */}
-        {hasActiveFilters && (
-          <div className="text-sm text-muted-foreground">
-            筛选结果: {totalCount} 条记录
-          </div>
-        )}
-      </div>
+      {/* 筛选区域 */}
+      <OrderFilters
+        searchTerm={searchTerm}
+        onSearchChange={handleSearchChange}
+        statusFilters={statusFilters}
+        onStatusFilterChange={handleStatusFilterChange}
+        gradeFilter={gradeFilter}
+        onGradeFilterChange={handleGradeFilterChange}
+        storeFilter={storeFilter}
+        onStoreFilterChange={handleStoreFilterChange}
+        stores={stores}
+        hasActiveFilters={hasActiveFilters}
+        onClearFilters={clearAllFilters}
+      />
 
-      {/* 数据表格 */}
-      <Card>
+      {/* 表格 */}
+      <Card className="overflow-hidden">
         <ScrollArea className="w-full">
           <Table>
             <TableHeader>
               <TableRow className="bg-muted/50 hover:bg-muted/50">
-                <TableHead className="w-10">
-                  <Checkbox checked={selectedIds.length === orders.length && orders.length > 0} onCheckedChange={toggleSelectAll} />
+                <TableHead className="w-[40px]">
+                  <Checkbox
+                    checked={orders.length > 0 && selectedIds.length === orders.length}
+                    onCheckedChange={toggleSelectAll}
+                  />
                 </TableHead>
-                <TableHead className="font-semibold min-w-[110px]">内部订单号</TableHead>
-                <TableHead className="font-semibold min-w-[70px] text-center">状态</TableHead>
-                <TableHead className="font-semibold min-w-[100px]">LPN编号</TableHead>
-                <TableHead className="font-semibold min-w-[120px]">产品名称</TableHead>
-                <TableHead className="font-semibold min-w-[100px]">产品SKU</TableHead>
-                <TableHead className="font-semibold min-w-[70px] text-center">等级</TableHead>
-                <TableHead className="font-semibold min-w-[60px] text-center">照片</TableHead>
-                <TableHead className="font-semibold min-w-[80px]">店铺</TableHead>
-                <TableHead className="font-semibold min-w-[60px]">国家</TableHead>
-                <TableHead className="font-semibold min-w-[100px]">退货原因</TableHead>
-                <TableHead className="font-semibold min-w-[60px] text-center">退货数量</TableHead>
-                <TableHead className="font-semibold min-w-[80px]">订单号</TableHead>
-                <TableHead className="font-semibold min-w-[80px] text-center">操作</TableHead>
+                <TableHead className="w-[120px]">
+                  <div className="flex items-center gap-2">
+                    内部订单号
+                    {hasGroups && (
+                      <Button variant="ghost" size="icon" className="h-6 w-6" onClick={toggleAllGroups}>
+                        {expandedGroups.size === groupedOrders.length ? (
+                          <ChevronUp className="h-4 w-4" />
+                        ) : (
+                          <ChevronDown className="h-4 w-4" />
+                        )}
+                      </Button>
+                    )}
+                  </div>
+                </TableHead>
+                <TableHead className="text-center w-[90px]">状态</TableHead>
+                <TableHead className="w-[130px]">LPN</TableHead>
+                <TableHead className="min-w-[180px]">产品名称</TableHead>
+                <TableHead className="w-[120px]">SKU</TableHead>
+                <TableHead className="text-center w-[80px]">等级</TableHead>
+                <TableHead className="text-center w-[60px]">照片</TableHead>
+                <TableHead className="w-[100px]">店铺</TableHead>
+                <TableHead className="w-[80px]">国家</TableHead>
+                <TableHead className="w-[120px]">退货原因</TableHead>
+                <TableHead className="text-center w-[60px]">数量</TableHead>
+                <TableHead className="w-[140px]">订单号</TableHead>
+                <TableHead className="text-center w-[90px]">操作</TableHead>
               </TableRow>
             </TableHeader>
             <TableBody>
               {orders.length === 0 ? (
                 <TableRow>
-                  <TableCell colSpan={14} className="h-32 text-center text-muted-foreground">暂无订单记录</TableCell>
+                  <TableCell colSpan={14} className="h-32 text-center text-muted-foreground">
+                    暂无数据
+                  </TableCell>
                 </TableRow>
               ) : (
                 <>
-                  {/* 分组订单（2+个LPN） */}
+                  {/* 分组订单 */}
                   {groupedOrders.map((group) => {
                     const groupKey = group.internalOrderNo || group.orders[0].id;
                     const isExpanded = expandedGroups.has(groupKey);
                     const firstOrder = group.orders[0];
-                    
+
                     return (
-                      <React.Fragment key={`group-${groupKey}`}>
-                        {/* 分组头部行 */}
-                        <TableRow 
-                          className="bg-primary/5 hover:bg-primary/10 cursor-pointer"
+                      <React.Fragment key={groupKey}>
+                        {/* 组头 */}
+                        <TableRow
+                          className="bg-primary/5 hover:bg-primary/10 cursor-pointer font-medium"
                           onClick={() => toggleGroup(groupKey)}
                         >
                           <TableCell>
-                            <Checkbox 
-                              checked={group.orders.every(o => selectedIds.includes(o.id))} 
-                              onCheckedChange={(checked) => {
-                                if (checked) {
-                                  setSelectedIds(prev => [...new Set([...prev, ...group.orders.map(o => o.id)])]);
-                                } else {
+                            <Checkbox
+                              checked={group.orders.every(o => selectedIds.includes(o.id))}
+                              onCheckedChange={() => {
+                                const allSelected = group.orders.every(o => selectedIds.includes(o.id));
+                                if (allSelected) {
                                   setSelectedIds(prev => prev.filter(id => !group.orders.some(o => o.id === id)));
+                                } else {
+                                  setSelectedIds(prev => [...new Set([...prev, ...group.orders.map(o => o.id)])]);
                                 }
                               }}
                               onClick={(e) => e.stopPropagation()}
@@ -985,23 +906,17 @@ export default function Orders() {
                           </TableCell>
                           <TableCell>
                             <div className="flex items-center gap-2">
-                              <Button variant="ghost" size="sm" className="h-6 w-6 p-0" onClick={(e) => { e.stopPropagation(); toggleGroup(groupKey); }}>
-                                {isExpanded ? <ChevronUp className="h-4 w-4" /> : <ChevronDown className="h-4 w-4" />}
-                              </Button>
-                              <code className="text-xs bg-primary/10 text-primary px-2 py-1 rounded font-semibold">
-                                {group.internalOrderNo || "未分组"}
+                              {isExpanded ? <ChevronUp className="h-4 w-4 text-primary" /> : <ChevronDown className="h-4 w-4 text-primary" />}
+                              <code className="text-xs bg-primary/10 text-primary px-1.5 py-0.5 rounded font-medium">
+                                {group.internalOrderNo}
                               </code>
-                              <span className="inline-flex items-center justify-center h-5 px-1.5 rounded-full bg-primary/20 text-primary text-xs font-semibold">
-                                {group.orders.length} LPN
-                              </span>
+                              <span className="text-xs text-muted-foreground">({group.orders.length}个LPN)</span>
                             </div>
                           </TableCell>
                           <TableCell className="text-center">
-                            <span className="text-muted-foreground text-xs">-</span>
-                          </TableCell>
-                          <TableCell>
                             <span className="text-muted-foreground text-xs">展开查看</span>
                           </TableCell>
+                          <TableCell><span className="text-muted-foreground text-xs">展开查看</span></TableCell>
                           <TableCell><span className="line-clamp-1 font-medium">{firstOrder.product_name || "-"}</span></TableCell>
                           <TableCell><code className="text-xs bg-muted px-1.5 py-0.5 rounded">{firstOrder.product_sku || "-"}</code></TableCell>
                           <TableCell className="text-center text-muted-foreground">-</TableCell>
@@ -1019,140 +934,54 @@ export default function Orders() {
                             </div>
                           </TableCell>
                         </TableRow>
+
                         {/* 展开后的子行 */}
                         {isExpanded && group.orders.map((item) => {
                           const inboundItem = inboundByLpn[item.lpn];
-                          const hasPhotos = inboundItem?.product_photo || inboundItem?.package_photo;
+                          const hasPhotos = !!(inboundItem?.product_photo || inboundItem?.package_photo);
                           const displayGrade = item.grade || inboundItem?.grade;
-                          
+
                           return (
-                            <TableRow key={item.id} className="bg-muted/20 hover:bg-muted/30 border-l-2 border-l-primary/50">
-                              <TableCell>
-                                <Checkbox checked={selectedIds.includes(item.id)} onCheckedChange={() => toggleSelect(item.id)} />
-                              </TableCell>
-                              <TableCell>
-                                <div className="pl-8 text-muted-foreground text-xs">└</div>
-                              </TableCell>
-                              <TableCell className="text-center">
-                                <OrderStatusBadge status={item.status} />
-                              </TableCell>
-                              <TableCell><code className="text-xs bg-muted px-1.5 py-0.5 rounded font-medium">{item.lpn}</code></TableCell>
-                              <TableCell><span className="line-clamp-1 text-sm">{item.product_name || "-"}</span></TableCell>
-                              <TableCell><code className="text-xs bg-muted px-1.5 py-0.5 rounded">{item.product_sku || "-"}</code></TableCell>
-                              <TableCell className="text-center">
-                                {inboundItem ? (
-                                  <button
-                                    className="inline-flex items-center gap-1 px-2 py-1 rounded hover:bg-muted transition-colors"
-                                    onClick={() => setGradeEditOrder(item)}
-                                  >
-                                    {displayGrade ? <GradeBadge grade={displayGrade as "A" | "B" | "C"} /> : <span className="text-muted-foreground text-xs">未评级</span>}
-                                    <Pencil className="h-3 w-3 text-muted-foreground" />
-                                  </button>
-                                ) : (
-                                  <span className="text-muted-foreground text-xs">-</span>
-                                )}
-                              </TableCell>
-                              <TableCell className="text-center">
-                                {hasPhotos ? (
-                                  <Button
-                                    size="icon"
-                                    variant="ghost"
-                                    className="h-7 w-7 text-primary"
-                                    onClick={() => setPhotoViewOrder(item)}
-                                  >
-                                    <Camera className="h-3.5 w-3.5" />
-                                  </Button>
-                                ) : (
-                                  <span className="text-muted-foreground text-xs">-</span>
-                                )}
-                              </TableCell>
-                              <TableCell className="text-muted-foreground text-sm">{item.store_name}</TableCell>
-                              <TableCell className="text-muted-foreground text-sm">{item.country || "-"}</TableCell>
-                              <TableCell className="text-muted-foreground text-sm">{item.return_reason || "-"}</TableCell>
-                              <TableCell className="text-center text-sm">{item.return_quantity}</TableCell>
-                              <TableCell className="text-sm">{item.order_number}</TableCell>
-                              <TableCell>
-                                <div className="flex justify-center gap-1">
-                                  <Button size="icon" variant="ghost" className="h-7 w-7" onClick={() => setSelectedOrder(item)}>
-                                    <Eye className="h-3.5 w-3.5" />
-                                  </Button>
-                                  <Button size="icon" variant="ghost" className="h-7 w-7 text-destructive hover:text-destructive" onClick={() => setDeleteId(item.id)}>
-                                    <Trash2 className="h-3.5 w-3.5" />
-                                  </Button>
-                                </div>
-                              </TableCell>
-                            </TableRow>
+                            <OrderTableRow
+                              key={item.id}
+                              order={item}
+                              isSelected={selectedIds.includes(item.id) as boolean}
+                              onSelect={() => toggleSelect(item.id)}
+                              onView={() => setSelectedOrder(item)}
+                              onDelete={() => setDeleteId(item.id)}
+                              onEditGrade={() => setGradeEditOrder(item)}
+                              onViewPhotos={() => setPhotoViewOrder(item)}
+                              hasPhotos={hasPhotos}
+                              displayGrade={displayGrade}
+                              hasInboundItem={!!inboundItem}
+                              isGroupChild
+                            />
                           );
                         })}
                       </React.Fragment>
                     );
                   })}
-                  
+
                   {/* 单个LPN订单 */}
                   {singleOrders.map((item) => {
                     const inboundItem = inboundByLpn[item.lpn];
-                    const hasPhotos = inboundItem?.product_photo || inboundItem?.package_photo;
+                    const hasPhotos = !!(inboundItem?.product_photo || inboundItem?.package_photo);
                     const displayGrade = item.grade || inboundItem?.grade;
-                    
+
                     return (
-                      <TableRow key={item.id} className="hover:bg-muted/30">
-                        <TableCell>
-                          <Checkbox checked={selectedIds.includes(item.id)} onCheckedChange={() => toggleSelect(item.id)} />
-                        </TableCell>
-                        <TableCell>
-                          <code className="text-xs bg-primary/10 text-primary px-1.5 py-0.5 rounded font-medium">
-                            {item.internal_order_no || "-"}
-                          </code>
-                        </TableCell>
-                        <TableCell className="text-center">
-                          <OrderStatusBadge status={item.status} />
-                        </TableCell>
-                        <TableCell><code className="text-xs bg-muted px-1.5 py-0.5 rounded font-medium">{item.lpn}</code></TableCell>
-                        <TableCell><span className="line-clamp-1">{item.product_name || "-"}</span></TableCell>
-                        <TableCell><code className="text-xs bg-muted px-1.5 py-0.5 rounded">{item.product_sku || "-"}</code></TableCell>
-                        <TableCell className="text-center">
-                          {inboundItem ? (
-                            <button
-                              className="inline-flex items-center gap-1 px-2 py-1 rounded hover:bg-muted transition-colors"
-                              onClick={() => setGradeEditOrder(item)}
-                            >
-                              {displayGrade ? <GradeBadge grade={displayGrade as "A" | "B" | "C"} /> : <span className="text-muted-foreground text-xs">未评级</span>}
-                              <Pencil className="h-3 w-3 text-muted-foreground" />
-                            </button>
-                          ) : (
-                            <span className="text-muted-foreground text-xs">-</span>
-                          )}
-                        </TableCell>
-                        <TableCell className="text-center">
-                          {hasPhotos ? (
-                            <Button
-                              size="icon"
-                              variant="ghost"
-                              className="h-8 w-8 text-primary"
-                              onClick={() => setPhotoViewOrder(item)}
-                            >
-                              <Camera className="h-4 w-4" />
-                            </Button>
-                          ) : (
-                            <span className="text-muted-foreground text-xs">-</span>
-                          )}
-                        </TableCell>
-                        <TableCell className="text-muted-foreground">{item.store_name}</TableCell>
-                        <TableCell className="text-muted-foreground">{item.country || "-"}</TableCell>
-                        <TableCell className="text-muted-foreground">{item.return_reason || "-"}</TableCell>
-                        <TableCell className="text-center font-semibold">{item.return_quantity}</TableCell>
-                        <TableCell className="font-medium">{item.order_number}</TableCell>
-                        <TableCell>
-                          <div className="flex justify-center gap-1">
-                            <Button size="icon" variant="ghost" className="h-8 w-8" onClick={() => setSelectedOrder(item)}>
-                              <Eye className="h-4 w-4" />
-                            </Button>
-                            <Button size="icon" variant="ghost" className="h-8 w-8 text-destructive hover:text-destructive" onClick={() => setDeleteId(item.id)}>
-                              <Trash2 className="h-4 w-4" />
-                            </Button>
-                          </div>
-                        </TableCell>
-                      </TableRow>
+                      <OrderTableRow
+                        key={item.id}
+                        order={item}
+                        isSelected={selectedIds.includes(item.id)}
+                        onSelect={() => toggleSelect(item.id)}
+                        onView={() => setSelectedOrder(item)}
+                        onDelete={() => setDeleteId(item.id)}
+                        onEditGrade={() => setGradeEditOrder(item)}
+                        onViewPhotos={() => setPhotoViewOrder(item)}
+                        hasPhotos={hasPhotos}
+                        displayGrade={displayGrade}
+                        hasInboundItem={!!inboundItem}
+                      />
                     );
                   })}
                 </>
@@ -1164,70 +993,16 @@ export default function Orders() {
       </Card>
 
       {/* 分页控件 */}
-      <div className="flex flex-col sm:flex-row items-center justify-between gap-4">
-        <div className="flex items-center gap-4 text-sm text-muted-foreground">
-          <span>共 {totalCount} 条记录</span>
-          <div className="flex items-center gap-2">
-            <span>每页</span>
-            <Select value={String(pageSize)} onValueChange={(v) => { setPageSize(Number(v)); setCurrentPage(1); }}>
-              <SelectTrigger className="w-20 h-8">
-                <SelectValue />
-              </SelectTrigger>
-              <SelectContent>
-                <SelectItem value="20">20</SelectItem>
-                <SelectItem value="50">50</SelectItem>
-                <SelectItem value="100">100</SelectItem>
-              </SelectContent>
-            </Select>
-            <span>条</span>
-          </div>
-        </div>
-        <div className="flex items-center gap-2">
-          <span className="text-sm text-muted-foreground">
-            第 {currentPage} / {totalPages} 页
-          </span>
-          <div className="flex gap-1">
-            <Button
-              variant="outline"
-              size="icon"
-              className="h-8 w-8"
-              onClick={() => setCurrentPage(1)}
-              disabled={currentPage === 1}
-            >
-              <ChevronsLeft className="h-4 w-4" />
-            </Button>
-            <Button
-              variant="outline"
-              size="icon"
-              className="h-8 w-8"
-              onClick={() => setCurrentPage(p => Math.max(1, p - 1))}
-              disabled={currentPage === 1}
-            >
-              <ChevronLeft className="h-4 w-4" />
-            </Button>
-            <Button
-              variant="outline"
-              size="icon"
-              className="h-8 w-8"
-              onClick={() => setCurrentPage(p => Math.min(totalPages, p + 1))}
-              disabled={currentPage === totalPages}
-            >
-              <ChevronRight className="h-4 w-4" />
-            </Button>
-            <Button
-              variant="outline"
-              size="icon"
-              className="h-8 w-8"
-              onClick={() => setCurrentPage(totalPages)}
-              disabled={currentPage === totalPages}
-            >
-              <ChevronsRight className="h-4 w-4" />
-            </Button>
-          </div>
-        </div>
-      </div>
+      <OrderPagination
+        currentPage={currentPage}
+        totalPages={totalPages}
+        totalCount={totalCount}
+        pageSize={pageSize}
+        onPageChange={setCurrentPage}
+        onPageSizeChange={(size) => { setPageSize(size); setCurrentPage(1); }}
+      />
 
-      {/* 订单详情 */}
+      {/* 订单详情对话框 */}
       <Dialog open={!!selectedOrder} onOpenChange={() => setSelectedOrder(null)}>
         <DialogContent className="max-w-2xl">
           <DialogHeader>
@@ -1291,7 +1066,7 @@ export default function Orders() {
           </AlertDialogHeader>
           <AlertDialogFooter>
             <AlertDialogCancel>取消</AlertDialogCancel>
-            <AlertDialogAction onClick={handleDelete} className="bg-destructive text-destructive-foreground">删除</AlertDialogAction>
+            <AlertDialogAction onClick={handleDelete} className="bg-destructive text-destructive-foreground hover:bg-destructive/90">删除</AlertDialogAction>
           </AlertDialogFooter>
         </AlertDialogContent>
       </AlertDialog>
@@ -1301,31 +1076,30 @@ export default function Orders() {
         <AlertDialogContent>
           <AlertDialogHeader>
             <AlertDialogTitle>确认批量删除</AlertDialogTitle>
-            <AlertDialogDescription>确定要删除选中的 {selectedIds.length} 条订单吗？此操作无法撤销。</AlertDialogDescription>
+            <AlertDialogDescription>您确定要删除选中的 {selectedIds.length} 条记录吗？此操作无法撤销。</AlertDialogDescription>
           </AlertDialogHeader>
           <AlertDialogFooter>
             <AlertDialogCancel>取消</AlertDialogCancel>
-            <AlertDialogAction onClick={handleBulkDelete} className="bg-destructive text-destructive-foreground">删除</AlertDialogAction>
+            <AlertDialogAction onClick={handleBulkDelete} className="bg-destructive text-destructive-foreground hover:bg-destructive/90">删除</AlertDialogAction>
           </AlertDialogFooter>
         </AlertDialogContent>
       </AlertDialog>
 
-      {/* 等级修改弹窗 */}
+      {/* 等级编辑对话框 */}
       <GradeEditDialog
         open={!!gradeEditOrder}
         onOpenChange={() => setGradeEditOrder(null)}
-        lpn={gradeEditOrder?.lpn || ""}
-        currentGrade={gradeEditOrder?.grade || null}
         onSave={handleGradeSave}
-        isLoading={updateOrderMutation.isPending}
+        lpn={gradeEditOrder?.lpn || ""}
+        currentGrade={gradeEditOrder?.grade || inboundByLpn[gradeEditOrder?.lpn || ""]?.grade || null}
       />
 
-      {/* 照片查看弹窗 */}
+      {/* 照片查看对话框 */}
       <PhotoViewDialog
         open={!!photoViewOrder}
         onOpenChange={() => setPhotoViewOrder(null)}
-        title={`产品照片 - ${photoViewOrder?.lpn || ""}`}
         photos={getPhotoList(photoInboundItem)}
+        title={`照片 - ${photoViewOrder?.lpn || ""}`}
       />
     </div>
   );

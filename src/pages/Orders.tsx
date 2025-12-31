@@ -58,6 +58,7 @@ import {
   useBulkDeleteOrders,
   useBulkUpdateOrders,
   useBulkCreateOrders,
+  useSyncPendingRecords,
   type Order,
   type OrderInsert,
   type OrderUpdate,
@@ -170,6 +171,7 @@ export default function Orders() {
   const bulkDeleteMutation = useBulkDeleteOrders();
   const bulkUpdateMutation = useBulkUpdateOrders();
   const bulkCreateMutation = useBulkCreateOrders();
+  const syncPendingMutation = useSyncPendingRecords();
 
   // 派生数据
   const orders = paginatedData?.data || [];
@@ -532,6 +534,9 @@ export default function Orders() {
                 showResult: true,
                 successCount: data.length,
               }));
+              
+              // 自动同步"待同步"的入库记录
+              syncPendingMutation.mutate(data as Order[]);
             },
             onError: (error) => {
               setImportProgress(prev => ({

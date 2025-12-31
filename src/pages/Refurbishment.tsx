@@ -18,6 +18,7 @@ import { ScrollArea } from "@/components/ui/scroll-area";
 import {
   useInboundItems,
   useUpdateInboundItem,
+  useCreateInboundItem,
   type InboundItem,
 } from "@/hooks/useInboundItems";
 import { Skeleton } from "@/components/ui/skeleton";
@@ -41,6 +42,8 @@ export default function Refurbishment() {
   const [capturedVideos, setCapturedVideos] = useState<string[]>([]);
   const [isUploading, setIsUploading] = useState(false);
   const [showMediaCapture, setShowMediaCapture] = useState(false);
+  const [isNewLpn, setIsNewLpn] = useState(false); // 是否是无入库记录的新LPN
+  const [newLpnInput, setNewLpnInput] = useState(""); // 保存扫描的新LPN号
   
   const lpnInputRef = useRef<HTMLInputElement>(null);
   const photoInputRef = useRef<HTMLInputElement>(null);
@@ -48,6 +51,7 @@ export default function Refurbishment() {
 
   const { data: inboundItems, isLoading } = useInboundItems();
   const updateMutation = useUpdateInboundItem();
+  const createMutation = useCreateInboundItem();
   const { playSuccess, playError, playWarning } = useSound();
 
   useEffect(() => {
@@ -66,8 +70,13 @@ export default function Refurbishment() {
     const item = inboundItems?.find(i => i.lpn.toLowerCase() === lpn.toLowerCase());
     
     if (!item) {
-      playError();
-      toast.error("该LPN未入库，请先完成入库流程");
+      // 无入库记录，允许按无入库信息操作翻新流程
+      playWarning();
+      toast.warning("该LPN无入库记录，将按无入库信息操作翻新流程");
+      setIsNewLpn(true);
+      setNewLpnInput(lpn);
+      setMatchedItem(null);
+      setIsProcessDialogOpen(true);
       setLpnInput("");
       return;
     }
@@ -77,6 +86,8 @@ export default function Refurbishment() {
       toast.warning("该LPN已完成翻新处理");
     }
 
+    setIsNewLpn(false);
+    setNewLpnInput("");
     setMatchedItem(item);
     setIsProcessDialogOpen(true);
     setLpnInput("");
@@ -91,7 +102,8 @@ export default function Refurbishment() {
     try {
       const { supabase } = await import("@/integrations/supabase/client");
       const fileExt = file.name.split('.').pop();
-      const fileName = `${matchedItem?.lpn}-${type}-${Date.now()}.${fileExt}`;
+      const lpnForFile = matchedItem?.lpn || newLpnInput || 'unknown';
+      const fileName = `${lpnForFile}-${type}-${Date.now()}.${fileExt}`;
       const filePath = `refurbishment/${fileName}`;
 
       const { error: uploadError } = await supabase.storage
@@ -168,9 +180,74 @@ export default function Refurbishment() {
     setShowMediaCapture(true);
   };
 
-  const handleProcessComplete = () => {
+  const handleProcessComplete = async () => {
     if (!selectedGrade) {
       toast.error("请选择产品等级");
+      return;
+    }
+
+    // 检查是否是新LPN（无入库记录）
+    if (isNewLpn && newLpnInput) {
+      // B级需要拍照，C级需要拍照或视频
+      if (selectedGrade === "B" && capturedPhotos.length === 0) {
+        toast.error("B级产品需要拍摄刮痕/损坏照片");
+        return;
+      }
+
+      if (selectedGrade === "C" && capturedPhotos.length === 0 && capturedVideos.length === 0) {
+        toast.error("C级产品需要拍摄功能缺陷的照片或视频");
+        return;
+      }
+
+      // 创建新的入库记录（无入库信息的翻新）
+      const { supabase } = await import("@/integrations/supabase/client");
+      
+      createMutation.mutate(
+        {
+          lpn: newLpnInput,
+          removal_order_id: "无入库信息",
+          product_sku: "待同步",
+          product_name: "待同步",
+          return_reason: null,
+          grade: selectedGrade as "A" | "B" | "C" | "new",
+          processed_at: new Date().toISOString(),
+          processed_by: "操作员",
+          tracking_number: null,
+          shipment_id: null,
+          missing_parts: null,
+          refurbishment_grade: selectedGrade,
+          refurbishment_photos: capturedPhotos.length > 0 ? capturedPhotos : null,
+          refurbishment_videos: capturedVideos.length > 0 ? capturedVideos : null,
+          refurbishment_notes: notes ? `[无入库信息翻新] ${notes}` : "[无入库信息翻新]",
+          refurbished_at: new Date().toISOString(),
+          refurbished_by: "操作员",
+        },
+        {
+          onSuccess: async () => {
+            // 同时在订单表中创建记录
+            try {
+              await supabase.from("orders").insert({
+                lpn: newLpnInput,
+                removal_order_id: "无入库信息",
+                order_number: "待同步",
+                store_name: "待同步",
+                station: "待同步",
+                status: "到货" as const,
+                inbound_at: new Date().toISOString(),
+                grade: selectedGrade,
+              });
+            } catch (error) {
+              console.error("创建订单记录失败:", error);
+            }
+            
+            playSuccess();
+            toast.success("翻新处理完成（无入库信息）");
+            resetForm();
+            setIsProcessDialogOpen(false);
+            setTimeout(() => lpnInputRef.current?.focus(), 100);
+          },
+        }
+      );
       return;
     }
 
@@ -220,6 +297,8 @@ export default function Refurbishment() {
     setCapturedVideos([]);
     setMatchedItem(null);
     setShowMediaCapture(false);
+    setIsNewLpn(false);
+    setNewLpnInput("");
   };
 
   const removePhoto = (index: number) => {
@@ -240,10 +319,10 @@ export default function Refurbishment() {
   }
 
   // 移动端拍摄界面
-  if (showMediaCapture && matchedItem && (selectedGrade === "B" || selectedGrade === "C")) {
+  if (showMediaCapture && (matchedItem || isNewLpn) && (selectedGrade === "B" || selectedGrade === "C")) {
     return (
       <RefurbishmentMediaCapture
-        lpn={matchedItem.lpn}
+        lpn={matchedItem?.lpn || newLpnInput}
         grade={selectedGrade as "B" | "C"}
         onComplete={handleMediaCaptureComplete}
         onCancel={() => setShowMediaCapture(false)}
@@ -268,7 +347,7 @@ export default function Refurbishment() {
             {t.refurbishment?.scanLpn || "扫描LPN号"}
           </CardTitle>
           <CardDescription>
-            {t.refurbishment?.scanLpnDesc || "扫描已入库的LPN号开始翻新处理"}
+            {t.refurbishment?.scanLpnDesc || "扫描LPN号开始翻新处理（支持无入库记录的LPN）"}
           </CardDescription>
         </CardHeader>
         <CardContent>
@@ -329,12 +408,27 @@ export default function Refurbishment() {
           <DialogHeader className="flex-shrink-0">
             <DialogTitle className="flex items-center gap-2 text-base sm:text-lg pr-8">
               <Wrench className="h-5 w-5 text-primary flex-shrink-0" />
-              <span className="truncate">{t.refurbishment?.processTitle || "翻新处理"} - {matchedItem?.lpn}</span>
+              <span className="truncate">{t.refurbishment?.processTitle || "翻新处理"} - {matchedItem?.lpn || newLpnInput}</span>
             </DialogTitle>
           </DialogHeader>
           <ScrollArea className="flex-1 -mx-6 px-6">
             <div className="grid gap-4 py-4">
-              {/* 产品信息 */}
+              {/* 无入库信息提示 */}
+              {isNewLpn && (
+                <div className="rounded-lg bg-warning/10 border border-warning/30 p-3">
+                  <div className="flex items-start gap-2">
+                    <AlertCircle className="h-4 w-4 text-warning mt-0.5" />
+                    <div>
+                      <p className="text-sm font-medium text-warning">无入库记录</p>
+                      <p className="text-xs text-muted-foreground mt-1">
+                        该LPN ({newLpnInput}) 无入库记录，将按无入库信息操作翻新流程。产品信息将在后续导入时自动同步。
+                      </p>
+                    </div>
+                  </div>
+                </div>
+              )}
+
+              {/* 产品信息 - 已有入库记录 */}
               {matchedItem && (
                 <div className="rounded-lg bg-muted/50 p-3">
                   <div className="grid grid-cols-2 gap-3 text-sm">
@@ -611,10 +705,10 @@ export default function Refurbishment() {
             <Button
               onClick={handleProcessComplete}
               className="gradient-primary"
-              disabled={updateMutation.isPending || isUploading}
+              disabled={updateMutation.isPending || createMutation.isPending || isUploading}
             >
               <CheckCircle className="mr-2 h-4 w-4" />
-              {t.refurbishment?.complete || "完成翻新"}
+              {isNewLpn ? "完成翻新（创建记录）" : (t.refurbishment?.complete || "完成翻新")}
             </Button>
           </div>
         </DialogContent>

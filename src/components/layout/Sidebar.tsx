@@ -110,7 +110,7 @@ function MobileSidebarContent({ onClose }: { onClose: () => void }) {
           if (item.children) {
             const isChildActive = item.children.some(child => location.pathname === child.to);
             return (
-              <Collapsible key={item.to} defaultOpen={isChildActive}>
+              <Collapsible key={item.to} defaultOpen={true}>
                 <CollapsibleTrigger className={cn(
                   "flex w-full items-center justify-between gap-3 rounded-lg px-3 py-3 text-base font-medium transition-all duration-200",
                   isChildActive
@@ -243,7 +243,7 @@ function DesktopSidebar({ collapsed, setCollapsed }: { collapsed: boolean; setCo
             if (item.children) {
               const isChildActive = item.children.some(child => location.pathname === child.to);
               return (
-                <Collapsible key={item.to} defaultOpen={isChildActive}>
+                <Collapsible key={item.to} defaultOpen={true}>
                   <CollapsibleTrigger className={cn(
                     "flex w-full items-center justify-between gap-3 rounded-lg px-3 py-2.5 text-sm font-medium transition-all duration-200",
                     isChildActive

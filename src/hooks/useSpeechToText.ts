@@ -44,7 +44,7 @@ export const useSpeechToText = (options: UseSpeechToTextOptions = {}) => {
     onResult,
     onError,
     language = 'zh-CN',
-    continuous = true, // 连续模式，用户手动关闭
+    continuous = true,
   } = options;
 
   const [isListening, setIsListening] = useState(false);
@@ -52,19 +52,27 @@ export const useSpeechToText = (options: UseSpeechToTextOptions = {}) => {
   const [isSupported, setIsSupported] = useState(false);
   const recognitionRef = useRef<SpeechRecognitionInstance | null>(null);
   const isListeningRef = useRef(false);
+  
+  // 使用 ref 保存回调，避免 useEffect 重复执行
+  const onResultRef = useRef(onResult);
+  const onErrorRef = useRef(onError);
+  
+  useEffect(() => {
+    onResultRef.current = onResult;
+    onErrorRef.current = onError;
+  }, [onResult, onError]);
 
   useEffect(() => {
-    // Check if Web Speech API is supported
     const SpeechRecognitionAPI = window.SpeechRecognition || window.webkitSpeechRecognition;
     setIsSupported(!!SpeechRecognitionAPI);
 
     if (SpeechRecognitionAPI) {
-      recognitionRef.current = new SpeechRecognitionAPI();
-      recognitionRef.current.continuous = continuous;
-      recognitionRef.current.interimResults = true;
-      recognitionRef.current.lang = language;
+      const recognition = new SpeechRecognitionAPI();
+      recognition.continuous = continuous;
+      recognition.interimResults = true;
+      recognition.lang = language;
 
-      recognitionRef.current.onresult = (event: SpeechRecognitionEvent) => {
+      recognition.onresult = (event: SpeechRecognitionEvent) => {
         let finalTranscript = '';
         let interimTranscript = '';
 
@@ -80,16 +88,16 @@ export const useSpeechToText = (options: UseSpeechToTextOptions = {}) => {
         const currentTranscript = finalTranscript || interimTranscript;
         setTranscript(currentTranscript);
         
-        if (finalTranscript && onResult) {
-          onResult(finalTranscript);
-          // 不自动停止，继续监听
+        if (finalTranscript && onResultRef.current) {
+          console.log('Speech recognized:', finalTranscript);
+          onResultRef.current(finalTranscript);
         }
       };
 
-      recognitionRef.current.onerror = (event: SpeechRecognitionErrorEvent) => {
+      recognition.onerror = (event: SpeechRecognitionErrorEvent) => {
         console.error('Speech recognition error:', event.error);
-        // 只在非中断错误时显示错误提示
-        if (onError && event.error !== 'aborted' && event.error !== 'no-speech') {
+        // 忽略 aborted 和 no-speech 错误，这些是正常的
+        if (event.error !== 'aborted' && event.error !== 'no-speech') {
           let errorMessage = '语音识别错误';
           switch (event.error) {
             case 'audio-capture':
@@ -99,25 +107,35 @@ export const useSpeechToText = (options: UseSpeechToTextOptions = {}) => {
               errorMessage = '麦克风权限被拒绝';
               break;
             case 'network':
-              errorMessage = '网络错误';
+              errorMessage = '网络错误，请检查网络连接';
               break;
           }
-          onError(errorMessage);
+          if (onErrorRef.current) {
+            onErrorRef.current(errorMessage);
+          }
           setIsListening(false);
           isListeningRef.current = false;
         }
       };
 
-      recognitionRef.current.onend = () => {
-        // 如果用户没有手动停止，自动重新开始（保持连续录音）
-        if (isListeningRef.current && recognitionRef.current) {
-          try {
-            recognitionRef.current.start();
-          } catch {
-            // ignore - 可能已经在运行
-          }
+      recognition.onend = () => {
+        console.log('Speech recognition ended, isListeningRef:', isListeningRef.current);
+        // 如果用户没有手动停止，自动重新开始
+        if (isListeningRef.current) {
+          setTimeout(() => {
+            if (isListeningRef.current && recognitionRef.current) {
+              try {
+                console.log('Restarting speech recognition...');
+                recognitionRef.current.start();
+              } catch (e) {
+                console.log('Could not restart:', e);
+              }
+            }
+          }, 100);
         }
       };
+
+      recognitionRef.current = recognition;
     }
 
     return () => {
@@ -130,13 +148,14 @@ export const useSpeechToText = (options: UseSpeechToTextOptions = {}) => {
         }
       }
     };
-  }, [language, continuous, onResult, onError]);
+  }, [language, continuous]);
 
   const startListening = useCallback(() => {
-    if (recognitionRef.current && !isListening) {
+    if (recognitionRef.current && !isListeningRef.current) {
       setTranscript('');
       isListeningRef.current = true;
       try {
+        console.log('Starting speech recognition...');
         recognitionRef.current.start();
         setIsListening(true);
       } catch (error) {
@@ -145,9 +164,10 @@ export const useSpeechToText = (options: UseSpeechToTextOptions = {}) => {
         isListeningRef.current = false;
       }
     }
-  }, [isListening]);
+  }, []);
 
   const stopListening = useCallback(() => {
+    console.log('Stopping speech recognition...');
     isListeningRef.current = false;
     setIsListening(false);
     if (recognitionRef.current) {
@@ -160,12 +180,12 @@ export const useSpeechToText = (options: UseSpeechToTextOptions = {}) => {
   }, []);
 
   const toggleListening = useCallback(() => {
-    if (isListening) {
+    if (isListeningRef.current) {
       stopListening();
     } else {
       startListening();
     }
-  }, [isListening, startListening, stopListening]);
+  }, [startListening, stopListening]);
 
   return {
     isListening,

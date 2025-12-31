@@ -1,5 +1,5 @@
-import { useState, useRef, useEffect, useMemo, useCallback } from "react";
-import { useNavigate, useSearchParams, useBlocker } from "react-router-dom";
+import { useState, useRef, useEffect, useMemo } from "react";
+import { useNavigate, useSearchParams } from "react-router-dom";
 import { ScanLine, Camera, Package, CheckCircle, Search, PackageCheck, AlertCircle, ChevronRight } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -174,10 +174,37 @@ export default function InboundScan() {
     return inboundedCount > 0 && inboundedCount < totalQuantity;
   }, [matchedShipment, matchedShipments, currentStep, inboundItems]);
 
-  // 使用 useBlocker 拦截页面导航
-  const blocker = useBlocker(
-    useCallback(() => isInboundInProgress, [isInboundInProgress])
-  );
+  // 用于导航警告对话框
+  const [isLeaveWarningOpen, setIsLeaveWarningOpen] = useState(false);
+  const [pendingNavigation, setPendingNavigation] = useState<string | null>(null);
+
+  // 暴露全局方法供侧边栏使用
+  useEffect(() => {
+    if (isInboundInProgress) {
+      (window as any).__inboundInProgress = true;
+      (window as any).__showInboundLeaveWarning = (targetPath: string) => {
+        setPendingNavigation(targetPath);
+        setIsLeaveWarningOpen(true);
+      };
+    } else {
+      (window as any).__inboundInProgress = false;
+      (window as any).__showInboundLeaveWarning = null;
+    }
+    
+    return () => {
+      (window as any).__inboundInProgress = false;
+      (window as any).__showInboundLeaveWarning = null;
+    };
+  }, [isInboundInProgress]);
+
+  // 确认离开时执行导航
+  const handleConfirmLeave = () => {
+    if (pendingNavigation) {
+      setIsLeaveWarningOpen(false);
+      navigate(pendingNavigation);
+      setPendingNavigation(null);
+    }
+  };
 
   // 处理浏览器刷新/关闭时的警告
   useEffect(() => {
@@ -1192,7 +1219,7 @@ export default function InboundScan() {
       </AlertDialog>
 
       {/* 页面切换警告对话框 */}
-      <AlertDialog open={blocker.state === "blocked"}>
+      <AlertDialog open={isLeaveWarningOpen} onOpenChange={setIsLeaveWarningOpen}>
         <AlertDialogContent>
           <AlertDialogHeader>
             <AlertDialogTitle className="flex items-center gap-2">
@@ -1220,11 +1247,11 @@ export default function InboundScan() {
             </AlertDialogDescription>
           </AlertDialogHeader>
           <AlertDialogFooter className="gap-2 sm:gap-0">
-            <AlertDialogCancel onClick={() => blocker.reset?.()}>
+            <AlertDialogCancel onClick={() => setIsLeaveWarningOpen(false)}>
               继续入库
             </AlertDialogCancel>
             <AlertDialogAction 
-              onClick={() => blocker.proceed?.()}
+              onClick={handleConfirmLeave}
               className="bg-amber-600 hover:bg-amber-700"
             >
               确认离开

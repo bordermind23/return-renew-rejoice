@@ -1007,7 +1007,7 @@ export default function Removals() {
                 <TableHead className="font-semibold min-w-[150px]">产品名称</TableHead>
                 <TableHead className="font-semibold min-w-[80px] text-center">数量</TableHead>
                 <TableHead className="font-semibold min-w-[100px]">状态</TableHead>
-                <TableHead className="font-semibold min-w-[80px] text-center">重复</TableHead>
+                
                 <TableHead className="font-semibold min-w-[100px] text-center">操作</TableHead>
               </TableRow>
             </TableHeader>
@@ -1016,7 +1016,7 @@ export default function Removals() {
                 // 列表视图 - 不分组显示
                 filteredData.length === 0 ? (
                   <TableRow>
-                    <TableCell colSpan={11} className="h-32 text-center text-muted-foreground">
+                    <TableCell colSpan={10} className="h-32 text-center text-muted-foreground">
                       暂无移除货件记录
                     </TableCell>
                   </TableRow>
@@ -1047,35 +1047,19 @@ export default function Removals() {
                         <TableCell>
                           <StatusBadge status={item.status} />
                         </TableCell>
-                        <TableCell className="text-center">
-                          {isDuplicate && (
-                            <div className="flex items-center justify-center gap-1">
-                              {item.duplicate_confirmed ? (
-                                <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded text-xs bg-green-100 text-green-700 dark:bg-green-900/30 dark:text-green-400">
-                                  <Check className="h-3 w-3" />
-                                  已确认
-                                </span>
-                              ) : (
-                                <>
-                                  <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded text-xs bg-amber-100 text-amber-700 dark:bg-amber-900/30 dark:text-amber-400">
-                                    <Copy className="h-3 w-3" />
-                                    重复
-                                  </span>
-                                  <Button
-                                    variant="ghost"
-                                    size="sm"
-                                    className="h-6 px-2 text-xs"
-                                    onClick={() => handleConfirmDuplicate(item.id)}
-                                  >
-                                    确认正常
-                                  </Button>
-                                </>
-                              )}
-                            </div>
-                          )}
-                        </TableCell>
                         <TableCell>
                           <div className="flex justify-center gap-1">
+                            {isDuplicate && !item.duplicate_confirmed && (
+                              <Button
+                                size="icon"
+                                variant="ghost"
+                                className="h-8 w-8 text-amber-600 hover:text-amber-700 hover:bg-amber-100"
+                                onClick={() => handleConfirmDuplicate(item.id)}
+                                title="确认重复正常"
+                              >
+                                <Copy className="h-4 w-4" />
+                              </Button>
+                            )}
                             <Button
                               size="icon"
                               variant="ghost"
@@ -1102,7 +1086,7 @@ export default function Removals() {
                 // 分组视图
                 groupedByOrderTracking.length === 0 ? (
                   <TableRow>
-                    <TableCell colSpan={11} className="h-32 text-center text-muted-foreground">
+                    <TableCell colSpan={10} className="h-32 text-center text-muted-foreground">
                       暂无移除货件记录
                     </TableCell>
                   </TableRow>
@@ -1138,35 +1122,19 @@ export default function Removals() {
                           <TableCell>
                             <StatusBadge status={item.status} />
                           </TableCell>
-                          <TableCell className="text-center">
-                            {isDuplicate && (
-                              <div className="flex items-center justify-center gap-1">
-                                {item.duplicate_confirmed ? (
-                                  <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded text-xs bg-green-100 text-green-700 dark:bg-green-900/30 dark:text-green-400">
-                                    <Check className="h-3 w-3" />
-                                    已确认
-                                  </span>
-                                ) : (
-                                  <>
-                                    <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded text-xs bg-amber-100 text-amber-700 dark:bg-amber-900/30 dark:text-amber-400">
-                                      <Copy className="h-3 w-3" />
-                                      重复
-                                    </span>
-                                    <Button
-                                      variant="ghost"
-                                      size="sm"
-                                      className="h-6 px-2 text-xs"
-                                      onClick={() => handleConfirmDuplicate(item.id)}
-                                    >
-                                      确认正常
-                                    </Button>
-                                  </>
-                                )}
-                              </div>
-                            )}
-                          </TableCell>
                           <TableCell>
                             <div className="flex justify-center gap-1">
+                              {isDuplicate && !item.duplicate_confirmed && (
+                                <Button
+                                  size="icon"
+                                  variant="ghost"
+                                  className="h-8 w-8 text-amber-600 hover:text-amber-700 hover:bg-amber-100"
+                                  onClick={() => handleConfirmDuplicate(item.id)}
+                                  title="确认重复正常"
+                                >
+                                  <Copy className="h-4 w-4" />
+                                </Button>
+                              )}
                               <Button
                                 size="icon"
                                 variant="ghost"
@@ -1254,9 +1222,6 @@ export default function Removals() {
                                 </div>
                               </TableCell>
                             </CollapsibleTrigger>
-                            <CollapsibleTrigger asChild>
-                              <TableCell onClick={() => toggleGroup(group.groupKey)}></TableCell>
-                            </CollapsibleTrigger>
                             <TableCell>
                               <Button
                                 size="sm"
@@ -1300,35 +1265,19 @@ export default function Removals() {
                                     <TableCell>
                                       <StatusBadge status={item.status} />
                                     </TableCell>
-                                    <TableCell className="text-center">
-                                      {isDuplicate && (
-                                        <div className="flex items-center justify-center gap-1">
-                                          {item.duplicate_confirmed ? (
-                                            <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded text-xs bg-green-100 text-green-700 dark:bg-green-900/30 dark:text-green-400">
-                                              <Check className="h-3 w-3" />
-                                              已确认
-                                            </span>
-                                          ) : (
-                                            <>
-                                              <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded text-xs bg-amber-100 text-amber-700 dark:bg-amber-900/30 dark:text-amber-400">
-                                                <Copy className="h-3 w-3" />
-                                                重复
-                                              </span>
-                                              <Button
-                                                variant="ghost"
-                                                size="sm"
-                                                className="h-6 px-2 text-xs"
-                                                onClick={() => handleConfirmDuplicate(item.id)}
-                                              >
-                                                确认正常
-                                              </Button>
-                                            </>
-                                          )}
-                                        </div>
-                                      )}
-                                    </TableCell>
                                     <TableCell>
                                       <div className="flex justify-center gap-1">
+                                        {isDuplicate && !item.duplicate_confirmed && (
+                                          <Button
+                                            size="icon"
+                                            variant="ghost"
+                                            className="h-7 w-7 text-amber-600 hover:text-amber-700 hover:bg-amber-100"
+                                            onClick={() => handleConfirmDuplicate(item.id)}
+                                            title="确认重复正常"
+                                          >
+                                            <Copy className="h-3.5 w-3.5" />
+                                          </Button>
+                                        )}
                                         <Button
                                           size="icon"
                                           variant="ghost"

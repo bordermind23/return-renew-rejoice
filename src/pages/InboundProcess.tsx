@@ -2,13 +2,11 @@ import { useState, useEffect } from "react";
 import { useNavigate, useSearchParams } from "react-router-dom";
 import { Package, CheckCircle, Camera, ArrowLeft } from "lucide-react";
 import { Button } from "@/components/ui/button";
-import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Textarea } from "@/components/ui/textarea";
 import { Checkbox } from "@/components/ui/checkbox";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
-import { GradeBadge } from "@/components/ui/grade-badge";
 import { ScrollArea } from "@/components/ui/scroll-area";
 import { Skeleton } from "@/components/ui/skeleton";
 import { NativePhotoCapture } from "@/components/NativePhotoCapture";
@@ -18,6 +16,7 @@ import { useUpdateInventoryStock } from "@/hooks/useInventoryItems";
 import { useProducts, useProductParts } from "@/hooks/useProducts";
 import { fetchOrdersByLpn } from "@/hooks/useOrdersByLpn";
 import { type Order } from "@/hooks/useOrders";
+import { useSound } from "@/hooks/useSound";
 import { toast } from "sonner";
 import { cn } from "@/lib/utils";
 
@@ -26,13 +25,13 @@ export default function InboundProcess() {
   const [searchParams] = useSearchParams();
   const lpn = searchParams.get("lpn") || "";
   const trackingNumber = searchParams.get("tracking") || "";
+  const { playSuccess, playError } = useSound();
 
   const [matchedShipment, setMatchedShipment] = useState<RemovalShipment | null>(null);
   const [matchedOrders, setMatchedOrders] = useState<Order[]>([]);
-  const [selectedGrade, setSelectedGrade] = useState<string>("");
   const [selectedMissingParts, setSelectedMissingParts] = useState<string[]>([]);
+  const [hasProductDamage, setHasProductDamage] = useState(false);
   const [notes, setNotes] = useState("");
-  const [returnReason, setReturnReason] = useState("");
   const [isPhotoCaptureOpen, setIsPhotoCaptureOpen] = useState(false);
   const [capturedPhotos, setCapturedPhotos] = useState<Record<string, string>>({});
   const [isLoading, setIsLoading] = useState(true);
@@ -44,8 +43,12 @@ export default function InboundProcess() {
   const updateShipmentMutation = useUpdateRemovalShipment();
   const updateInventoryMutation = useUpdateInventoryStock();
 
-  const matchedProduct = matchedShipment 
-    ? products?.find(p => p.sku === matchedShipment.product_sku)
+  // 使用退货订单的SKU来匹配产品
+  const orderSku = matchedOrders.length > 0 && matchedOrders[0].product_sku
+    ? matchedOrders[0].product_sku
+    : matchedShipment?.product_sku;
+  const matchedProduct = orderSku
+    ? products?.find(p => p.sku === orderSku)
     : null;
   const { data: productParts } = useProductParts(matchedProduct?.id || null);
 
@@ -91,21 +94,25 @@ export default function InboundProcess() {
   };
 
   const handleProcessComplete = () => {
-    if (!selectedGrade) {
-      toast.error("请选择产品级别");
-      return;
-    }
-
     if (!matchedShipment) {
+      playError();
       toast.error("货件信息丢失");
       return;
     }
 
+    // 如果有配件缺失或产品损坏，必须拍照
+    const needsPhoto = selectedMissingParts.length > 0 || hasProductDamage;
+    if (needsPhoto && Object.keys(capturedPhotos).length === 0) {
+      playError();
+      toast.error("配件缺失或产品损坏时必须拍照");
+      return;
+    }
+
     // 优先使用退货订单的 SKU 和产品名称（更准确）
-    const orderSku = matchedOrders.length > 0 && matchedOrders[0].product_sku 
+    const finalSku = matchedOrders.length > 0 && matchedOrders[0].product_sku 
       ? matchedOrders[0].product_sku 
       : matchedShipment.product_sku;
-    const orderProductName = matchedOrders.length > 0 && matchedOrders[0].product_name 
+    const finalProductName = matchedOrders.length > 0 && matchedOrders[0].product_name 
       ? matchedOrders[0].product_name 
       : matchedShipment.product_name;
     const returnQty = matchedOrders.length > 0 ? (matchedOrders[0].return_quantity || 1) : 1;
@@ -114,10 +121,10 @@ export default function InboundProcess() {
       {
         lpn: lpn,
         removal_order_id: matchedShipment.order_id,
-        product_sku: orderSku,
-        product_name: orderProductName,
-        return_reason: returnReason || null,
-        grade: selectedGrade as "A" | "B" | "C" | "new",
+        product_sku: finalSku,
+        product_name: finalProductName,
+        return_reason: null,
+        grade: "A" as "A" | "B" | "C" | "new", // 默认A级
         missing_parts: selectedMissingParts.length > 0 ? selectedMissingParts : null,
         processed_at: new Date().toISOString(),
         processed_by: "操作员",
@@ -135,11 +142,14 @@ export default function InboundProcess() {
       },
       {
         onSuccess: () => {
+          // 播放成功音效
+          playSuccess();
+
           // 使用订单的 SKU 和数量更新库存
           updateInventoryMutation.mutate({
-            sku: orderSku,
-            product_name: orderProductName,
-            grade: selectedGrade as "A" | "B" | "C",
+            sku: finalSku,
+            product_name: finalProductName,
+            grade: "A" as "A" | "B" | "C",
             quantity: returnQty,
           });
 
@@ -158,13 +168,16 @@ export default function InboundProcess() {
           // 始终返回入库扫描页面并保留物流号，让用户继续扫描下一个LPN
           navigate(`/inbound?tracking=${encodeURIComponent(matchedShipment.tracking_number)}`, { replace: true });
         },
+        onError: () => {
+          playError();
+        }
       }
     );
   };
 
   if (isLoading) {
     return (
-      <div className="p-4 space-y-4">
+      <div className="min-h-screen bg-background p-4 space-y-4 pt-[calc(env(safe-area-inset-top,0px)+16px)]">
         <Skeleton className="h-10 w-full" />
         <Skeleton className="h-40 w-full" />
         <Skeleton className="h-64 w-full" />
@@ -174,7 +187,7 @@ export default function InboundProcess() {
 
   if (!matchedShipment) {
     return (
-      <div className="p-4 text-center">
+      <div className="min-h-screen bg-background p-4 text-center pt-[calc(env(safe-area-inset-top,0px)+60px)]">
         <p className="text-muted-foreground">未找到匹配的货件信息</p>
         <Button onClick={() => navigate("/inbound")} className="mt-4">
           返回
@@ -183,55 +196,68 @@ export default function InboundProcess() {
     );
   }
 
+  // 获取订单信息
+  const order = matchedOrders.length > 0 ? matchedOrders[0] : null;
+
   return (
-    <div className="min-h-screen bg-background pb-[calc(env(safe-area-inset-bottom,0px)+80px)]">
+    <div className="min-h-screen bg-background pb-[calc(env(safe-area-inset-bottom,0px)+100px)]">
       {/* 顶部导航 */}
       <div className="sticky top-0 z-40 bg-background border-b pt-[env(safe-area-inset-top,0px)]">
         <div className="flex items-center gap-3 p-4">
-          <Button variant="ghost" size="icon" onClick={() => navigate(`/inbound?tracking=${encodeURIComponent(trackingNumber)}`)}>
+          <Button variant="ghost" size="icon" onClick={() => navigate(`/inbound?tracking=${encodeURIComponent(trackingNumber)}`, { replace: true })}>
             <ArrowLeft className="h-5 w-5" />
           </Button>
           <div className="flex-1 min-w-0">
-            <h1 className="font-semibold truncate">产品入库处理</h1>
-            <p className="text-sm text-muted-foreground truncate">LPN: {lpn}</p>
+            <div className="flex items-center gap-2">
+              <Package className="h-5 w-5 text-primary shrink-0" />
+              <h1 className="font-semibold truncate">产品入库处理 - {lpn}</h1>
+            </div>
           </div>
         </div>
       </div>
 
-      <ScrollArea className="h-[calc(100vh-140px)]">
+      <ScrollArea className="h-[calc(100vh-160px)]">
         <div className="p-4 space-y-4">
           {/* 退货订单信息 */}
-          {matchedOrders.length > 0 && (
+          {order && (
             <Card className="border-blue-200 bg-blue-50 dark:bg-blue-950/30 dark:border-blue-800">
               <CardHeader className="pb-2">
-                <CardTitle className="text-base flex items-center gap-2 text-blue-900 dark:text-blue-100">
+                <CardTitle className="text-base text-blue-900 dark:text-blue-100">
                   退货订单信息
-                  {matchedOrders.length > 1 && (
-                    <Badge variant="secondary">{matchedOrders.length}条</Badge>
-                  )}
                 </CardTitle>
               </CardHeader>
-              <CardContent className="space-y-3">
-                {matchedOrders.map((order, index) => (
-                  <div key={order.id} className={cn("grid grid-cols-2 gap-2 text-sm", index > 0 && "pt-3 border-t border-blue-200")}>
-                    {order.internal_order_no && (
-                      <div className="col-span-2">
-                        <p className="text-xs text-muted-foreground">内部订单号</p>
-                        <p className="font-mono font-semibold text-primary">{order.internal_order_no}</p>
-                      </div>
-                    )}
-                    <div><p className="text-xs text-muted-foreground">LPN编号</p><p className="font-mono font-medium">{order.lpn}</p></div>
-                    <div><p className="text-xs text-muted-foreground">产品名称</p><p className="font-medium">{order.product_name || "-"}</p></div>
-                    <div><p className="text-xs text-muted-foreground">退货原因</p><p className="font-medium">{order.return_reason || "-"}</p></div>
-                    <div><p className="text-xs text-muted-foreground">买家备注</p><p className="font-medium">{order.buyer_note || "-"}</p></div>
-                    <div><p className="text-xs text-muted-foreground">店铺</p><p className="font-medium">{order.store_name}</p></div>
+              <CardContent>
+                <div className="grid grid-cols-2 gap-3 text-sm">
+                  <div>
+                    <p className="text-xs text-muted-foreground">产品名称</p>
+                    <p className="font-medium">{order.product_name || matchedShipment.product_name}</p>
                   </div>
-                ))}
+                  <div>
+                    <p className="text-xs text-muted-foreground">产品SKU</p>
+                    <p className="font-medium">{order.product_sku || matchedShipment.product_sku}</p>
+                  </div>
+                  <div>
+                    <p className="text-xs text-muted-foreground">退货原因</p>
+                    <p className="font-medium">{order.return_reason || "-"}</p>
+                  </div>
+                  <div>
+                    <p className="text-xs text-muted-foreground">买家备注</p>
+                    <p className="font-medium">{order.buyer_note || "-"}</p>
+                  </div>
+                  <div>
+                    <p className="text-xs text-muted-foreground">店铺</p>
+                    <p className="font-medium">{order.store_name}</p>
+                  </div>
+                  <div>
+                    <p className="text-xs text-muted-foreground">订单号</p>
+                    <p className="font-medium font-mono text-xs">{order.order_number}</p>
+                  </div>
+                </div>
               </CardContent>
             </Card>
           )}
 
-          {/* 产品信息 */}
+          {/* 产品信息卡片 */}
           <Card>
             <CardContent className="pt-4">
               <div className="grid grid-cols-2 gap-3 text-sm">
@@ -247,90 +273,33 @@ export default function InboundProcess() {
             </CardContent>
           </Card>
 
-          {/* 退货理由 */}
-          <div className="space-y-2">
-            <Label className="text-sm">退货理由</Label>
-            <Input
-              placeholder="输入退货理由（可选）"
-              value={returnReason}
-              onChange={(e) => setReturnReason(e.target.value)}
-            />
-          </div>
-
-          {/* 拍照上传 */}
-          <div className="space-y-2">
-            <Label className="text-sm">产品拍照 ({Object.keys(capturedPhotos).length}/9)</Label>
-            <Button
-              type="button"
-              variant="outline"
-              className="w-full h-20 border-2 border-dashed"
-              onClick={() => setIsPhotoCaptureOpen(true)}
-            >
-              <div className="text-center">
-                <Camera className="mx-auto h-6 w-6 text-muted-foreground" />
-                <span className="mt-1 block text-sm text-muted-foreground">
-                  {Object.keys(capturedPhotos).length > 0 
-                    ? `已拍摄 ${Object.keys(capturedPhotos).length} 张，点击继续` 
-                    : "点击开始拍照"}
-                </span>
-              </div>
-            </Button>
-            {Object.keys(capturedPhotos).length > 0 && (
-              <div className="flex gap-2 overflow-x-auto pb-1">
-                {Object.entries(capturedPhotos).map(([key, url]) => (
-                  <div key={key} className="flex-shrink-0 w-14 h-14 rounded overflow-hidden border">
-                    <img src={url} alt={key} className="w-full h-full object-cover" />
-                  </div>
-                ))}
-              </div>
-            )}
-          </div>
-
-          {/* 级别选择 */}
-          <div className="space-y-2">
-            <Label className="text-sm">设定产品级别 *</Label>
-            <div className="grid grid-cols-3 gap-2">
-              {[
-                { grade: "A", label: "轻微使用痕迹", color: "info" },
-                { grade: "B", label: "明显使用痕迹", color: "warning" },
-                { grade: "C", label: "功能外观问题", color: "destructive" },
-              ].map(({ grade, label, color }) => (
-                <button
-                  key={grade}
-                  type="button"
-                  onClick={() => setSelectedGrade(grade)}
-                  className={cn(
-                    "flex flex-col items-center justify-center p-3 rounded-lg border-2 transition-all",
-                    selectedGrade === grade
-                      ? `border-${color} bg-${color}/10 ring-2 ring-${color}/30`
-                      : `border-muted hover:border-${color}/50`
-                  )}
-                >
-                  <GradeBadge grade={grade as "A" | "B" | "C"} />
-                  <span className="mt-1 text-xs text-muted-foreground text-center">{label}</span>
-                </button>
-              ))}
-            </div>
-          </div>
-
           {/* 缺少配件 */}
           <div className="space-y-2">
-            <Label className="text-sm">缺少配件 (可多选)</Label>
+            <Label className="text-sm font-medium">缺少配件 (可多选)</Label>
             {productParts && productParts.length > 0 ? (
-              <div className="grid grid-cols-2 gap-2">
+              <div className="flex flex-wrap gap-2">
                 {productParts.map((part) => (
                   <div
                     key={part.id}
-                    className="flex items-center space-x-2 rounded-lg border p-2"
+                    onClick={() => toggleMissingPart(part.name)}
+                    className={cn(
+                      "flex items-center gap-2 rounded-full border px-3 py-1.5 cursor-pointer transition-all",
+                      selectedMissingParts.includes(part.name)
+                        ? "border-primary bg-primary/10 text-primary"
+                        : "border-border hover:border-primary/50"
+                    )}
                   >
-                    <Checkbox
-                      id={part.id}
-                      checked={selectedMissingParts.includes(part.name)}
-                      onCheckedChange={() => toggleMissingPart(part.name)}
-                    />
-                    <label htmlFor={part.id} className="text-sm cursor-pointer flex-1">
-                      {part.name}
-                    </label>
+                    <div className={cn(
+                      "h-4 w-4 rounded-full border-2 flex items-center justify-center",
+                      selectedMissingParts.includes(part.name)
+                        ? "border-primary"
+                        : "border-muted-foreground"
+                    )}>
+                      {selectedMissingParts.includes(part.name) && (
+                        <div className="h-2 w-2 rounded-full bg-primary" />
+                      )}
+                    </div>
+                    <span className="text-sm">{part.name}</span>
                   </div>
                 ))}
               </div>
@@ -341,23 +310,85 @@ export default function InboundProcess() {
             )}
           </div>
 
+          {/* 产品状态 */}
+          <div className="space-y-2">
+            <Label className="text-sm font-medium">产品状态</Label>
+            <div
+              onClick={() => setHasProductDamage(!hasProductDamage)}
+              className={cn(
+                "flex items-center gap-3 rounded-lg border p-3 cursor-pointer transition-all",
+                hasProductDamage
+                  ? "border-destructive bg-destructive/10"
+                  : "border-border hover:border-destructive/50"
+              )}
+            >
+              <div className={cn(
+                "h-5 w-5 rounded-full border-2 flex items-center justify-center shrink-0",
+                hasProductDamage
+                  ? "border-destructive"
+                  : "border-muted-foreground"
+              )}>
+                {hasProductDamage && (
+                  <div className="h-2.5 w-2.5 rounded-full bg-destructive" />
+                )}
+              </div>
+              <span className={cn(
+                "text-sm",
+                hasProductDamage && "text-destructive font-medium"
+              )}>产品损坏</span>
+            </div>
+          </div>
+
+          {/* 产品拍照 */}
+          <div className="space-y-2">
+            <Label className="text-sm font-medium">产品拍照 ({Object.keys(capturedPhotos).length}/9)</Label>
+            <Button
+              type="button"
+              variant="outline"
+              className="w-full h-24 border-2 border-dashed border-primary/30 hover:border-primary/50 hover:bg-primary/5"
+              onClick={() => setIsPhotoCaptureOpen(true)}
+            >
+              <div className="text-center">
+                <Camera className="mx-auto h-7 w-7 text-muted-foreground" />
+                <span className="mt-2 block text-sm text-muted-foreground">
+                  {Object.keys(capturedPhotos).length > 0 
+                    ? `已拍摄 ${Object.keys(capturedPhotos).length} 张，点击继续` 
+                    : "点击开始顺序拍照"}
+                </span>
+              </div>
+            </Button>
+            {Object.keys(capturedPhotos).length > 0 && (
+              <div className="flex gap-2 overflow-x-auto pb-1">
+                {Object.entries(capturedPhotos).map(([key, url]) => (
+                  <div key={key} className="flex-shrink-0 w-16 h-16 rounded-lg overflow-hidden border-2 border-primary/30">
+                    <img src={url} alt={key} className="w-full h-full object-cover" />
+                  </div>
+                ))}
+              </div>
+            )}
+          </div>
+
           {/* 备注 */}
           <div className="space-y-2">
-            <Label className="text-sm">备注</Label>
+            <Label className="text-sm font-medium">备注</Label>
             <Textarea
               placeholder="输入其他备注信息..."
               value={notes}
               onChange={(e) => setNotes(e.target.value)}
-              className="min-h-[80px]"
+              className="min-h-[100px] resize-none"
             />
           </div>
         </div>
       </ScrollArea>
 
       {/* 底部按钮 */}
-      <div className="fixed bottom-0 left-0 right-0 bg-background border-t p-4 pb-[calc(env(safe-area-inset-bottom,12px)+12px)]">
+      <div className="fixed bottom-0 left-0 right-0 bg-background/95 backdrop-blur-sm border-t p-4 pb-[calc(env(safe-area-inset-bottom,12px)+12px)]">
         <div className="flex gap-3">
-          <Button variant="outline" onClick={() => navigate(`/inbound?tracking=${encodeURIComponent(trackingNumber)}`)} className="flex-1 h-12">
+          <Button 
+            variant="outline" 
+            onClick={() => navigate(`/inbound?tracking=${encodeURIComponent(trackingNumber)}`, { replace: true })} 
+            className="flex-1 h-12"
+          >
             取消
           </Button>
           <Button

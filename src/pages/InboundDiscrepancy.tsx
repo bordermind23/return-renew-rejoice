@@ -77,24 +77,18 @@ export default function InboundDiscrepancy() {
 
     // 检查每个跟踪号的差异
     Object.entries(shipmentsByTracking).forEach(([trackingNumber, trackingShipments]) => {
-      // 只检查已入库的货件
-      const hasInbound = trackingShipments.some(s => s.status === "inbound");
-      if (!hasInbound) return;
-
-      // 计算申报总数
-      const declaredTotal = trackingShipments.reduce((sum, s) => sum + s.quantity, 0);
-      
       // 计算实际入库数
       const actualInbound = inboundItems.filter(
         item => item.tracking_number === trackingNumber
       ).length;
 
-      // 检查是否有差异备注（强制完成的情况）
-      const hasForceComplete = trackingShipments.some(
-        s => s.note && s.note.includes("强制完成入库")
-      );
+      // 如果没有任何入库记录，跳过（不视为差异）
+      if (actualInbound === 0) return;
 
-      // 数量差异
+      // 计算申报总数
+      const declaredTotal = trackingShipments.reduce((sum, s) => sum + s.quantity, 0);
+
+      // 数量差异：只有当有入库记录且数量不等于申报数量时才视为差异
       if (actualInbound !== declaredTotal) {
         const difference = actualInbound - declaredTotal;
         const discrepancyType = difference < 0 ? "quantity_less" : "quantity_more";

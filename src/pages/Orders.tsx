@@ -465,20 +465,30 @@ export default function Orders() {
           const validItems: OrderInsert[] = [];
           const updateItems: { id: string; lpn: string; data: OrderUpdate }[] = [];
           
-          // 构建现有订单映射：LPN -> { orderNumber -> order }
-          const existingLpnOrderMap = new Map<string, Map<string, Order>>();
+          // 从数据库获取所有"无入库信息"的临时订单（因为orders只是当前页数据）
+          const { data: pendingOrdersData } = await supabase
+            .from("orders")
+            .select("*")
+            .or("removal_order_id.eq.无入库信息,order_number.eq.待同步");
+          
           // 构建"无入库信息"临时订单映射：LPN -> order
           const pendingOrdersMap = new Map<string, Order>();
-          
-          (orders || []).forEach(o => {
+          (pendingOrdersData || []).forEach(o => {
             const lpnLower = o.lpn.toLowerCase();
-            if (!existingLpnOrderMap.has(lpnLower)) existingLpnOrderMap.set(lpnLower, new Map());
-            existingLpnOrderMap.get(lpnLower)!.set(o.order_number, o);
-            
-            // 记录"无入库信息"的临时订单
-            if (o.removal_order_id === "无入库信息" || o.order_number === "待同步") {
-              pendingOrdersMap.set(lpnLower, o);
-            }
+            pendingOrdersMap.set(lpnLower, o as Order);
+          });
+          
+          // 构建现有订单映射：LPN -> { orderNumber -> order }
+          // 需要获取所有现有订单来检查重复
+          const { data: allOrdersData } = await supabase
+            .from("orders")
+            .select("id, lpn, order_number");
+          
+          const existingLpnOrderMap = new Map<string, Set<string>>();
+          (allOrdersData || []).forEach(o => {
+            const lpnLower = o.lpn.toLowerCase();
+            if (!existingLpnOrderMap.has(lpnLower)) existingLpnOrderMap.set(lpnLower, new Set());
+            existingLpnOrderMap.get(lpnLower)!.add(o.order_number);
           });
           const importedLpnOrderMap = new Map<string, Set<string>>();
 

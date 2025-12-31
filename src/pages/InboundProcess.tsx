@@ -10,6 +10,7 @@ import { Badge } from "@/components/ui/badge";
 import { ScrollArea } from "@/components/ui/scroll-area";
 import { Skeleton } from "@/components/ui/skeleton";
 import { NativePhotoCapture } from "@/components/NativePhotoCapture";
+import { TranslatedText } from "@/components/TranslatedText";
 import { useRemovalShipments, useUpdateRemovalShipment, type RemovalShipment } from "@/hooks/useRemovalShipments";
 import { useCreateInboundItem, useInboundItems } from "@/hooks/useInboundItems";
 import { useUpdateInventoryStock } from "@/hooks/useInventoryItems";
@@ -238,7 +239,7 @@ export default function InboundProcess() {
                   </div>
                   <div className="col-span-2">
                     <p className="text-xs text-muted-foreground">买家备注</p>
-                    <p className="font-medium">{order.buyer_note || "-"}</p>
+                    <p className="font-medium"><TranslatedText text={order.buyer_note} /></p>
                   </div>
                 </div>
               </CardContent>

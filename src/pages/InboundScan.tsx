@@ -41,6 +41,7 @@ import { toast } from "sonner";
 import { Scanner } from "@/components/Scanner";
 import { SequentialPhotoCapture } from "@/components/SequentialPhotoCapture";
 import { MobileInboundScanner } from "@/components/MobileInboundScanner";
+import { TranslatedText } from "@/components/TranslatedText";
 import { cn } from "@/lib/utils";
 import { useIsMobile } from "@/hooks/use-mobile";
 import { useSound } from "@/hooks/useSound";
@@ -772,7 +773,7 @@ export default function InboundScan() {
                         )}
                         <div><p className="text-muted-foreground text-xs">产品名称</p><p className="font-medium text-sm">{order.product_name || "-"}</p></div>
                         <div><p className="text-muted-foreground text-xs">退货原因</p><p className="font-medium text-sm">{order.return_reason || "-"}</p></div>
-                        <div><p className="text-muted-foreground text-xs">买家备注</p><p className="font-medium text-sm">{order.buyer_note || "-"}</p></div>
+                        <div><p className="text-muted-foreground text-xs">买家备注</p><p className="font-medium text-sm"><TranslatedText text={order.buyer_note} /></p></div>
                       </div>
                     ))}
                   </div>

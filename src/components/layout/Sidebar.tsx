@@ -14,6 +14,7 @@ import {
   X,
   LogOut,
   Users,
+  FileWarning,
 } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { Button } from "@/components/ui/button";
@@ -30,6 +31,7 @@ const navItems = [
   { to: "/inventory", icon: Warehouse, label: "库存管理" },
   { to: "/orders", icon: ClipboardList, label: "退货订单列表" },
   { to: "/outbound", icon: PackageOpen, label: "出库管理" },
+  { to: "/cases", icon: FileWarning, label: "CASE管理" },
 ];
 
 const adminNavItems = [

@@ -32,6 +32,130 @@ export type Database = {
         }
         Relationships: []
       }
+      case_notes: {
+        Row: {
+          case_id: string
+          content: string
+          created_at: string
+          created_by: string
+          id: string
+          note_type: string | null
+        }
+        Insert: {
+          case_id: string
+          content: string
+          created_at?: string
+          created_by: string
+          id?: string
+          note_type?: string | null
+        }
+        Update: {
+          case_id?: string
+          content?: string
+          created_at?: string
+          created_by?: string
+          id?: string
+          note_type?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "case_notes_case_id_fkey"
+            columns: ["case_id"]
+            isOneToOne: false
+            referencedRelation: "cases"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      cases: {
+        Row: {
+          actual_sku: string | null
+          amazon_case_id: string | null
+          amazon_case_url: string | null
+          approved_amount: number | null
+          case_number: string
+          case_type: Database["public"]["Enums"]["case_type"]
+          claim_amount: number | null
+          created_at: string
+          created_by: string
+          currency: string | null
+          damage_description: string | null
+          description: string | null
+          expected_sku: string | null
+          id: string
+          lpn: string | null
+          missing_items: string[] | null
+          order_id: string | null
+          removal_order_id: string | null
+          resolved_at: string | null
+          status: Database["public"]["Enums"]["case_status"]
+          submitted_at: string | null
+          title: string
+          tracking_number: string | null
+          updated_at: string
+        }
+        Insert: {
+          actual_sku?: string | null
+          amazon_case_id?: string | null
+          amazon_case_url?: string | null
+          approved_amount?: number | null
+          case_number: string
+          case_type: Database["public"]["Enums"]["case_type"]
+          claim_amount?: number | null
+          created_at?: string
+          created_by: string
+          currency?: string | null
+          damage_description?: string | null
+          description?: string | null
+          expected_sku?: string | null
+          id?: string
+          lpn?: string | null
+          missing_items?: string[] | null
+          order_id?: string | null
+          removal_order_id?: string | null
+          resolved_at?: string | null
+          status?: Database["public"]["Enums"]["case_status"]
+          submitted_at?: string | null
+          title: string
+          tracking_number?: string | null
+          updated_at?: string
+        }
+        Update: {
+          actual_sku?: string | null
+          amazon_case_id?: string | null
+          amazon_case_url?: string | null
+          approved_amount?: number | null
+          case_number?: string
+          case_type?: Database["public"]["Enums"]["case_type"]
+          claim_amount?: number | null
+          created_at?: string
+          created_by?: string
+          currency?: string | null
+          damage_description?: string | null
+          description?: string | null
+          expected_sku?: string | null
+          id?: string
+          lpn?: string | null
+          missing_items?: string[] | null
+          order_id?: string | null
+          removal_order_id?: string | null
+          resolved_at?: string | null
+          status?: Database["public"]["Enums"]["case_status"]
+          submitted_at?: string | null
+          title?: string
+          tracking_number?: string | null
+          updated_at?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "cases_order_id_fkey"
+            columns: ["order_id"]
+            isOneToOne: false
+            referencedRelation: "orders"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       inbound_items: {
         Row: {
           accessories_photo: string | null
@@ -440,6 +564,19 @@ export type Database = {
     }
     Enums: {
       app_role: "admin" | "warehouse_staff" | "viewer"
+      case_status:
+        | "pending"
+        | "submitted"
+        | "in_progress"
+        | "approved"
+        | "rejected"
+        | "closed"
+      case_type:
+        | "lpn_missing"
+        | "sku_mismatch"
+        | "accessory_missing"
+        | "product_damaged"
+        | "other"
       order_status: "未到货" | "到货" | "出库"
     }
     CompositeTypes: {
@@ -569,6 +706,21 @@ export const Constants = {
   public: {
     Enums: {
       app_role: ["admin", "warehouse_staff", "viewer"],
+      case_status: [
+        "pending",
+        "submitted",
+        "in_progress",
+        "approved",
+        "rejected",
+        "closed",
+      ],
+      case_type: [
+        "lpn_missing",
+        "sku_mismatch",
+        "accessory_missing",
+        "product_damaged",
+        "other",
+      ],
       order_status: ["未到货", "到货", "出库"],
     },
   },

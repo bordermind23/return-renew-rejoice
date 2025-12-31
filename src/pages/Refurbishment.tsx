@@ -1,5 +1,5 @@
 import { useState, useRef, useEffect } from "react";
-import { ScanLine, Camera, Video, Package, CheckCircle, AlertCircle, Wrench } from "lucide-react";
+import { ScanLine, Camera, Video, CheckCircle, AlertCircle, Wrench, Smartphone } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { PageHeader } from "@/components/ui/page-header";
@@ -26,10 +26,12 @@ import { Scanner } from "@/components/Scanner";
 import { cn } from "@/lib/utils";
 import { useSound } from "@/hooks/useSound";
 import { useLanguage } from "@/i18n/LanguageContext";
-import { supabase } from "@/integrations/supabase/client";
+import { useIsMobile } from "@/hooks/use-mobile";
+import { RefurbishmentMediaCapture } from "@/components/RefurbishmentMediaCapture";
 
 export default function Refurbishment() {
   const { t } = useLanguage();
+  const isMobile = useIsMobile();
   const [lpnInput, setLpnInput] = useState("");
   const [matchedItem, setMatchedItem] = useState<InboundItem | null>(null);
   const [isProcessDialogOpen, setIsProcessDialogOpen] = useState(false);
@@ -38,6 +40,7 @@ export default function Refurbishment() {
   const [capturedPhotos, setCapturedPhotos] = useState<string[]>([]);
   const [capturedVideos, setCapturedVideos] = useState<string[]>([]);
   const [isUploading, setIsUploading] = useState(false);
+  const [showMediaCapture, setShowMediaCapture] = useState(false);
   
   const lpnInputRef = useRef<HTMLInputElement>(null);
   const photoInputRef = useRef<HTMLInputElement>(null);
@@ -86,6 +89,7 @@ export default function Refurbishment() {
 
   const uploadFile = async (file: File, type: 'photo' | 'video'): Promise<string | null> => {
     try {
+      const { supabase } = await import("@/integrations/supabase/client");
       const fileExt = file.name.split('.').pop();
       const fileName = `${matchedItem?.lpn}-${type}-${Date.now()}.${fileExt}`;
       const filePath = `refurbishment/${fileName}`;
@@ -148,6 +152,22 @@ export default function Refurbishment() {
     toast.success(`已上传 ${newVideos.length} 个视频`);
   };
 
+  // 处理移动端媒体拍摄完成
+  const handleMediaCaptureComplete = (photos: string[], videos: string[]) => {
+    setCapturedPhotos(photos);
+    setCapturedVideos(videos);
+    setShowMediaCapture(false);
+  };
+
+  // 打开移动端拍摄界面
+  const openMobileCapture = () => {
+    if (!selectedGrade || (selectedGrade !== "B" && selectedGrade !== "C")) {
+      toast.error("请先选择B级或C级");
+      return;
+    }
+    setShowMediaCapture(true);
+  };
+
   const handleProcessComplete = () => {
     if (!selectedGrade) {
       toast.error("请选择产品等级");
@@ -199,6 +219,7 @@ export default function Refurbishment() {
     setCapturedPhotos([]);
     setCapturedVideos([]);
     setMatchedItem(null);
+    setShowMediaCapture(false);
   };
 
   const removePhoto = (index: number) => {
@@ -215,6 +236,20 @@ export default function Refurbishment() {
         <Skeleton className="h-10 w-48" />
         <Skeleton className="h-40 w-full" />
       </div>
+    );
+  }
+
+  // 移动端拍摄界面
+  if (showMediaCapture && matchedItem && (selectedGrade === "B" || selectedGrade === "C")) {
+    return (
+      <RefurbishmentMediaCapture
+        lpn={matchedItem.lpn}
+        grade={selectedGrade as "B" | "C"}
+        onComplete={handleMediaCaptureComplete}
+        onCancel={() => setShowMediaCapture(false)}
+        initialPhotos={capturedPhotos}
+        initialVideos={capturedVideos}
+      />
     );
   }
 
@@ -395,8 +430,33 @@ export default function Refurbishment() {
                 </div>
               )}
 
-              {/* 拍照上传 */}
-              {(selectedGrade === "B" || selectedGrade === "C") && (
+              {/* 移动端优化的拍摄按钮 */}
+              {(selectedGrade === "B" || selectedGrade === "C") && isMobile && (
+                <Button
+                  type="button"
+                  variant="outline"
+                  className={cn(
+                    "w-full h-20 border-2 border-dashed flex flex-col items-center justify-center gap-2",
+                    (selectedGrade === "B" && capturedPhotos.length === 0) && "border-warning",
+                    (selectedGrade === "C" && capturedPhotos.length === 0 && capturedVideos.length === 0) && "border-destructive"
+                  )}
+                  onClick={openMobileCapture}
+                >
+                  <div className="flex items-center gap-3">
+                    <Smartphone className="h-6 w-6 text-primary" />
+                    <div className="text-left">
+                      <p className="font-medium">打开拍摄界面</p>
+                      <p className="text-xs text-muted-foreground">
+                        已拍摄：{capturedPhotos.length} 张照片
+                        {selectedGrade === "C" && `，${capturedVideos.length} 个视频`}
+                      </p>
+                    </div>
+                  </div>
+                </Button>
+              )}
+
+              {/* 桌面端拍照上传 */}
+              {(selectedGrade === "B" || selectedGrade === "C") && !isMobile && (
                 <div className="space-y-2">
                   <Label className="text-sm flex items-center gap-2">
                     <Camera className="h-4 w-4" />
@@ -410,7 +470,6 @@ export default function Refurbishment() {
                     type="file"
                     accept="image/*"
                     multiple
-                    capture="environment"
                     onChange={handlePhotoCapture}
                     className="hidden"
                   />
@@ -450,8 +509,8 @@ export default function Refurbishment() {
                 </div>
               )}
 
-              {/* 视频上传 - 仅C级 */}
-              {selectedGrade === "C" && (
+              {/* 桌面端视频上传 - 仅C级 */}
+              {selectedGrade === "C" && !isMobile && (
                 <div className="space-y-2">
                   <Label className="text-sm flex items-center gap-2">
                     <Video className="h-4 w-4" />
@@ -462,7 +521,6 @@ export default function Refurbishment() {
                     type="file"
                     accept="video/*"
                     multiple
-                    capture="environment"
                     onChange={handleVideoCapture}
                     className="hidden"
                   />
@@ -499,6 +557,34 @@ export default function Refurbishment() {
                       ))}
                     </div>
                   )}
+                </div>
+              )}
+
+              {/* 移动端已拍摄的预览 */}
+              {(selectedGrade === "B" || selectedGrade === "C") && isMobile && (capturedPhotos.length > 0 || capturedVideos.length > 0) && (
+                <div className="space-y-2">
+                  <Label className="text-sm">已拍摄媒体</Label>
+                  <div className="flex gap-2 overflow-x-auto pb-1">
+                    {capturedPhotos.map((url, index) => (
+                      <div key={`photo-${index}`} className="relative flex-shrink-0 w-16 h-16 rounded overflow-hidden border">
+                        <img src={url} alt={`Photo ${index + 1}`} className="w-full h-full object-cover" />
+                        <div className="absolute bottom-0 left-0 right-0 bg-black/60 text-white text-[10px] text-center py-0.5">
+                          照片
+                        </div>
+                      </div>
+                    ))}
+                    {capturedVideos.map((url, index) => (
+                      <div key={`video-${index}`} className="relative flex-shrink-0 w-16 h-16 rounded overflow-hidden border">
+                        <video src={url} className="w-full h-full object-cover" />
+                        <div className="absolute inset-0 flex items-center justify-center">
+                          <Video className="h-4 w-4 text-white drop-shadow-lg" />
+                        </div>
+                        <div className="absolute bottom-0 left-0 right-0 bg-black/60 text-white text-[10px] text-center py-0.5">
+                          视频
+                        </div>
+                      </div>
+                    ))}
+                  </div>
                 </div>
               )}
 

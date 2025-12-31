@@ -523,16 +523,19 @@ export default function Removals() {
           return;
         }
 
-        // 检查重复记录：基于移除订单号和跟踪号
+        // 检查重复记录：基于移除订单号、跟踪号、产品SKU、MSKU、商品类型、FNSKU、数量
+        const generateKey = (s: { order_id: string; tracking_number: string; product_sku?: string | null; msku?: string | null; product_type?: string | null; fnsku: string; quantity: number }) => 
+          `${s.order_id}|${s.tracking_number}|${s.product_sku || ''}|${s.msku || ''}|${s.product_type || ''}|${s.fnsku}|${s.quantity}`;
+        
         const existingKeys = new Set(
-          (shipments || []).map(s => `${s.order_id}|${s.tracking_number}`)
+          (shipments || []).map(s => generateKey(s))
         );
         
         const duplicateShipments: { row: number; orderId: string; trackingNumber: string }[] = [];
         const newShipments: RemovalShipmentInsert[] = [];
         
         validShipments.forEach((shipment, index) => {
-          const key = `${shipment.order_id}|${shipment.tracking_number}`;
+          const key = generateKey(shipment);
           if (existingKeys.has(key)) {
             duplicateShipments.push({
               row: index + 2,

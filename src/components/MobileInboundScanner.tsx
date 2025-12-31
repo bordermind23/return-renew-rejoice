@@ -9,7 +9,6 @@ import { Checkbox } from "@/components/ui/checkbox";
 import { ScrollArea } from "@/components/ui/scroll-area";
 import { Scanner } from "@/components/Scanner";
 import { NativePhotoCapture } from "@/components/NativePhotoCapture";
-import { ScanFeedbackOverlay, type ScanFeedbackType } from "@/components/ScanFeedbackOverlay";
 import {
   Drawer,
   DrawerContent,
@@ -66,17 +65,6 @@ export function MobileInboundScanner({ initialTracking }: MobileInboundScannerPr
   const [skuMismatchWarning, setSkuMismatchWarning] = useState<{ lpnSku: string; shipmentSkus: string[] } | null>(null);
   const [overQuantityWarning, setOverQuantityWarning] = useState(false);
   const [isForceCompleteOpen, setIsForceCompleteOpen] = useState(false);
-  
-  // 扫描反馈动画状态
-  const [scanFeedback, setScanFeedback] = useState<{ type: ScanFeedbackType; message?: string }>({ type: null });
-
-  const showScanFeedback = (type: ScanFeedbackType, message?: string) => {
-    setScanFeedback({ type, message });
-  };
-
-  const clearScanFeedback = () => {
-    setScanFeedback({ type: null });
-  };
 
   const { data: shipments } = useRemovalShipments();
   const { data: inboundItems } = useInboundItems();
@@ -140,7 +128,6 @@ export function MobileInboundScanner({ initialTracking }: MobileInboundScannerPr
 
     if (allMatched.length === 0) {
       vibrateError();
-      showScanFeedback("error", "未找到物流跟踪号");
       toast.error(`未找到物流跟踪号: ${trackingCode}`);
       return;
     }
@@ -149,18 +136,16 @@ export function MobileInboundScanner({ initialTracking }: MobileInboundScannerPr
     const inboundedCount = getInboundedCount(allMatched[0].tracking_number);
     if (inboundedCount >= totalQuantity) {
       vibrateWarning();
-      showScanFeedback("warning", "货物已全部入库");
       toast.warning(`该物流号下的 ${totalQuantity} 件货物已全部入库`);
       return;
     }
 
     vibrateSuccess();
-    showScanFeedback("success", `匹配成功: ${allMatched.length} 种产品`);
     setMatchedShipment(allMatched[0]);
     setMatchedShipments(allMatched);
     setTrackingInput(trackingCode);
     setScannedLpns([]);
-    setTimeout(() => setStep("scan_lpn"), 800);
+    setStep("scan_lpn");
     const productNames = [...new Set(allMatched.map(s => s.product_name))];
     toast.success(`匹配成功: ${allMatched.length} 种产品`);
   };
@@ -174,7 +159,6 @@ export function MobileInboundScanner({ initialTracking }: MobileInboundScannerPr
     const lpnOrders = await fetchOrdersByLpn(lpn);
     if (lpnOrders.length === 0) {
       vibrateError();
-      showScanFeedback("error", "LPN不在退货订单中");
       toast.error(`LPN号 "${lpn}" 不存在于退货订单列表中`);
       setLpnInput("");
       return;
@@ -183,7 +167,6 @@ export function MobileInboundScanner({ initialTracking }: MobileInboundScannerPr
     // 检查是否已扫描过
     if (scannedLpns.includes(lpn)) {
       vibrateWarning();
-      showScanFeedback("warning", "该LPN已扫描过");
       toast.error("该LPN已扫描过");
       setLpnInput("");
       return;
@@ -193,7 +176,6 @@ export function MobileInboundScanner({ initialTracking }: MobileInboundScannerPr
     const existingItem = inboundItems?.find(item => item.lpn === lpn);
     if (existingItem) {
       vibrateWarning();
-      showScanFeedback("warning", "该LPN已入库");
       toast.error("该LPN已入库");
       setLpnInput("");
       return;
@@ -227,10 +209,9 @@ export function MobileInboundScanner({ initialTracking }: MobileInboundScannerPr
 
     // 成功振动并打开处理抽屉
     vibrateSuccess();
-    showScanFeedback("success", "LPN匹配成功");
     setCurrentLpn(lpn);
     setMatchedOrders(lpnOrders);
-    setTimeout(() => setIsProcessDrawerOpen(true), 600);
+    setIsProcessDrawerOpen(true);
     setLpnInput("");
   };
 
@@ -411,13 +392,7 @@ export function MobileInboundScanner({ initialTracking }: MobileInboundScannerPr
     const remainingCount = totalQuantity - inboundedCount;
 
     return (
-      <>
-        <ScanFeedbackOverlay 
-          type={scanFeedback.type} 
-          message={scanFeedback.message}
-          onComplete={clearScanFeedback}
-        />
-        <div className="min-h-[calc(100vh-120px)] flex flex-col items-center justify-center p-6 bg-gradient-to-b from-background to-muted/30">
+      <div className="min-h-[calc(100vh-120px)] flex flex-col items-center justify-center p-6 bg-gradient-to-b from-background to-muted/30">
         {/* 已匹配货件信息卡片 */}
         {hasActiveShipment && matchedShipment && (
           <div className="w-full max-w-sm mb-8 rounded-xl bg-card border shadow-sm p-5 animate-fade-in">
@@ -525,21 +500,14 @@ export function MobileInboundScanner({ initialTracking }: MobileInboundScannerPr
             </DrawerFooter>
           </DrawerContent>
         </Drawer>
-        </div>
-      </>
+      </div>
     );
   }
 
   // 扫描物流号步骤
   if (step === "scan_tracking") {
     return (
-      <>
-        <ScanFeedbackOverlay 
-          type={scanFeedback.type} 
-          message={scanFeedback.message}
-          onComplete={clearScanFeedback}
-        />
-        <div className="fixed inset-0 z-50 bg-gradient-to-b from-background to-muted/30 pt-[env(safe-area-inset-top,0px)]">
+      <div className="fixed inset-0 z-50 bg-gradient-to-b from-background to-muted/30 pt-[env(safe-area-inset-top,0px)]">
         {/* 顶部栏 */}
         <div className="flex items-center justify-between p-4 bg-background/80 backdrop-blur-sm border-b">
           <Button variant="ghost" size="icon" onClick={handleClose} className="rounded-lg">
@@ -600,8 +568,7 @@ export function MobileInboundScanner({ initialTracking }: MobileInboundScannerPr
             </div>
           </div>
         </div>
-        </div>
-      </>
+      </div>
     );
   }
 
@@ -612,13 +579,7 @@ export function MobileInboundScanner({ initialTracking }: MobileInboundScannerPr
     const remainingCount = totalQuantity - inboundedCount;
 
     return (
-      <>
-        <ScanFeedbackOverlay 
-          type={scanFeedback.type} 
-          message={scanFeedback.message}
-          onComplete={clearScanFeedback}
-        />
-        <div className="fixed inset-0 z-50 bg-gradient-to-b from-background to-muted/30 pt-[env(safe-area-inset-top,0px)]">
+      <div className="fixed inset-0 z-50 bg-gradient-to-b from-background to-muted/30 pt-[env(safe-area-inset-top,0px)]">
         {/* 顶部栏 */}
         <div className="flex items-center justify-between p-4 bg-background/80 backdrop-blur-sm border-b">
           <Button variant="ghost" size="icon" onClick={handleClose} className="rounded-lg">
@@ -896,8 +857,7 @@ export function MobileInboundScanner({ initialTracking }: MobileInboundScannerPr
             onCancel={() => setIsPhotoCaptureOpen(false)}
           />
         )}
-        </div>
-      </>
+      </div>
     );
   }
 

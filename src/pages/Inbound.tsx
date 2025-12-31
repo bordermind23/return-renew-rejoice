@@ -403,18 +403,10 @@ export default function Inbound() {
           const totalQuantity = matchedShipments.reduce((sum, s) => sum + s.quantity, 0);
           
           if (totalInbounded >= totalQuantity) {
-            // 更新所有相关货件状态为已入库
-            matchedShipments.forEach(shipment => {
-              updateShipmentMutation.mutate({
-                id: shipment.id,
-                status: "inbound"
-              });
-            });
-            // 播放成功提示音（全部完成时播放两次表示完成）
+            // 全部扫描完成，提示用户点击完成按钮
             playSuccess();
             setTimeout(() => playSuccess(), 200);
-            toast.success(`所有 ${totalQuantity} 件货物已全部入库！`);
-            handleReset();
+            toast.success(`所有 ${totalQuantity} 件货物已扫描完成，请点击"完成包裹"确认入库！`);
           } else {
             // 播放成功提示音
             playSuccess();
@@ -518,6 +510,32 @@ export default function Inbound() {
     playSuccess();
     toast.success(`已强制完成入库！实际入库 ${totalInbounded} 件，申报 ${totalQuantity} 件`);
     setIsForceCompleteDialogOpen(false);
+    handleReset();
+  };
+
+  // 完成包裹入库（全部扫描完成后手动确认）
+  const handleCompletePackage = () => {
+    if (!matchedShipment || !matchedShipments.length) return;
+    
+    const totalInbounded = getInboundedCount(matchedShipment.tracking_number);
+    const totalQuantity = matchedShipments.reduce((sum, s) => sum + s.quantity, 0);
+    
+    if (totalInbounded < totalQuantity) {
+      toast.error(`还有 ${totalQuantity - totalInbounded} 件未扫描，请继续扫描或使用"强制完成"`);
+      return;
+    }
+    
+    // 更新所有相关货件状态为已入库
+    matchedShipments.forEach(shipment => {
+      updateShipmentMutation.mutate({
+        id: shipment.id,
+        status: "inbound",
+      });
+    });
+    
+    playSuccess();
+    setTimeout(() => playSuccess(), 200);
+    toast.success(`包裹入库完成！共 ${totalInbounded} 件货物`);
     handleReset();
   };
 
@@ -748,6 +766,33 @@ export default function Inbound() {
                         {lpn}
                       </Badge>
                     ))}
+                  </div>
+                </div>
+              )}
+
+              {/* 完成包裹按钮 - 当全部扫描完成时显示 */}
+              {matchedShipment && getInboundedCount(matchedShipment.tracking_number) >= matchedShipments.reduce((sum, s) => sum + s.quantity, 0) && (
+                <div className="mt-4 pt-4 border-t">
+                  <div className="p-4 rounded-lg bg-green-50 dark:bg-green-950/30 border border-green-200 dark:border-green-700">
+                    <div className="flex items-center justify-between gap-4">
+                      <div className="flex items-start gap-3">
+                        <CheckCircle className="h-5 w-5 text-green-600 dark:text-green-400 flex-shrink-0" />
+                        <div>
+                          <p className="font-semibold text-green-800 dark:text-green-200">全部LPN已扫描完成</p>
+                          <p className="text-sm text-green-600 dark:text-green-400">
+                            共 {getInboundedCount(matchedShipment.tracking_number)} 件货物，点击确认完成入库
+                          </p>
+                        </div>
+                      </div>
+                      <Button 
+                        onClick={handleCompletePackage}
+                        className="bg-green-600 hover:bg-green-700 text-white"
+                        size="lg"
+                      >
+                        <PackageCheck className="mr-2 h-5 w-5" />
+                        完成包裹
+                      </Button>
+                    </div>
                   </div>
                 </div>
               )}

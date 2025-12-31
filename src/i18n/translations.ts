@@ -65,6 +65,7 @@ export const translations = {
       removals: '移除货件',
       cases: 'CASE管理',
       users: '用户管理',
+      refurbishment: '翻新处理',
     },
     // 入库扫码
     inboundScan: {
@@ -313,6 +314,35 @@ export const translations = {
       operationSuccess: '操作成功',
       operationFailed: '操作失败',
     },
+    // 翻新处理
+    refurbishment: {
+      title: '翻新处理',
+      description: '扫描已入库的LPN号，进行翻新处理并设定产品等级',
+      scanLpn: '扫描LPN号',
+      scanLpnDesc: '扫描已入库的LPN号开始翻新处理',
+      lpnPlaceholder: '输入或扫描LPN号...',
+      recentRecords: '最近翻新记录',
+      noRecords: '暂无翻新记录',
+      processTitle: '翻新处理',
+      productName: '产品名称',
+      productSku: '产品SKU',
+      currentGrade: '当前等级',
+      inboundDate: '入库日期',
+      setGrade: '设定产品等级',
+      gradeADesc: '轻微使用痕迹',
+      gradeBDesc: '刮痕/外观损坏',
+      gradeCDesc: '功能缺陷',
+      bGradeRequirement: 'B级需要拍照记录',
+      bGradeHint: '请拍摄刮痕或损坏的位置',
+      cGradeRequirement: 'C级需要拍照或录视频',
+      cGradeHint: '请拍摄或录制功能缺陷的详情',
+      photos: '照片',
+      videos: '视频',
+      clickToPhoto: '点击拍照或选择图片',
+      clickToVideo: '点击录制或选择视频',
+      notesPlaceholder: '输入翻新备注信息...',
+      complete: '完成翻新',
+    },
   },
   it: {
     // 通用
@@ -378,6 +408,7 @@ export const translations = {
       removals: 'Spedizioni Rimozione',
       cases: 'Gestione CASE',
       users: 'Gestione Utenti',
+      refurbishment: 'Ricondizionamento',
     },
     // 入库扫码
     inboundScan: {
@@ -626,7 +657,34 @@ export const translations = {
       operationSuccess: 'Operazione riuscita',
       operationFailed: 'Operazione fallita',
     },
+    // 翻新处理
+    refurbishment: {
+      title: 'Ricondizionamento',
+      description: 'Scansiona LPN registrati per il ricondizionamento e assegna il grado',
+      scanLpn: 'Scansiona LPN',
+      scanLpnDesc: 'Scansiona un LPN registrato per iniziare il ricondizionamento',
+      lpnPlaceholder: 'Inserisci o scansiona LPN...',
+      recentRecords: 'Registri recenti',
+      noRecords: 'Nessun registro di ricondizionamento',
+      processTitle: 'Ricondizionamento',
+      productName: 'Nome prodotto',
+      productSku: 'SKU prodotto',
+      currentGrade: 'Grado attuale',
+      inboundDate: 'Data entrata',
+      setGrade: 'Imposta grado prodotto',
+      gradeADesc: 'Lievi segni di utilizzo',
+      gradeBDesc: 'Graffi/Danni estetici',
+      gradeCDesc: 'Difetti funzionali',
+      bGradeRequirement: 'Grado B richiede foto',
+      bGradeHint: 'Fotografa graffi o danni',
+      cGradeRequirement: 'Grado C richiede foto o video',
+      cGradeHint: 'Documenta i difetti funzionali',
+      photos: 'Foto',
+      videos: 'Video',
+      clickToPhoto: 'Clicca per scattare foto',
+      clickToVideo: 'Clicca per registrare video',
+      notesPlaceholder: 'Inserisci note di ricondizionamento...',
+      complete: 'Completa ricondizionamento',
+    },
   },
 } as const;
-
-export type TranslationKeys = typeof translations.zh;

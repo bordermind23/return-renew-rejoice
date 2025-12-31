@@ -18,7 +18,7 @@ export interface InboundItem {
   created_at: string;
   tracking_number: string | null;
   shipment_id: string | null;
-  // 新增照片字段
+  // 照片字段
   lpn_label_photo: string | null;
   packaging_photo_1: string | null;
   packaging_photo_2: string | null;
@@ -28,9 +28,16 @@ export interface InboundItem {
   packaging_photo_6: string | null;
   accessories_photo: string | null;
   detail_photo: string | null;
+  // 翻新字段
+  refurbished_at: string | null;
+  refurbished_by: string | null;
+  refurbishment_grade: string | null;
+  refurbishment_photos: string[] | null;
+  refurbishment_videos: string[] | null;
+  refurbishment_notes: string | null;
 }
 
-export type InboundItemInsert = Omit<InboundItem, "id" | "created_at" | "package_photo" | "product_photo" | "lpn_label_photo" | "packaging_photo_1" | "packaging_photo_2" | "packaging_photo_3" | "packaging_photo_4" | "packaging_photo_5" | "packaging_photo_6" | "accessories_photo" | "detail_photo"> & { 
+export type InboundItemInsert = Omit<InboundItem, "id" | "created_at" | "package_photo" | "product_photo" | "lpn_label_photo" | "packaging_photo_1" | "packaging_photo_2" | "packaging_photo_3" | "packaging_photo_4" | "packaging_photo_5" | "packaging_photo_6" | "accessories_photo" | "detail_photo" | "refurbished_at" | "refurbished_by" | "refurbishment_grade" | "refurbishment_photos" | "refurbishment_videos" | "refurbishment_notes"> & { 
   package_photo?: string | null; 
   product_photo?: string | null;
   lpn_label_photo?: string | null;
@@ -42,6 +49,12 @@ export type InboundItemInsert = Omit<InboundItem, "id" | "created_at" | "package
   packaging_photo_6?: string | null;
   accessories_photo?: string | null;
   detail_photo?: string | null;
+  refurbished_at?: string | null;
+  refurbished_by?: string | null;
+  refurbishment_grade?: string | null;
+  refurbishment_photos?: string[] | null;
+  refurbishment_videos?: string[] | null;
+  refurbishment_notes?: string | null;
 };
 export type InboundItemUpdate = Partial<InboundItemInsert>;
 

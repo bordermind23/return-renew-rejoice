@@ -10,6 +10,7 @@ import Products from "./pages/Products";
 import Removals from "./pages/Removals";
 import InboundScan from "./pages/InboundScan";
 import InboundRecords from "./pages/InboundRecords";
+import InboundDiscrepancy from "./pages/InboundDiscrepancy";
 import InboundProcess from "./pages/InboundProcess";
 import Inventory from "./pages/Inventory";
 import Orders from "./pages/Orders";
@@ -78,6 +79,16 @@ const App = () => (
               <ProtectedRoute>
                 <MainLayout>
                   <InboundRecords />
+                </MainLayout>
+              </ProtectedRoute>
+            }
+          />
+          <Route
+            path="/inbound/discrepancy"
+            element={
+              <ProtectedRoute>
+                <MainLayout>
+                  <InboundDiscrepancy />
                 </MainLayout>
               </ProtectedRoute>
             }

@@ -18,6 +18,7 @@ import {
   FileWarning,
   ScanLine,
   History,
+  AlertTriangle,
 } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { Button } from "@/components/ui/button";
@@ -45,6 +46,7 @@ const navItems: NavItem[] = [
     children: [
       { to: "/inbound/scan", icon: ScanLine, label: "入库扫码" },
       { to: "/inbound/records", icon: History, label: "入库记录" },
+      { to: "/inbound/discrepancy", icon: AlertTriangle, label: "差异包裹" },
     ]
   },
   { to: "/inventory", icon: Warehouse, label: "库存管理" },

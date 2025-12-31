@@ -55,6 +55,7 @@ import { MobileInboundScanner } from "@/components/MobileInboundScanner";
 import { InboundBatchList } from "@/components/InboundBatchList";
 import { cn } from "@/lib/utils";
 import { useIsMobile } from "@/hooks/use-mobile";
+import { useSound } from "@/hooks/useSound";
 
 type InboundStep = "scan_tracking" | "scan_lpn" | "process";
 
@@ -92,6 +93,7 @@ export default function Inbound() {
   const updateShipmentMutation = useUpdateRemovalShipment();
   const updateInventoryMutation = useUpdateInventoryStock();
   const decreaseInventoryMutation = useDecreaseInventoryStock();
+  const { playSuccess, playError } = useSound();
 
   // 通过 SKU 找到对应产品并获取其配件（优先从 matchedOrders 获取 SKU）
   const currentOrderSku = matchedOrders.length > 0 && matchedOrders[0].product_sku
@@ -350,9 +352,14 @@ export default function Inbound() {
                 status: "inbound"
               });
             });
+            // 播放成功提示音（全部完成时播放两次表示完成）
+            playSuccess();
+            setTimeout(() => playSuccess(), 200);
             toast.success(`所有 ${totalQuantity} 件货物已全部入库！`);
             handleReset();
           } else {
+            // 播放成功提示音
+            playSuccess();
             toast.success(`入库成功！还剩 ${totalQuantity - totalInbounded} 件待入库`);
           }
           

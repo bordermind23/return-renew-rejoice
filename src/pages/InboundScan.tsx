@@ -1,4 +1,4 @@
-import { useState, useRef, useEffect } from "react";
+import { useState, useRef, useEffect, useMemo } from "react";
 import { useNavigate, useSearchParams } from "react-router-dom";
 import { ScanLine, Camera, Package, CheckCircle, Search, PackageCheck, AlertCircle, ChevronRight } from "lucide-react";
 import { Button } from "@/components/ui/button";
@@ -48,6 +48,14 @@ import { useSound } from "@/hooks/useSound";
 
 type InboundStep = "scan_tracking" | "scan_lpn" | "process";
 
+// localStorage key for pending inbound session
+const PENDING_INBOUND_KEY = "pending_inbound_session";
+
+interface PendingInboundSession {
+  trackingNumber: string;
+  timestamp: number;
+}
+
 export default function InboundScan() {
   const navigate = useNavigate();
   const [searchParams] = useSearchParams();
@@ -68,6 +76,8 @@ export default function InboundScan() {
   const [isPhotoCaptureOpen, setIsPhotoCaptureOpen] = useState(false);
   const [capturedPhotos, setCapturedPhotos] = useState<Record<string, string>>({});
   const [isForceCompleteDialogOpen, setIsForceCompleteDialogOpen] = useState(false);
+  const [isPendingSessionDialogOpen, setIsPendingSessionDialogOpen] = useState(false);
+  const [pendingSession, setPendingSession] = useState<PendingInboundSession | null>(null);
   
   const lpnInputRef = useRef<HTMLInputElement>(null);
   const trackingInputRef = useRef<HTMLInputElement>(null);
@@ -89,6 +99,87 @@ export default function InboundScan() {
     ? products?.find(p => p.sku === currentOrderSku)
     : null;
   const { data: productParts } = useProductParts(matchedProduct?.id || null);
+
+  // 获取当前物流号下已入库的产品列表
+  const currentTrackingInboundItems = useMemo(() => {
+    if (!inboundItems || !matchedShipment) return [];
+    return inboundItems.filter(item => item.tracking_number === matchedShipment.tracking_number);
+  }, [inboundItems, matchedShipment]);
+
+  // 检查是否有未完成的入库会话
+  useEffect(() => {
+    const savedSession = localStorage.getItem(PENDING_INBOUND_KEY);
+    if (savedSession && shipments) {
+      try {
+        const session = JSON.parse(savedSession) as PendingInboundSession;
+        // 检查会话是否在24小时内
+        const isRecent = Date.now() - session.timestamp < 24 * 60 * 60 * 1000;
+        
+        if (isRecent) {
+          // 检查该物流号是否还有未完成的入库
+          const allMatched = shipments.filter(
+            s => s.tracking_number === session.trackingNumber
+          );
+          
+          if (allMatched.length > 0) {
+            const totalQuantity = allMatched.reduce((sum, s) => sum + s.quantity, 0);
+            const inboundedCount = (inboundItems || []).filter(
+              item => item.tracking_number === session.trackingNumber
+            ).length;
+            
+            // 有入库记录但未完成
+            if (inboundedCount > 0 && inboundedCount < totalQuantity) {
+              setPendingSession(session);
+              setIsPendingSessionDialogOpen(true);
+              return;
+            }
+          }
+        }
+        // 清除过期或无效的会话
+        localStorage.removeItem(PENDING_INBOUND_KEY);
+      } catch {
+        localStorage.removeItem(PENDING_INBOUND_KEY);
+      }
+    }
+  }, [shipments, inboundItems]);
+
+  // 保存当前入库会话到localStorage
+  useEffect(() => {
+    if (matchedShipment && currentStep === "scan_lpn") {
+      const session: PendingInboundSession = {
+        trackingNumber: matchedShipment.tracking_number,
+        timestamp: Date.now(),
+      };
+      localStorage.setItem(PENDING_INBOUND_KEY, JSON.stringify(session));
+    }
+  }, [matchedShipment, currentStep]);
+
+  // 恢复未完成的会话
+  const handleRestoreSession = () => {
+    if (!pendingSession || !shipments) return;
+    
+    const allMatched = shipments.filter(
+      s => s.tracking_number === pendingSession.trackingNumber
+    );
+    
+    if (allMatched.length > 0) {
+      setMatchedShipment(allMatched[0]);
+      setMatchedShipments(allMatched);
+      setTrackingInput(pendingSession.trackingNumber);
+      setCurrentStep("scan_lpn");
+      toast.success("已恢复未完成的入库会话");
+    }
+    
+    setIsPendingSessionDialogOpen(false);
+  };
+
+  // 清除未完成的会话
+  const handleClearSession = () => {
+    localStorage.removeItem(PENDING_INBOUND_KEY);
+    setPendingSession(null);
+    setIsPendingSessionDialogOpen(false);
+    toast.info("已清除未完成的入库数据");
+  };
 
   useEffect(() => {
     if (currentStep === "scan_tracking" && trackingInputRef.current) {
@@ -411,6 +502,9 @@ export default function InboundScan() {
       });
     });
     
+    // 清除localStorage中的会话
+    localStorage.removeItem(PENDING_INBOUND_KEY);
+    
     playSuccess();
     toast.success(`已强制完成入库！实际入库 ${totalInbounded} 件，申报 ${totalQuantity} 件`);
     setIsForceCompleteDialogOpen(false);
@@ -434,6 +528,9 @@ export default function InboundScan() {
         status: "inbound",
       });
     });
+    
+    // 清除localStorage中的会话
+    localStorage.removeItem(PENDING_INBOUND_KEY);
     
     playSuccess();
     setTimeout(() => playSuccess(), 200);
@@ -699,6 +796,62 @@ export default function InboundScan() {
               )}
             </CardContent>
           </Card>
+
+          {/* 当前物流号已入库产品列表 */}
+          {currentTrackingInboundItems.length > 0 && (
+            <Card>
+              <CardHeader className="pb-3">
+                <CardTitle className="flex items-center gap-2 text-lg">
+                  <Package className="h-5 w-5 text-primary" />
+                  已入库产品列表 ({currentTrackingInboundItems.length} 件)
+                </CardTitle>
+                <CardDescription>
+                  当前物流跟踪号下已完成入库的产品
+                </CardDescription>
+              </CardHeader>
+              <CardContent>
+                <div className="space-y-2 max-h-[300px] overflow-y-auto">
+                  {currentTrackingInboundItems.map((item, index) => (
+                    <div 
+                      key={item.id} 
+                      className="flex items-center justify-between p-3 rounded-lg bg-muted/30 border"
+                    >
+                      <div className="flex items-center gap-3">
+                        <div className="h-8 w-8 rounded-full bg-green-100 dark:bg-green-900/30 flex items-center justify-center">
+                          <span className="text-sm font-medium text-green-600 dark:text-green-400">{index + 1}</span>
+                        </div>
+                        <div>
+                          <p className="text-sm font-medium">{item.product_name}</p>
+                          <div className="flex items-center gap-2 text-xs text-muted-foreground">
+                            <code className="bg-muted px-1 rounded">{item.lpn}</code>
+                            <span>•</span>
+                            <span>{item.product_sku}</span>
+                          </div>
+                        </div>
+                      </div>
+                      <div className="flex items-center gap-2">
+                        <Badge variant={
+                          item.grade === "A" ? "default" : 
+                          item.grade === "B" ? "secondary" : 
+                          "outline"
+                        }>
+                          {item.grade}级
+                        </Badge>
+                        {item.missing_parts && item.missing_parts.length > 0 && (
+                          <Badge variant="destructive" className="text-xs">
+                            缺配件
+                          </Badge>
+                        )}
+                        <span className="text-xs text-muted-foreground">
+                          {new Date(item.processed_at).toLocaleTimeString("zh-CN", { hour: "2-digit", minute: "2-digit" })}
+                        </span>
+                      </div>
+                    </div>
+                  ))}
+                </div>
+              </CardContent>
+            </Card>
+          )}
         </>
       )}
 
@@ -962,6 +1115,43 @@ export default function InboundScan() {
           onCancel={() => setIsPhotoCaptureOpen(false)}
         />
       )}
+
+      {/* 未完成入库会话恢复对话框 */}
+      <AlertDialog open={isPendingSessionDialogOpen} onOpenChange={setIsPendingSessionDialogOpen}>
+        <AlertDialogContent>
+          <AlertDialogHeader>
+            <AlertDialogTitle className="flex items-center gap-2">
+              <AlertCircle className="h-5 w-5 text-amber-500" />
+              发现未完成的入库
+            </AlertDialogTitle>
+            <AlertDialogDescription asChild>
+              <div className="space-y-3">
+                <p>检测到您有一个未完成的入库操作：</p>
+                <div className="rounded-lg bg-muted p-3 space-y-1">
+                  <p className="text-sm">
+                    <span className="text-muted-foreground">物流跟踪号：</span>
+                    <code className="ml-1 font-medium bg-background px-1.5 py-0.5 rounded">
+                      {pendingSession?.trackingNumber}
+                    </code>
+                  </p>
+                  <p className="text-sm text-muted-foreground">
+                    开始时间：{pendingSession && new Date(pendingSession.timestamp).toLocaleString("zh-CN")}
+                  </p>
+                </div>
+                <p className="text-sm">是否继续之前的入库操作？</p>
+              </div>
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+          <AlertDialogFooter className="gap-2 sm:gap-0">
+            <AlertDialogCancel onClick={handleClearSession} className="border-destructive text-destructive hover:bg-destructive/10">
+              清零重新开始
+            </AlertDialogCancel>
+            <AlertDialogAction onClick={handleRestoreSession} className="gradient-primary">
+              继续入库
+            </AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
     </div>
   );
 }

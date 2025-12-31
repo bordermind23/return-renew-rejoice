@@ -144,6 +144,13 @@ export default function Inbound() {
     return (inboundItems || []).filter(item => item.tracking_number === trackingNumber).length;
   };
 
+  // 获取某个SKU在该跟踪号下已入库的数量
+  const getInboundedCountBySku = (trackingNumber: string, sku: string) => {
+    return (inboundItems || []).filter(
+      item => item.tracking_number === trackingNumber && item.product_sku === sku
+    ).length;
+  };
+
   // 扫描物流跟踪号
   const handleScanTracking = () => {
     if (!trackingInput.trim()) {
@@ -544,15 +551,27 @@ export default function Inbound() {
                 <div className="mt-4 pt-4 border-t">
                   <p className="text-sm text-muted-foreground mb-2">包含产品：</p>
                   <div className="space-y-2">
-                    {matchedShipments.map((shipment, idx) => (
-                      <div key={idx} className="flex items-center justify-between text-sm bg-muted/30 rounded-md px-3 py-2">
-                        <div className="flex items-center gap-3">
-                          <code className="text-xs bg-muted px-1.5 py-0.5 rounded">{shipment.product_sku}</code>
-                          <span className="text-muted-foreground">{shipment.product_name}</span>
+                    {matchedShipments.map((shipment, idx) => {
+                      const inboundedForSku = getInboundedCountBySku(matchedShipment.tracking_number, shipment.product_sku);
+                      const isComplete = inboundedForSku >= shipment.quantity;
+                      return (
+                        <div key={idx} className={cn(
+                          "flex items-center justify-between text-sm rounded-md px-3 py-2",
+                          isComplete ? "bg-green-50 dark:bg-green-950/30" : "bg-muted/30"
+                        )}>
+                          <div className="flex items-center gap-3">
+                            <code className="text-xs bg-muted px-1.5 py-0.5 rounded">{shipment.product_sku}</code>
+                            <span className="text-muted-foreground">{shipment.product_name}</span>
+                          </div>
+                          <div className="flex items-center gap-2">
+                            {isComplete && <CheckCircle className="h-4 w-4 text-green-500" />}
+                            <Badge variant={isComplete ? "secondary" : "outline"}>
+                              已扫 {inboundedForSku} / 总 {shipment.quantity} 件
+                            </Badge>
+                          </div>
                         </div>
-                        <Badge variant="outline">{shipment.quantity} 件</Badge>
-                      </div>
-                    ))}
+                      );
+                    })}
                   </div>
                 </div>
               )}
@@ -562,11 +581,11 @@ export default function Inbound() {
                 <div className="flex items-center justify-between mb-2">
                   <span className="text-sm text-muted-foreground">入库进度</span>
                   <span className="text-sm font-medium">
-                    {getInboundedCount(matchedShipment.tracking_number) + scannedLpns.length} / {matchedShipments.reduce((sum, s) => sum + s.quantity, 0)}
+                    {getInboundedCount(matchedShipment.tracking_number)} / {matchedShipments.reduce((sum, s) => sum + s.quantity, 0)}
                   </span>
                 </div>
                 <Progress 
-                  value={((getInboundedCount(matchedShipment.tracking_number) + scannedLpns.length) / matchedShipments.reduce((sum, s) => sum + s.quantity, 0)) * 100} 
+                  value={(getInboundedCount(matchedShipment.tracking_number) / matchedShipments.reduce((sum, s) => sum + s.quantity, 0)) * 100} 
                 />
               </div>
             </CardContent>

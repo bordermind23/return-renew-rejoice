@@ -342,6 +342,13 @@ export default function Orders() {
       toast.error("请填写所有必填字段");
       return;
     }
+
+    const existingLpn = orders?.find(o => o.lpn === formData.lpn.trim());
+    if (existingLpn) {
+      toast.error(`LPN号 "${formData.lpn}" 已存在，不能重复添加`);
+      return;
+    }
+
     createMutation.mutate(
       { ...formData, removed_at: new Date().toISOString() },
       {

@@ -4,7 +4,6 @@ import { ScanLine, Camera, Package, CheckCircle, Search, PackageCheck, AlertCirc
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { PageHeader } from "@/components/ui/page-header";
-import { GradeBadge } from "@/components/ui/grade-badge";
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import {
@@ -62,10 +61,9 @@ export default function InboundScan() {
   const [currentLpn, setCurrentLpn] = useState("");
   
   const [isProcessDialogOpen, setIsProcessDialogOpen] = useState(false);
-  const [selectedGrade, setSelectedGrade] = useState<string>("");
   const [selectedMissingParts, setSelectedMissingParts] = useState<string[]>([]);
+  const [hasProductDamage, setHasProductDamage] = useState(false);
   const [notes, setNotes] = useState("");
-  const [returnReason, setReturnReason] = useState("");
   const [isPhotoCaptureOpen, setIsPhotoCaptureOpen] = useState(false);
   const [capturedPhotos, setCapturedPhotos] = useState<Record<string, string>>({});
   const [isForceCompleteDialogOpen, setIsForceCompleteDialogOpen] = useState(false);
@@ -279,13 +277,15 @@ export default function InboundScan() {
   };
 
   const handleProcessComplete = () => {
-    if (!selectedGrade) {
-      toast.error("请选择产品级别");
+    if (!matchedShipment) {
+      toast.error("货件信息丢失");
       return;
     }
 
-    if (!matchedShipment) {
-      toast.error("货件信息丢失");
+    // 如果有配件缺失或产品损坏，必须拍照
+    const needsPhoto = selectedMissingParts.length > 0 || hasProductDamage;
+    if (needsPhoto && Object.keys(capturedPhotos).length === 0) {
+      toast.error("配件缺失或产品损坏时必须拍照");
       return;
     }
 
@@ -307,8 +307,8 @@ export default function InboundScan() {
         removal_order_id: matchingShipmentBySku.order_id,
         product_sku: orderSku,
         product_name: orderProductName,
-        return_reason: returnReason || null,
-        grade: selectedGrade as "A" | "B" | "C" | "new",
+        return_reason: null,
+        grade: "A" as "A" | "B" | "C" | "new",
         missing_parts: missingPartsLabels.length > 0 ? missingPartsLabels : null,
         processed_at: new Date().toISOString(),
         processed_by: "操作员",
@@ -329,7 +329,7 @@ export default function InboundScan() {
           updateInventoryMutation.mutate({
             sku: orderSku,
             product_name: orderProductName,
-            grade: selectedGrade as "A" | "B" | "C",
+            grade: "A" as "A" | "B" | "C",
             quantity: returnQty,
           });
 
@@ -367,10 +367,9 @@ export default function InboundScan() {
   };
 
   const resetProcessForm = () => {
-    setSelectedGrade("");
     setSelectedMissingParts([]);
+    setHasProductDamage(false);
     setNotes("");
-    setReturnReason("");
     setCurrentLpn("");
     setCapturedPhotos({});
     setSkuMismatchWarning(null);
@@ -799,93 +798,6 @@ export default function InboundScan() {
                 </div>
               )}
 
-              {/* 退货理由 */}
-              <div className="space-y-2">
-                <Label htmlFor="return_reason" className="text-sm">退货理由</Label>
-                <Input
-                  id="return_reason"
-                  placeholder="输入退货理由（可选）"
-                  value={returnReason}
-                  onChange={(e) => setReturnReason(e.target.value)}
-                  className="h-9"
-                />
-              </div>
-
-              {/* 拍照上传 */}
-              <div className="space-y-2">
-                <Label className="text-sm">产品拍照 ({Object.keys(capturedPhotos).length}/9)</Label>
-                <Button
-                  type="button"
-                  variant="outline"
-                  className="w-full h-20 border-2 border-dashed"
-                  onClick={() => setIsPhotoCaptureOpen(true)}
-                >
-                  <div className="text-center">
-                    <Camera className="mx-auto h-6 w-6 text-muted-foreground" />
-                    <span className="mt-1 block text-sm text-muted-foreground">
-                      {Object.keys(capturedPhotos).length > 0 
-                        ? `已拍摄 ${Object.keys(capturedPhotos).length} 张，点击继续` 
-                        : "点击开始顺序拍照"}
-                    </span>
-                  </div>
-                </Button>
-                {Object.keys(capturedPhotos).length > 0 && (
-                  <div className="flex gap-2 overflow-x-auto pb-1">
-                    {Object.entries(capturedPhotos).map(([key, url]) => (
-                      <div key={key} className="flex-shrink-0 w-12 h-12 rounded overflow-hidden border">
-                        <img src={url} alt={key} className="w-full h-full object-cover" />
-                      </div>
-                    ))}
-                  </div>
-                )}
-              </div>
-
-              {/* 级别选择 */}
-              <div className="space-y-2">
-                <Label className="text-sm">设定产品级别 *</Label>
-                <div className="grid grid-cols-3 gap-3">
-                  <button
-                    type="button"
-                    onClick={() => setSelectedGrade("A")}
-                    className={cn(
-                      "flex flex-col items-center justify-center p-4 rounded-lg border-2 transition-all",
-                      selectedGrade === "A"
-                        ? "border-info bg-info/10 ring-2 ring-info/30"
-                        : "border-muted hover:border-info/50 hover:bg-info/5"
-                    )}
-                  >
-                    <GradeBadge grade="A" />
-                    <span className="mt-2 text-xs text-muted-foreground">轻微使用痕迹</span>
-                  </button>
-                  <button
-                    type="button"
-                    onClick={() => setSelectedGrade("B")}
-                    className={cn(
-                      "flex flex-col items-center justify-center p-4 rounded-lg border-2 transition-all",
-                      selectedGrade === "B"
-                        ? "border-warning bg-warning/10 ring-2 ring-warning/30"
-                        : "border-muted hover:border-warning/50 hover:bg-warning/5"
-                    )}
-                  >
-                    <GradeBadge grade="B" />
-                    <span className="mt-2 text-xs text-muted-foreground">明显使用痕迹</span>
-                  </button>
-                  <button
-                    type="button"
-                    onClick={() => setSelectedGrade("C")}
-                    className={cn(
-                      "flex flex-col items-center justify-center p-4 rounded-lg border-2 transition-all",
-                      selectedGrade === "C"
-                        ? "border-destructive bg-destructive/10 ring-2 ring-destructive/30"
-                        : "border-muted hover:border-destructive/50 hover:bg-destructive/5"
-                    )}
-                  >
-                    <GradeBadge grade="C" />
-                    <span className="mt-2 text-xs text-muted-foreground">功能外观问题</span>
-                  </button>
-                </div>
-              </div>
-
               {/* 缺少配件 */}
               <div className="space-y-2">
                 <Label className="text-sm">缺少配件 (可多选)</Label>
@@ -914,6 +826,67 @@ export default function InboundScan() {
                   <p className="text-sm text-muted-foreground p-3 rounded-lg bg-muted/50">
                     {matchedProduct ? "该产品暂无配件信息，请在产品管理中添加" : "未匹配到产品配件信息"}
                   </p>
+                )}
+              </div>
+
+              {/* 产品损坏选项 */}
+              <div className="space-y-2">
+                <Label className="text-sm">产品状态</Label>
+                <div className="flex items-center space-x-2 rounded-lg border p-3">
+                  <Checkbox
+                    id="product_damage"
+                    checked={hasProductDamage}
+                    onCheckedChange={(checked) => setHasProductDamage(!!checked)}
+                  />
+                  <label
+                    htmlFor="product_damage"
+                    className="text-sm font-medium leading-none cursor-pointer flex-1"
+                  >
+                    产品损坏
+                  </label>
+                </div>
+              </div>
+
+              {/* 拍照上传 - 配件缺失或产品损坏时必须拍照 */}
+              <div className="space-y-2">
+                <Label className="text-sm flex items-center gap-2">
+                  产品拍照 ({Object.keys(capturedPhotos).length}/9)
+                  {(selectedMissingParts.length > 0 || hasProductDamage) && (
+                    <Badge variant="destructive" className="text-xs">必填</Badge>
+                  )}
+                </Label>
+                <Button
+                  type="button"
+                  variant="outline"
+                  className={cn(
+                    "w-full h-20 border-2 border-dashed",
+                    (selectedMissingParts.length > 0 || hasProductDamage) && Object.keys(capturedPhotos).length === 0 && "border-destructive"
+                  )}
+                  onClick={() => setIsPhotoCaptureOpen(true)}
+                >
+                  <div className="text-center">
+                    <Camera className="mx-auto h-6 w-6 text-muted-foreground" />
+                    <span className="mt-1 block text-sm text-muted-foreground">
+                      {Object.keys(capturedPhotos).length > 0 
+                        ? `已拍摄 ${Object.keys(capturedPhotos).length} 张，点击继续` 
+                        : "点击开始顺序拍照"}
+                    </span>
+                  </div>
+                </Button>
+                {(selectedMissingParts.length > 0 || hasProductDamage) && Object.keys(capturedPhotos).length === 0 && (
+                  <p className="text-xs text-destructive flex items-center gap-1">
+                    <AlertCircle className="h-3 w-3" />
+                    配件缺失或产品损坏时必须拍照
+                  </p>
+                )}
+                {Object.keys(capturedPhotos).length > 0 && (
+                  <div className="flex gap-2 overflow-x-auto pb-1">
+                    {Object.entries(capturedPhotos).map(([key, url]) => (
+                      <div key={key} className="flex-shrink-0 w-12 h-12 rounded overflow-hidden border">
+                        <img src={url} alt={key} className="w-full h-full object-cover" />
+                      </div>
+                    ))}
+                  </div>
                 )}
               </div>
 

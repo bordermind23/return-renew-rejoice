@@ -1,4 +1,4 @@
-import { useState, useEffect } from "react";
+import { useState, useEffect, MouseEvent } from "react";
 import { NavLink, useLocation, useNavigate } from "react-router-dom";
 import {
   LayoutDashboard,
@@ -30,6 +30,26 @@ import { useCurrentUserRole } from "@/hooks/useUserManagement";
 import { useLanguage } from "@/i18n/LanguageContext";
 import LanguageSwitcher from "@/components/LanguageSwitcher";
 import { toast } from "sonner";
+
+// 检查并触发入库警告的导航函数
+const handleNavWithInboundCheck = (
+  e: MouseEvent<HTMLAnchorElement>,
+  targetPath: string,
+  currentPath: string
+) => {
+  // 如果目标路径和当前路径相同，不拦截
+  if (targetPath === currentPath) return;
+  
+  // 如果当前在入库扫码页面且有入库进行中
+  if (
+    currentPath === "/inbound/scan" &&
+    (window as any).__inboundInProgress &&
+    (window as any).__showInboundLeaveWarning
+  ) {
+    e.preventDefault();
+    (window as any).__showInboundLeaveWarning(targetPath);
+  }
+};
 
 type NavItem = {
   to: string;
@@ -132,7 +152,10 @@ function MobileSidebarContent({ onClose }: { onClose: () => void }) {
                       <NavLink
                         key={child.to}
                         to={child.to}
-                        onClick={onClose}
+                        onClick={(e) => {
+                          handleNavWithInboundCheck(e, child.to, location.pathname);
+                          if (!e.defaultPrevented) onClose();
+                        }}
                         className={cn(
                           "flex items-center gap-3 rounded-lg px-3 py-2 text-sm font-medium transition-all duration-200",
                           isActive
@@ -154,7 +177,10 @@ function MobileSidebarContent({ onClose }: { onClose: () => void }) {
             <NavLink
               key={item.to}
               to={item.to}
-              onClick={onClose}
+              onClick={(e) => {
+                handleNavWithInboundCheck(e, item.to, location.pathname);
+                if (!e.defaultPrevented) onClose();
+              }}
               className={cn(
                 "flex items-center gap-3 rounded-lg px-3 py-3 text-base font-medium transition-all duration-200",
                 isActive
@@ -267,6 +293,7 @@ function DesktopSidebar({ collapsed, setCollapsed }: { collapsed: boolean; setCo
                           <NavLink
                             key={child.to}
                             to={child.to}
+                            onClick={(e) => handleNavWithInboundCheck(e, child.to, location.pathname)}
                             className={cn(
                               "flex items-center gap-3 rounded-lg px-3 py-2 text-sm font-medium transition-all duration-200",
                               isActive
@@ -289,6 +316,7 @@ function DesktopSidebar({ collapsed, setCollapsed }: { collapsed: boolean; setCo
               <NavLink
                 key={item.to}
                 to={item.to}
+                onClick={(e) => handleNavWithInboundCheck(e, item.to, location.pathname)}
                 className={cn(
                   "flex items-center gap-3 rounded-lg px-3 py-2.5 text-sm font-medium transition-all duration-200",
                   isActive

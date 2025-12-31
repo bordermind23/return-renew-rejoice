@@ -90,7 +90,7 @@ export default function Removals() {
   const [isBulkEditOpen, setIsBulkEditOpen] = useState(false);
   const [bulkEditData, setBulkEditData] = useState<RemovalShipmentUpdate>({});
   const fileInputRef = useRef<HTMLInputElement>(null);
-  const [viewMode, setViewMode] = useState<"grouped" | "list">("grouped");
+  const [viewMode, setViewMode] = useState<"grouped" | "list">("list");
   
   const [importProgress, setImportProgress] = useState<ImportProgress>({
     isImporting: false,
@@ -970,8 +970,9 @@ export default function Removals() {
       </div>
 
       {/* 数据表格 */}
-      <Card>
+      <Card className="overflow-hidden">
         <ScrollArea className="w-full">
+          <div className="transition-all duration-300 ease-out">
           <Table>
             <TableHeader>
               <TableRow className="bg-muted/50 hover:bg-muted/50">
@@ -1349,6 +1350,7 @@ export default function Removals() {
               )}
             </TableBody>
           </Table>
+          </div>
           <ScrollBar orientation="horizontal" />
         </ScrollArea>
       </Card>

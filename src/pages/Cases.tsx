@@ -58,6 +58,7 @@ import {
 } from "@/hooks/useCases";
 import { useCaseTypes } from "@/hooks/useCaseTypes";
 import CaseTypeManager from "@/components/CaseTypeManager";
+import { useLanguage } from "@/i18n/LanguageContext";
 import { toast } from "sonner";
 import { format } from "date-fns";
 
@@ -79,12 +80,16 @@ export default function Cases() {
   const updateMutation = useUpdateCase();
   const deleteMutation = useDeleteCase();
   const createNoteMutation = useCreateCaseNote();
+  const { t } = useLanguage();
 
   // 构建类型标签映射
-  const typeLabels = caseTypes?.reduce((acc, t) => {
-    acc[t.code] = t.label;
+  const typeLabels = caseTypes?.reduce((acc, ct) => {
+    acc[ct.code] = ct.label;
     return acc;
   }, {} as Record<string, string>) || caseTypeLabels;
+
+  // 获取状态翻译
+  const getStatusLabel = (status: CaseStatus) => t.cases.statuses[status] || caseStatusLabels[status];
 
   const [formData, setFormData] = useState({
     case_type: 'lpn_missing' as CaseType,
@@ -223,16 +228,16 @@ export default function Cases() {
   return (
     <div className="space-y-6 animate-fade-in pb-6">
       <PageHeader
-        title="CASE管理"
-        description="管理亚马逊索赔案例，跟踪处理进度"
+        title={t.cases.title}
+        description={t.cases.description}
       />
 
       <Tabs defaultValue="cases" className="space-y-6">
         <TabsList>
-          <TabsTrigger value="cases">CASE列表</TabsTrigger>
+          <TabsTrigger value="cases">{t.cases.caseList}</TabsTrigger>
           <TabsTrigger value="types" className="gap-2">
             <Settings className="h-4 w-4" />
-            类型管理
+            {t.cases.typeManagement}
           </TabsTrigger>
         </TabsList>
 
@@ -241,7 +246,7 @@ export default function Cases() {
           <div className="flex justify-end">
             <Button onClick={() => setIsCreateOpen(true)} className="gradient-primary">
               <Plus className="mr-2 h-4 w-4" />
-              新建CASE
+              {t.cases.createCase}
             </Button>
           </div>
 
@@ -250,25 +255,25 @@ export default function Cases() {
         <Card>
           <CardContent className="pt-4">
             <div className="text-2xl font-bold">{stats.total}</div>
-            <p className="text-sm text-muted-foreground">总CASE数</p>
+            <p className="text-sm text-muted-foreground">{t.cases.totalCases}</p>
           </CardContent>
         </Card>
         <Card>
           <CardContent className="pt-4">
             <div className="text-2xl font-bold text-yellow-600">{stats.pending}</div>
-            <p className="text-sm text-muted-foreground">待处理</p>
+            <p className="text-sm text-muted-foreground">{t.cases.pending}</p>
           </CardContent>
         </Card>
         <Card>
           <CardContent className="pt-4">
             <div className="text-2xl font-bold text-blue-600">{stats.inProgress}</div>
-            <p className="text-sm text-muted-foreground">处理中</p>
+            <p className="text-sm text-muted-foreground">{t.cases.inProgress}</p>
           </CardContent>
         </Card>
         <Card>
           <CardContent className="pt-4">
             <div className="text-2xl font-bold text-green-600">${stats.totalApproved.toFixed(2)}</div>
-            <p className="text-sm text-muted-foreground">已批准金额</p>
+            <p className="text-sm text-muted-foreground">{t.cases.approvedAmount}</p>
           </CardContent>
         </Card>
       </div>
@@ -278,7 +283,7 @@ export default function Cases() {
         <div className="relative flex-1">
           <Search className="absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-muted-foreground" />
           <Input
-            placeholder="搜索CASE编号、标题、LPN..."
+            placeholder={`${t.common.search} ${t.cases.caseNumber}, ${t.common.title}, LPN...`}
             value={searchTerm}
             onChange={(e) => setSearchTerm(e.target.value)}
             className="pl-10"
@@ -287,10 +292,10 @@ export default function Cases() {
         <Select value={typeFilter} onValueChange={setTypeFilter}>
           <SelectTrigger className="w-full sm:w-40">
             <Filter className="mr-2 h-4 w-4" />
-            <SelectValue placeholder="类型筛选" />
+            <SelectValue placeholder={t.common.type} />
           </SelectTrigger>
           <SelectContent>
-            <SelectItem value="all">全部类型</SelectItem>
+            <SelectItem value="all">{t.common.all} {t.common.type}</SelectItem>
             {caseTypes?.map((type) => (
               <SelectItem key={type.code} value={type.code}>{type.label}</SelectItem>
             ))}
@@ -298,12 +303,12 @@ export default function Cases() {
         </Select>
         <Select value={statusFilter} onValueChange={setStatusFilter}>
           <SelectTrigger className="w-full sm:w-40">
-            <SelectValue placeholder="状态筛选" />
+            <SelectValue placeholder={t.common.status} />
           </SelectTrigger>
           <SelectContent>
-            <SelectItem value="all">全部状态</SelectItem>
+            <SelectItem value="all">{t.common.all} {t.common.status}</SelectItem>
             {caseStatuses.map((status) => (
-              <SelectItem key={status} value={status}>{caseStatusLabels[status]}</SelectItem>
+              <SelectItem key={status} value={status}>{getStatusLabel(status)}</SelectItem>
             ))}
           </SelectContent>
         </Select>
@@ -315,23 +320,23 @@ export default function Cases() {
           <Table>
             <TableHeader>
               <TableRow className="bg-muted/50">
-                <TableHead className="font-semibold min-w-[120px]">CASE编号</TableHead>
-                <TableHead className="font-semibold min-w-[100px]">类型</TableHead>
-                <TableHead className="font-semibold min-w-[80px]">状态</TableHead>
-                <TableHead className="font-semibold min-w-[200px]">标题</TableHead>
-                <TableHead className="font-semibold min-w-[100px]">LPN</TableHead>
-                <TableHead className="font-semibold min-w-[120px]">亚马逊CASE</TableHead>
-                <TableHead className="font-semibold min-w-[100px] text-right">索赔金额</TableHead>
-                <TableHead className="font-semibold min-w-[100px] text-right">批准金额</TableHead>
-                <TableHead className="font-semibold min-w-[120px]">创建时间</TableHead>
-                <TableHead className="font-semibold min-w-[100px] text-center">操作</TableHead>
+                <TableHead className="font-semibold min-w-[120px]">{t.cases.caseNumber}</TableHead>
+                <TableHead className="font-semibold min-w-[100px]">{t.common.type}</TableHead>
+                <TableHead className="font-semibold min-w-[80px]">{t.common.status}</TableHead>
+                <TableHead className="font-semibold min-w-[200px]">{t.common.title}</TableHead>
+                <TableHead className="font-semibold min-w-[100px]">{t.cases.lpn}</TableHead>
+                <TableHead className="font-semibold min-w-[120px]">{t.cases.amazonCaseId}</TableHead>
+                <TableHead className="font-semibold min-w-[100px] text-right">{t.cases.claimAmount}</TableHead>
+                <TableHead className="font-semibold min-w-[100px] text-right">{t.cases.approvedAmount}</TableHead>
+                <TableHead className="font-semibold min-w-[120px]">{t.common.createdAt}</TableHead>
+                <TableHead className="font-semibold min-w-[100px] text-center">{t.common.actions}</TableHead>
               </TableRow>
             </TableHeader>
             <TableBody>
               {filteredCases.length === 0 ? (
                 <TableRow>
                   <TableCell colSpan={10} className="h-32 text-center text-muted-foreground">
-                    暂无CASE记录
+                    {t.cases.noCases}
                   </TableCell>
                 </TableRow>
               ) : (

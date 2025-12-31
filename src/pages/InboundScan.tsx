@@ -42,6 +42,7 @@ import { Scanner } from "@/components/Scanner";
 import { SequentialPhotoCapture } from "@/components/SequentialPhotoCapture";
 import { MobileInboundScanner } from "@/components/MobileInboundScanner";
 import { TranslatedText } from "@/components/TranslatedText";
+import { VoiceInputButton } from "@/components/VoiceInputButton";
 import { cn } from "@/lib/utils";
 import { useIsMobile } from "@/hooks/use-mobile";
 import { useSound } from "@/hooks/useSound";
@@ -1108,7 +1109,12 @@ export default function InboundScan() {
 
               {/* 备注 */}
               <div className="space-y-2">
-                <Label htmlFor="notes" className="text-sm">备注</Label>
+                <div className="flex items-center justify-between">
+                  <Label htmlFor="notes" className="text-sm">备注</Label>
+                  <VoiceInputButton
+                    onTranscript={(text) => setNotes((prev) => prev ? `${prev} ${text}` : text)}
+                  />
+                </div>
                 <Textarea
                   id="notes"
                   placeholder="输入其他备注信息..."

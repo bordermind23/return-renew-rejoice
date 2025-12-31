@@ -1,9 +1,10 @@
 import React, { useState, useRef, useMemo } from "react";
-import { Search, Filter, Eye, Plus, Trash2, Upload, Download, FileSpreadsheet, ChevronDown, AlertCircle, CheckCircle2, Loader2, Edit, ChevronLeft, ChevronRight, ChevronsLeft, ChevronsRight, Camera, Pencil, ChevronUp } from "lucide-react";
+import { Search, Filter, Eye, Plus, Trash2, Upload, Download, FileSpreadsheet, ChevronDown, AlertCircle, CheckCircle2, Loader2, Edit, ChevronLeft, ChevronRight, ChevronsLeft, ChevronsRight, Camera, Pencil, ChevronUp, X } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { PageHeader } from "@/components/ui/page-header";
 import { Card, CardContent } from "@/components/ui/card";
+import { Badge } from "@/components/ui/badge";
 import { Progress } from "@/components/ui/progress";
 import {
   Select,
@@ -99,6 +100,8 @@ export default function Orders() {
   const [searchTerm, setSearchTerm] = useState("");
   const [debouncedSearch, setDebouncedSearch] = useState("");
   const [storeFilter, setStoreFilter] = useState<string>("all");
+  const [statusFilters, setStatusFilters] = useState<("未到货" | "到货" | "出库")[]>([]);
+  const [gradeFilter, setGradeFilter] = useState<string>("all");
   const [currentPage, setCurrentPage] = useState(1);
   const [pageSize, setPageSize] = useState(50);
   const [selectedOrder, setSelectedOrder] = useState<Order | null>(null);
@@ -147,7 +150,7 @@ export default function Orders() {
     grade: null,
   });
 
-  const { data: paginatedData, isLoading } = useOrdersPaginated(currentPage, pageSize, debouncedSearch, storeFilter);
+  const { data: paginatedData, isLoading } = useOrdersPaginated(currentPage, pageSize, { searchTerm: debouncedSearch, storeFilter, statusFilters, gradeFilter });
   const { data: stores = [] } = useOrderStores();
   const { data: inboundItems } = useInboundItems();
   const updateOrderMutation = useUpdateOrder();
@@ -274,6 +277,36 @@ export default function Orders() {
     setStoreFilter(value);
     setCurrentPage(1);
   };
+
+  // 状态筛选变化时重置页码
+  const handleStatusFilterChange = (status: "未到货" | "到货" | "出库") => {
+    setStatusFilters(prev => {
+      if (prev.includes(status)) {
+        return prev.filter(s => s !== status);
+      } else {
+        return [...prev, status];
+      }
+    });
+    setCurrentPage(1);
+  };
+
+  // 等级筛选变化时重置页码
+  const handleGradeFilterChange = (value: string) => {
+    setGradeFilter(value);
+    setCurrentPage(1);
+  };
+
+  // 清除所有筛选
+  const clearAllFilters = () => {
+    setSearchTerm("");
+    setDebouncedSearch("");
+    setStoreFilter("all");
+    setStatusFilters([]);
+    setGradeFilter("all");
+    setCurrentPage(1);
+  };
+
+  const hasActiveFilters = debouncedSearch || storeFilter !== "all" || statusFilters.length > 0 || gradeFilter !== "all";
 
   const resetForm = () => {
     setFormData({
@@ -798,34 +831,98 @@ export default function Orders() {
       )}
 
       {/* 筛选 */}
-      <div className="flex flex-col gap-4 sm:flex-row sm:items-center">
-        <div className="relative flex-1">
-          <Search className="absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-muted-foreground" />
-          <Input placeholder="搜索订单号、LPN或店铺名称..." value={searchTerm} onChange={(e) => handleSearchChange(e.target.value)} className="pl-10" />
+      <div className="flex flex-col gap-4">
+        <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:flex-wrap">
+          {/* 搜索框 */}
+          <div className="relative flex-1 min-w-[200px]">
+            <Search className="absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-muted-foreground" />
+            <Input placeholder="搜索订单号、LPN、产品名称..." value={searchTerm} onChange={(e) => handleSearchChange(e.target.value)} className="pl-10" />
+          </div>
+          
+          {/* 状态筛选 - 多选 */}
+          <DropdownMenu>
+            <DropdownMenuTrigger asChild>
+              <Button variant="outline" className="h-10 min-w-[120px]">
+                <Filter className="mr-2 h-4 w-4" />
+                状态
+                {statusFilters.length > 0 && (
+                  <Badge variant="secondary" className="ml-2 px-1.5 py-0">{statusFilters.length}</Badge>
+                )}
+              </Button>
+            </DropdownMenuTrigger>
+            <DropdownMenuContent align="start" className="w-40 bg-popover">
+              {(["未到货", "到货", "出库"] as const).map((status) => (
+                <DropdownMenuItem 
+                  key={status} 
+                  onClick={(e) => {
+                    e.preventDefault();
+                    handleStatusFilterChange(status);
+                  }}
+                  className="flex items-center gap-2"
+                >
+                  <Checkbox 
+                    checked={statusFilters.includes(status)} 
+                    className="pointer-events-none"
+                  />
+                  <OrderStatusBadge status={status} />
+                </DropdownMenuItem>
+              ))}
+            </DropdownMenuContent>
+          </DropdownMenu>
+          
+          {/* 等级筛选 */}
+          <Select value={gradeFilter} onValueChange={handleGradeFilterChange}>
+            <SelectTrigger className="w-[120px]">
+              <SelectValue placeholder="全部等级" />
+            </SelectTrigger>
+            <SelectContent>
+              <SelectItem value="all">全部等级</SelectItem>
+              <SelectItem value="A">A级</SelectItem>
+              <SelectItem value="B">B级</SelectItem>
+              <SelectItem value="C">C级</SelectItem>
+            </SelectContent>
+          </Select>
+          
+          {/* 店铺筛选 */}
+          <Select value={storeFilter} onValueChange={handleStoreFilterChange}>
+            <SelectTrigger className="w-full sm:w-48">
+              <SelectValue placeholder="全部店铺" />
+            </SelectTrigger>
+            <SelectContent>
+              <SelectItem value="all">全部店铺</SelectItem>
+              {stores.map((store) => (
+                <SelectItem key={store} value={store}>{store}</SelectItem>
+              ))}
+            </SelectContent>
+          </Select>
+          
+          {/* 清除筛选 */}
+          {hasActiveFilters && (
+            <Button variant="ghost" size="sm" onClick={clearAllFilters} className="h-10">
+              <X className="h-4 w-4 mr-1" />
+              清除筛选
+            </Button>
+          )}
+          
+          {/* 展开/折叠全部分组 */}
+          {hasGroups && (
+            <Button
+              variant="outline"
+              size="sm"
+              className="h-10"
+              onClick={toggleAllGroups}
+            >
+              {expandedGroups.size === groupedOrders.length ? <ChevronUp className="h-4 w-4 mr-1" /> : <ChevronDown className="h-4 w-4 mr-1" />}
+              <span className="hidden sm:inline">{expandedGroups.size === groupedOrders.length ? "折叠全部" : "展开全部"}</span>
+            </Button>
+          )}
         </div>
-        <Select value={storeFilter} onValueChange={handleStoreFilterChange}>
-          <SelectTrigger className="w-full sm:w-48">
-            <Filter className="mr-2 h-4 w-4" />
-            <SelectValue placeholder="店铺筛选" />
-          </SelectTrigger>
-          <SelectContent>
-            <SelectItem value="all">全部店铺</SelectItem>
-            {stores.map((store) => (
-              <SelectItem key={store} value={store}>{store}</SelectItem>
-            ))}
-          </SelectContent>
-        </Select>
-        {/* 展开/折叠全部分组（仅当有分组时显示） */}
-        {hasGroups && (
-          <Button
-            variant="outline"
-            size="sm"
-            className="h-10"
-            onClick={toggleAllGroups}
-          >
-            {expandedGroups.size === groupedOrders.length ? <ChevronUp className="h-4 w-4 mr-1" /> : <ChevronDown className="h-4 w-4 mr-1" />}
-            <span className="hidden sm:inline">{expandedGroups.size === groupedOrders.length ? "折叠全部" : "展开全部"}</span>
-          </Button>
+        
+        {/* 筛选结果统计 */}
+        {hasActiveFilters && (
+          <div className="text-sm text-muted-foreground">
+            筛选结果: {totalCount} 条记录
+          </div>
         )}
       </div>
 

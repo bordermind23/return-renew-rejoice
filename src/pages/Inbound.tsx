@@ -93,7 +93,7 @@ export default function Inbound() {
   const updateShipmentMutation = useUpdateRemovalShipment();
   const updateInventoryMutation = useUpdateInventoryStock();
   const decreaseInventoryMutation = useDecreaseInventoryStock();
-  const { playSuccess, playError } = useSound();
+  const { playSuccess, playError, playWarning } = useSound();
 
   // 通过 SKU 找到对应产品并获取其配件（优先从 matchedOrders 获取 SKU）
   const currentOrderSku = matchedOrders.length > 0 && matchedOrders[0].product_sku
@@ -156,6 +156,7 @@ export default function Inbound() {
   // 扫描物流跟踪号
   const handleScanTracking = () => {
     if (!trackingInput.trim()) {
+      playError();
       toast.error("请输入物流跟踪号");
       return;
     }
@@ -166,6 +167,7 @@ export default function Inbound() {
     ) || [];
 
     if (allMatched.length === 0) {
+      playError();
       toast.error(`未找到物流跟踪号: ${trackingInput}`);
       return;
     }
@@ -173,6 +175,7 @@ export default function Inbound() {
     const totalQuantity = allMatched.reduce((sum, s) => sum + s.quantity, 0);
     const inboundedCount = getInboundedCount(allMatched[0].tracking_number);
     if (inboundedCount >= totalQuantity) {
+      playWarning();
       toast.warning(`该物流号下的 ${totalQuantity} 件货物已全部入库`);
       return;
     }
@@ -183,6 +186,7 @@ export default function Inbound() {
     setCurrentStep("scan_lpn");
     
     // 显示匹配到的所有产品
+    playSuccess();
     const productNames = [...new Set(allMatched.map(s => s.product_name))];
     toast.success(`匹配成功: ${allMatched.length} 种产品 (${productNames.slice(0, 2).join(", ")}${productNames.length > 2 ? "..." : ""})`);
   };
@@ -200,6 +204,7 @@ export default function Inbound() {
     const lpn = (lpnValue || lpnInput).trim();
 
     if (!lpn) {
+      playError();
       toast.error("请输入LPN号");
       return;
     }
@@ -207,6 +212,7 @@ export default function Inbound() {
     // 检查LPN是否存在于退货订单列表（直接按LPN查询，避免 orders 1000 行上限）
     const lpnOrders = await getOrdersByLpn(lpn);
     if (lpnOrders.length === 0) {
+      playError();
       toast.error(`LPN号 "${lpn}" 不存在于退货订单列表中，请先在退货订单列表中添加该LPN`);
       setLpnInput("");
       return;
@@ -214,6 +220,7 @@ export default function Inbound() {
 
     // 检查是否已扫描过
     if (scannedLpns.includes(lpn)) {
+      playWarning();
       toast.error("该LPN已扫描过");
       setLpnInput("");
       return;
@@ -222,6 +229,7 @@ export default function Inbound() {
     // 检查是否已存在于入库记录
     const existingItem = inboundItems?.find(item => item.lpn === lpn);
     if (existingItem) {
+      playWarning();
       toast.error("该LPN已入库");
       setLpnInput("");
       return;
@@ -251,6 +259,7 @@ export default function Inbound() {
     ) || [];
 
     if (allMatched.length === 0) {
+      playError();
       toast.error(`未找到物流跟踪号: ${code}`);
       return;
     }
@@ -258,6 +267,7 @@ export default function Inbound() {
     const totalQuantity = allMatched.reduce((sum, s) => sum + s.quantity, 0);
     const inboundedCount = getInboundedCount(allMatched[0].tracking_number);
     if (inboundedCount >= totalQuantity) {
+      playWarning();
       toast.warning(`该物流号下的 ${totalQuantity} 件货物已全部入库`);
       return;
     }
@@ -267,6 +277,7 @@ export default function Inbound() {
     setScannedLpns([]);
     setCurrentStep("scan_lpn");
     
+    playSuccess();
     const productNames = [...new Set(allMatched.map(s => s.product_name))];
     toast.success(`匹配成功: ${allMatched.length} 种产品 (${productNames.slice(0, 2).join(", ")}${productNames.length > 2 ? "..." : ""})`);
   };

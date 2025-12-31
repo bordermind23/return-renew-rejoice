@@ -156,10 +156,14 @@ export function useCreateProductPart() {
 export function useUpdateProductPart() {
   const queryClient = useQueryClient();
   return useMutation({
-    mutationFn: async ({ id, productId, quantity }: { id: string; productId: string; quantity: number }) => {
+    mutationFn: async ({ id, productId, quantity, image }: { id: string; productId: string; quantity?: number; image?: string | null }) => {
+      const updates: { quantity?: number; image?: string | null } = {};
+      if (quantity !== undefined) updates.quantity = quantity;
+      if (image !== undefined) updates.image = image;
+      
       const { data, error } = await supabase
         .from("product_parts")
-        .update({ quantity })
+        .update(updates)
         .eq("id", id)
         .select()
         .single();

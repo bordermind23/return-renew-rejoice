@@ -1,5 +1,5 @@
 import { useState, useRef } from "react";
-import { Search, Plus, Trash2, Edit, Package, Puzzle, Upload, X, Tags, FolderPlus } from "lucide-react";
+import { Search, Plus, Trash2, Edit, Package, Puzzle, Upload, X, Tags, FolderPlus, ImageIcon } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { PageHeader } from "@/components/ui/page-header";
@@ -321,6 +321,58 @@ export default function Products() {
       });
     } catch (error) {
       toast.error("更新数量失败");
+    }
+  };
+
+  const handlePartImageUpload = async (partId: string, file: File) => {
+    if (!selectedProductId) return;
+    if (!file.type.startsWith("image/")) {
+      toast.error("请上传图片文件");
+      return;
+    }
+    if (file.size > 5 * 1024 * 1024) {
+      toast.error("图片大小不能超过5MB");
+      return;
+    }
+
+    try {
+      const fileExt = file.name.split(".").pop();
+      const fileName = `${Date.now()}-${Math.random().toString(36).substring(2)}.${fileExt}`;
+      const filePath = `parts/${fileName}`;
+
+      const { error } = await supabase.storage
+        .from("product-images")
+        .upload(filePath, file);
+
+      if (error) throw error;
+
+      const { data: urlData } = supabase.storage
+        .from("product-images")
+        .getPublicUrl(filePath);
+
+      await updatePartMutation.mutateAsync({
+        id: partId,
+        productId: selectedProductId,
+        image: urlData.publicUrl,
+      });
+      toast.success("配件图片上传成功");
+    } catch (error) {
+      console.error("Upload error:", error);
+      toast.error("图片上传失败");
+    }
+  };
+
+  const handleRemovePartImage = async (partId: string) => {
+    if (!selectedProductId) return;
+    try {
+      await updatePartMutation.mutateAsync({
+        id: partId,
+        productId: selectedProductId,
+        image: null,
+      });
+      toast.success("配件图片已移除");
+    } catch (error) {
+      toast.error("移除图片失败");
     }
   };
 
@@ -694,7 +746,7 @@ export default function Products() {
                 <Plus className="h-4 w-4" />
               </Button>
             </div>
-            <div className="space-y-2 max-h-60 overflow-y-auto">
+            <div className="space-y-2 max-h-80 overflow-y-auto">
               {parts?.length === 0 ? (
                 <p className="text-muted-foreground text-center py-4">
                   暂无配件
@@ -703,10 +755,49 @@ export default function Products() {
                 parts?.map((part) => (
                   <div
                     key={part.id}
-                    className="flex items-center justify-between p-3 bg-muted rounded-lg"
+                    className="flex items-center gap-3 p-3 bg-muted rounded-lg"
                   >
-                    <span className="flex-1">{part.name}</span>
-                    <div className="flex items-center gap-2">
+                    {/* 配件图片 */}
+                    <div className="relative group">
+                      <div className="h-12 w-12 rounded-lg bg-background overflow-hidden flex items-center justify-center border">
+                        {part.image ? (
+                          <img
+                            src={part.image}
+                            alt={part.name}
+                            className="h-full w-full object-cover"
+                          />
+                        ) : (
+                          <ImageIcon className="h-5 w-5 text-muted-foreground" />
+                        )}
+                      </div>
+                      <div className="absolute inset-0 flex items-center justify-center bg-black/50 opacity-0 group-hover:opacity-100 transition-opacity rounded-lg">
+                        <label className="cursor-pointer p-1">
+                          <Upload className="h-4 w-4 text-white" />
+                          <input
+                            type="file"
+                            accept="image/*"
+                            className="hidden"
+                            onChange={(e) => {
+                              const file = e.target.files?.[0];
+                              if (file) handlePartImageUpload(part.id, file);
+                              e.target.value = "";
+                            }}
+                          />
+                        </label>
+                        {part.image && (
+                          <button
+                            onClick={() => handleRemovePartImage(part.id)}
+                            className="p-1 ml-1"
+                          >
+                            <X className="h-4 w-4 text-white" />
+                          </button>
+                        )}
+                      </div>
+                    </div>
+                    {/* 配件名称 */}
+                    <span className="flex-1 min-w-0 truncate">{part.name}</span>
+                    {/* 数量和删除 */}
+                    <div className="flex items-center gap-2 flex-shrink-0">
                       <span className="text-sm text-muted-foreground">数量:</span>
                       <Input
                         type="number"

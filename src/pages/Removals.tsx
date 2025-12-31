@@ -1051,13 +1051,12 @@ export default function Removals() {
                           <div className="flex justify-center gap-1">
                             {isDuplicate && !item.duplicate_confirmed && (
                               <Button
-                                size="icon"
                                 variant="ghost"
-                                className="h-8 w-8 text-amber-600 hover:text-amber-700 hover:bg-amber-100"
+                                size="sm"
+                                className="h-8 px-2 text-xs text-amber-600 hover:text-amber-700 hover:bg-amber-100"
                                 onClick={() => handleConfirmDuplicate(item.id)}
-                                title="确认重复正常"
                               >
-                                <Copy className="h-4 w-4" />
+                                确认重复
                               </Button>
                             )}
                             <Button
@@ -1126,13 +1125,12 @@ export default function Removals() {
                             <div className="flex justify-center gap-1">
                               {isDuplicate && !item.duplicate_confirmed && (
                                 <Button
-                                  size="icon"
                                   variant="ghost"
-                                  className="h-8 w-8 text-amber-600 hover:text-amber-700 hover:bg-amber-100"
+                                  size="sm"
+                                  className="h-8 px-2 text-xs text-amber-600 hover:text-amber-700 hover:bg-amber-100"
                                   onClick={() => handleConfirmDuplicate(item.id)}
-                                  title="确认重复正常"
                                 >
-                                  <Copy className="h-4 w-4" />
+                                  确认重复
                                 </Button>
                               )}
                               <Button
@@ -1269,13 +1267,12 @@ export default function Removals() {
                                       <div className="flex justify-center gap-1">
                                         {isDuplicate && !item.duplicate_confirmed && (
                                           <Button
-                                            size="icon"
                                             variant="ghost"
-                                            className="h-7 w-7 text-amber-600 hover:text-amber-700 hover:bg-amber-100"
+                                            size="sm"
+                                            className="h-7 px-2 text-xs text-amber-600 hover:text-amber-700 hover:bg-amber-100"
                                             onClick={() => handleConfirmDuplicate(item.id)}
-                                            title="确认重复正常"
                                           >
-                                            <Copy className="h-3.5 w-3.5" />
+                                            确认重复
                                           </Button>
                                         )}
                                         <Button

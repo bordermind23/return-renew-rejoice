@@ -87,10 +87,15 @@ export default {
           from: { height: "var(--radix-accordion-content-height)" },
           to: { height: "0" },
         },
+        "soundwave": {
+          "0%, 100%": { height: "4px" },
+          "50%": { height: "16px" },
+        },
       },
       animation: {
         "accordion-down": "accordion-down 0.2s ease-out",
         "accordion-up": "accordion-up 0.2s ease-out",
+        "soundwave": "soundwave 0.5s ease-in-out infinite",
       },
     },
   },

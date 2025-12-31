@@ -146,19 +146,28 @@ export const useDeleteInboundItem = () => {
 
       if (deleteError) throw deleteError;
 
-      // 更新对应订单状态：将 inbound_at 设为 null，状态回退到 "未到货"
+      // 仅当该 LPN 已不存在任何入库记录时，才回退订单状态
       if (lpn) {
-        const { error: updateError } = await supabase
-          .from("orders")
-          .update({ 
-            inbound_at: null,
-            status: "未到货" as const
-          })
+        const { count: remainingCount, error: remainingError } = await supabase
+          .from("inbound_items")
+          .select("*", { count: "exact", head: true })
           .eq("lpn", lpn);
 
-        if (updateError) {
-          console.error("更新订单状态失败:", updateError);
-          // 不抛出错误，因为入库记录已经删除成功
+        if (remainingError) throw remainingError;
+
+        if ((remainingCount || 0) === 0) {
+          const { error: updateError } = await supabase
+            .from("orders")
+            .update({
+              inbound_at: null,
+              status: "未到货" as const,
+            })
+            .eq("lpn", lpn);
+
+          if (updateError) {
+            console.error("更新订单状态失败:", updateError);
+            // 不抛出错误，因为入库记录已经删除成功
+          }
         }
       }
 
@@ -166,8 +175,8 @@ export const useDeleteInboundItem = () => {
     },
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ["inbound_items"] });
-      queryClient.invalidateQueries({ queryKey: ["orders"] });
-      toast.success("入库记录已删除，订单状态已更新");
+      queryClient.invalidateQueries({ queryKey: ["orders"], exact: false });
+      toast.success("入库记录已删除");
     },
     onError: (error) => {
       toast.error("删除失败: " + error.message);

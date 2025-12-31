@@ -1002,7 +1002,7 @@ export default function Removals() {
                 <TableHead className="font-semibold min-w-[140px]">移除订单号</TableHead>
                 <TableHead className="font-semibold min-w-[160px]">跟踪号</TableHead>
                 <TableHead className="font-semibold min-w-[100px]">承运商</TableHead>
-                <TableHead className="font-semibold min-w-[100px]">店铺</TableHead>
+                <TableHead className="font-semibold min-w-[70px]">店铺</TableHead>
                 <TableHead className="font-semibold min-w-[120px]">产品SKU</TableHead>
                 <TableHead className="font-semibold min-w-[150px]">产品名称</TableHead>
                 <TableHead className="font-semibold min-w-[80px] text-center">数量</TableHead>

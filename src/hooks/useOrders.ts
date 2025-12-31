@@ -313,3 +313,106 @@ export const useBulkCreateOrders = () => {
     },
   });
 };
+
+// 同步"待同步"的入库记录和订单
+export const useSyncPendingRecords = () => {
+  const queryClient = useQueryClient();
+
+  return useMutation({
+    mutationFn: async (importedOrders: Order[]) => {
+      // 获取所有"待同步"的入库记录
+      const { data: pendingInboundItems, error: fetchError } = await supabase
+        .from("inbound_items")
+        .select("*")
+        .eq("product_sku", "待同步");
+
+      if (fetchError) throw fetchError;
+      if (!pendingInboundItems || pendingInboundItems.length === 0) {
+        return { syncedInbound: 0, syncedOrders: 0 };
+      }
+
+      // 获取所有"待同步"的订单
+      const { data: pendingOrders, error: orderFetchError } = await supabase
+        .from("orders")
+        .select("*")
+        .eq("removal_order_id", "无入库信息");
+
+      if (orderFetchError) throw orderFetchError;
+
+      let syncedInbound = 0;
+      let syncedOrders = 0;
+
+      // 遍历待同步的入库记录，查找匹配的导入订单
+      for (const inboundItem of pendingInboundItems) {
+        // 在导入的订单中查找匹配的LPN
+        const matchedOrder = importedOrders.find(
+          o => o.lpn.toLowerCase() === inboundItem.lpn.toLowerCase()
+        );
+
+        if (matchedOrder) {
+          // 更新入库记录的产品信息
+          const { error: updateError } = await supabase
+            .from("inbound_items")
+            .update({
+              product_sku: matchedOrder.product_sku || "待同步",
+              product_name: matchedOrder.product_name || "待同步",
+              removal_order_id: matchedOrder.removal_order_id || matchedOrder.order_number || "无入库信息",
+              return_reason: matchedOrder.return_reason,
+              refurbishment_notes: inboundItem.refurbishment_notes?.replace("[无入库信息翻新]", "[已同步]") || "[已同步]",
+            })
+            .eq("id", inboundItem.id);
+
+          if (!updateError) {
+            syncedInbound++;
+          }
+
+          // 查找并更新对应的"待同步"订单记录
+          const matchingPendingOrder = pendingOrders?.find(
+            o => o.lpn.toLowerCase() === inboundItem.lpn.toLowerCase()
+          );
+
+          if (matchingPendingOrder) {
+            const { error: orderUpdateError } = await supabase
+              .from("orders")
+              .update({
+                product_sku: matchedOrder.product_sku,
+                product_name: matchedOrder.product_name,
+                removal_order_id: matchedOrder.removal_order_id || matchedOrder.order_number,
+                order_number: matchedOrder.order_number,
+                store_name: matchedOrder.store_name,
+                station: matchedOrder.station || "已同步",
+                country: matchedOrder.country,
+                return_reason: matchedOrder.return_reason,
+                msku: matchedOrder.msku,
+                asin: matchedOrder.asin,
+                fnsku: matchedOrder.fnsku,
+                buyer_note: matchedOrder.buyer_note,
+                inventory_attribute: matchedOrder.inventory_attribute,
+                return_quantity: matchedOrder.return_quantity,
+                warehouse_location: matchedOrder.warehouse_location,
+                return_time: matchedOrder.return_time,
+                order_time: matchedOrder.order_time,
+              })
+              .eq("id", matchingPendingOrder.id);
+
+            if (!orderUpdateError) {
+              syncedOrders++;
+            }
+          }
+        }
+      }
+
+      return { syncedInbound, syncedOrders };
+    },
+    onSuccess: ({ syncedInbound, syncedOrders }) => {
+      queryClient.invalidateQueries({ queryKey: ["inbound_items"] });
+      queryClient.invalidateQueries({ queryKey: ["orders"] });
+      if (syncedInbound > 0 || syncedOrders > 0) {
+        toast.success(`已同步 ${syncedInbound} 条入库记录，${syncedOrders} 条订单记录`);
+      }
+    },
+    onError: (error) => {
+      console.error("同步失败:", error);
+    },
+  });
+};

@@ -91,6 +91,7 @@ export default function Removals() {
   const [bulkEditData, setBulkEditData] = useState<RemovalShipmentUpdate>({});
   const fileInputRef = useRef<HTMLInputElement>(null);
   const [viewMode, setViewMode] = useState<"grouped" | "list">("list");
+  const [duplicateFilter, setDuplicateFilter] = useState<"all" | "duplicate" | "unconfirmed">("all");
   
   const [importProgress, setImportProgress] = useState<ImportProgress>({
     isImporting: false,
@@ -215,7 +216,13 @@ export default function Removals() {
     const matchesStatus =
       statusFilter === "all" || item.status === statusFilter;
 
-    return matchesSearch && matchesStatus;
+    const isDuplicate = duplicateInfo.has(item.id);
+    const matchesDuplicate = 
+      duplicateFilter === "all" || 
+      (duplicateFilter === "duplicate" && isDuplicate) ||
+      (duplicateFilter === "unconfirmed" && isDuplicate && !item.duplicate_confirmed);
+
+    return matchesSearch && matchesStatus && matchesDuplicate;
   });
 
   // 按移除订单号 + 跟踪号分组
@@ -944,6 +951,18 @@ export default function Removals() {
             <SelectItem value="arrived">到货</SelectItem>
             <SelectItem value="inbound">入库</SelectItem>
             <SelectItem value="shelved">上架</SelectItem>
+          </SelectContent>
+        </Select>
+        {/* 重复筛选 */}
+        <Select value={duplicateFilter} onValueChange={(v) => setDuplicateFilter(v as any)}>
+          <SelectTrigger className="w-full sm:w-40">
+            <Copy className="mr-2 h-4 w-4" />
+            <SelectValue placeholder="重复筛选" />
+          </SelectTrigger>
+          <SelectContent>
+            <SelectItem value="all">全部记录</SelectItem>
+            <SelectItem value="duplicate">仅重复</SelectItem>
+            <SelectItem value="unconfirmed">未确认重复</SelectItem>
           </SelectContent>
         </Select>
         {/* 视图切换 */}

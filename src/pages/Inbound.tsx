@@ -80,6 +80,7 @@ export default function Inbound() {
   const [returnReason, setReturnReason] = useState("");
   const [isPhotoCaptureOpen, setIsPhotoCaptureOpen] = useState(false);
   const [capturedPhotos, setCapturedPhotos] = useState<Record<string, string>>({});
+  const [isForceCompleteDialogOpen, setIsForceCompleteDialogOpen] = useState(false);
   
   const lpnInputRef = useRef<HTMLInputElement>(null);
   const trackingInputRef = useRef<HTMLInputElement>(null);
@@ -200,6 +201,15 @@ export default function Inbound() {
   };
 
 
+  // 状态：SKU不匹配警告
+  const [skuMismatchWarning, setSkuMismatchWarning] = useState<{
+    lpnSku: string;
+    shipmentSkus: string[];
+  } | null>(null);
+
+  // 状态：超出申报数量警告
+  const [overQuantityWarning, setOverQuantityWarning] = useState(false);
+
   // 扫描 LPN (支持手动输入和摄像头扫码)
   const handleScanLpn = async (lpnValue?: string) => {
     const lpn = (lpnValue || lpnInput).trim();
@@ -234,6 +244,34 @@ export default function Inbound() {
       toast.error("该LPN已入库");
       setLpnInput("");
       return;
+    }
+
+    // 获取LPN的产品SKU
+    const lpnSku = lpnOrders[0].product_sku;
+    
+    // 检查SKU是否匹配：LPN的SKU需要存在于跟踪号的货件列表中
+    const shipmentSkus = matchedShipments.map(s => s.product_sku);
+    const isSkuMatched = !lpnSku || shipmentSkus.includes(lpnSku);
+    
+    if (!isSkuMatched) {
+      setSkuMismatchWarning({
+        lpnSku: lpnSku || "未知",
+        shipmentSkus: shipmentSkus,
+      });
+    } else {
+      setSkuMismatchWarning(null);
+    }
+
+    // 检查是否超出申报数量
+    const totalQuantity = matchedShipments.reduce((sum, s) => sum + s.quantity, 0);
+    const currentInbounded = getInboundedCount(matchedShipment?.tracking_number || "");
+    const willExceed = currentInbounded + 1 > totalQuantity;
+    
+    if (willExceed) {
+      setOverQuantityWarning(true);
+      playWarning();
+    } else {
+      setOverQuantityWarning(false);
     }
 
     // 手机端跳转到新页面处理
@@ -402,6 +440,8 @@ export default function Inbound() {
     setReturnReason("");
     setCurrentLpn("");
     setCapturedPhotos({});
+    setSkuMismatchWarning(null);
+    setOverQuantityWarning(false);
   };
 
   const handleReset = () => {
@@ -411,6 +451,8 @@ export default function Inbound() {
     setScannedLpns([]);
     setTrackingInput("");
     setLpnInput("");
+    setSkuMismatchWarning(null);
+    setOverQuantityWarning(false);
     resetProcessForm();
   };
 
@@ -455,6 +497,28 @@ export default function Inbound() {
         onSuccess: () => setDeleteId(null),
       });
     }
+  };
+
+  // 强制完成入库（少于申报数量时使用）
+  const handleForceComplete = () => {
+    if (!matchedShipment || !matchedShipments.length) return;
+    
+    const totalInbounded = getInboundedCount(matchedShipment.tracking_number);
+    const totalQuantity = matchedShipments.reduce((sum, s) => sum + s.quantity, 0);
+    
+    // 更新所有相关货件状态为已入库
+    matchedShipments.forEach(shipment => {
+      updateShipmentMutation.mutate({
+        id: shipment.id,
+        status: "inbound",
+        note: `强制完成入库：实际入库 ${totalInbounded} 件，申报 ${totalQuantity} 件，差异 ${totalQuantity - totalInbounded} 件`,
+      });
+    });
+    
+    playSuccess();
+    toast.success(`已强制完成入库！实际入库 ${totalInbounded} 件，申报 ${totalQuantity} 件`);
+    setIsForceCompleteDialogOpen(false);
+    handleReset();
   };
 
   const isLoading = inboundLoading || shipmentsLoading || ordersLoading;
@@ -614,6 +678,32 @@ export default function Inbound() {
                 <Progress 
                   value={(getInboundedCount(matchedShipment.tracking_number) / matchedShipments.reduce((sum, s) => sum + s.quantity, 0)) * 100} 
                 />
+                
+                {/* 强制完成按钮 - 当已有入库但少于申报数量时显示 */}
+                {getInboundedCount(matchedShipment.tracking_number) > 0 && 
+                 getInboundedCount(matchedShipment.tracking_number) < matchedShipments.reduce((sum, s) => sum + s.quantity, 0) && (
+                  <div className="mt-3 p-3 rounded-lg bg-amber-50 dark:bg-amber-950/30 border border-amber-200 dark:border-amber-700">
+                    <div className="flex items-center justify-between gap-4">
+                      <div className="flex items-start gap-2">
+                        <AlertCircle className="h-4 w-4 text-amber-600 dark:text-amber-400 flex-shrink-0 mt-0.5" />
+                        <div className="text-sm">
+                          <p className="font-medium text-amber-800 dark:text-amber-200">入库数量少于申报数量</p>
+                          <p className="text-xs text-amber-600 dark:text-amber-400">
+                            差异: {matchedShipments.reduce((sum, s) => sum + s.quantity, 0) - getInboundedCount(matchedShipment.tracking_number)} 件
+                          </p>
+                        </div>
+                      </div>
+                      <Button 
+                        variant="outline" 
+                        size="sm"
+                        className="border-amber-300 text-amber-700 hover:bg-amber-100 dark:border-amber-600 dark:text-amber-300 dark:hover:bg-amber-900/50"
+                        onClick={() => setIsForceCompleteDialogOpen(true)}
+                      >
+                        强制完成
+                      </Button>
+                    </div>
+                  </div>
+                )}
               </div>
             </CardContent>
           </Card>
@@ -677,6 +767,52 @@ export default function Inbound() {
           </DialogHeader>
           <ScrollArea className="flex-1 -mx-6 px-6">
             <div className="grid gap-4 py-4">
+              {/* SKU不匹配警告 */}
+              {skuMismatchWarning && (
+                <div className="rounded-lg bg-amber-50 dark:bg-amber-950/30 p-4 border border-amber-300 dark:border-amber-700">
+                  <div className="flex items-start gap-3">
+                    <AlertCircle className="h-5 w-5 text-amber-600 dark:text-amber-400 flex-shrink-0 mt-0.5" />
+                    <div>
+                      <h4 className="font-semibold text-amber-800 dark:text-amber-200">
+                        ⚠️ SKU不匹配警告
+                      </h4>
+                      <p className="text-sm text-amber-700 dark:text-amber-300 mt-1">
+                        LPN产品SKU: <span className="font-mono font-bold">{skuMismatchWarning.lpnSku}</span>
+                      </p>
+                      <p className="text-sm text-amber-700 dark:text-amber-300">
+                        物流单申报SKU: <span className="font-mono">{skuMismatchWarning.shipmentSkus.join(", ")}</span>
+                      </p>
+                      <p className="text-xs text-amber-600 dark:text-amber-400 mt-2">
+                        请确认此LPN是否属于当前物流单，或联系管理员处理
+                      </p>
+                    </div>
+                  </div>
+                </div>
+              )}
+
+              {/* 超出申报数量警告 */}
+              {overQuantityWarning && (
+                <div className="rounded-lg bg-red-50 dark:bg-red-950/30 p-4 border border-red-300 dark:border-red-700">
+                  <div className="flex items-start gap-3">
+                    <AlertCircle className="h-5 w-5 text-red-600 dark:text-red-400 flex-shrink-0 mt-0.5" />
+                    <div>
+                      <h4 className="font-semibold text-red-800 dark:text-red-200">
+                        ⚠️ 超出申报数量
+                      </h4>
+                      <p className="text-sm text-red-700 dark:text-red-300 mt-1">
+                        物流单申报数量: {matchedShipments.reduce((sum, s) => sum + s.quantity, 0)} 件
+                      </p>
+                      <p className="text-sm text-red-700 dark:text-red-300">
+                        已入库数量: {getInboundedCount(matchedShipment?.tracking_number || "")} 件
+                      </p>
+                      <p className="text-xs text-red-600 dark:text-red-400 mt-2">
+                        本次入库将超出申报数量，请核实后继续操作
+                      </p>
+                    </div>
+                  </div>
+                </div>
+              )}
+
               {/* 退货订单信息 - 显示所有匹配的订单 */}
               {matchedOrders.length > 0 && (
                 <div className="rounded-lg bg-blue-50 dark:bg-blue-950/30 p-4 border border-blue-200 dark:border-blue-800">
@@ -896,6 +1032,37 @@ export default function Inbound() {
               className="bg-destructive text-destructive-foreground"
             >
               删除
+            </AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
+
+      {/* 强制完成确认对话框 */}
+      <AlertDialog open={isForceCompleteDialogOpen} onOpenChange={setIsForceCompleteDialogOpen}>
+        <AlertDialogContent>
+          <AlertDialogHeader>
+            <AlertDialogTitle>确认强制完成入库</AlertDialogTitle>
+            <AlertDialogDescription asChild>
+              <div className="space-y-2">
+                <p>当前入库数量少于物流单申报数量：</p>
+                <ul className="list-disc list-inside text-sm space-y-1">
+                  <li>申报数量: {matchedShipments.reduce((sum, s) => sum + s.quantity, 0)} 件</li>
+                  <li>已入库数量: {getInboundedCount(matchedShipment?.tracking_number || "")} 件</li>
+                  <li className="text-amber-600 dark:text-amber-400">
+                    差异: {matchedShipments.reduce((sum, s) => sum + s.quantity, 0) - getInboundedCount(matchedShipment?.tracking_number || "")} 件
+                  </li>
+                </ul>
+                <p className="text-sm pt-2">确认强制完成后，此物流单将标记为已完成入库，差异信息将记录在备注中。</p>
+              </div>
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+          <AlertDialogFooter>
+            <AlertDialogCancel>取消</AlertDialogCancel>
+            <AlertDialogAction
+              onClick={handleForceComplete}
+              className="bg-amber-600 text-white hover:bg-amber-700"
+            >
+              确认强制完成
             </AlertDialogAction>
           </AlertDialogFooter>
         </AlertDialogContent>

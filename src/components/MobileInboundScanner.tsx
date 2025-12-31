@@ -1,14 +1,27 @@
-import { useState, useEffect, useCallback } from "react";
-import { useNavigate } from "react-router-dom";
-import { ScanLine, Package, CheckCircle, X, ArrowRight, Truck, ChevronRight } from "lucide-react";
+import { useState, useEffect } from "react";
+import { ScanLine, Package, CheckCircle, X, ArrowRight, Truck, AlertCircle, Camera, PackageCheck } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Badge } from "@/components/ui/badge";
 import { Progress } from "@/components/ui/progress";
+import { Label } from "@/components/ui/label";
+import { Checkbox } from "@/components/ui/checkbox";
+import { ScrollArea } from "@/components/ui/scroll-area";
 import { Scanner } from "@/components/Scanner";
-import { useRemovalShipments, type RemovalShipment } from "@/hooks/useRemovalShipments";
-import { useInboundItems } from "@/hooks/useInboundItems";
+import { NativePhotoCapture } from "@/components/NativePhotoCapture";
+import {
+  Drawer,
+  DrawerContent,
+  DrawerHeader,
+  DrawerTitle,
+  DrawerFooter,
+} from "@/components/ui/drawer";
+import { useRemovalShipments, useUpdateRemovalShipment, type RemovalShipment } from "@/hooks/useRemovalShipments";
+import { useInboundItems, useCreateInboundItem } from "@/hooks/useInboundItems";
+import { useUpdateInventoryStock } from "@/hooks/useInventoryItems";
+import { useProducts, useProductParts } from "@/hooks/useProducts";
 import { fetchOrdersByLpn } from "@/hooks/useOrdersByLpn";
+import { type Order, useUpdateOrder } from "@/hooks/useOrders";
 import { toast } from "sonner";
 import { cn } from "@/lib/utils";
 
@@ -23,13 +36,8 @@ const vibrate = (pattern: number | number[]) => {
   }
 };
 
-// 成功振动 - 短促两次
 const vibrateSuccess = () => vibrate([50, 50, 50]);
-
-// 失败振动 - 长振动一次
 const vibrateError = () => vibrate(200);
-
-// 警告振动 - 中等振动两次
 const vibrateWarning = () => vibrate([100, 50, 100]);
 
 type ScanStep = "idle" | "scan_tracking" | "scan_lpn";
@@ -39,32 +47,65 @@ interface MobileInboundScannerProps {
 }
 
 export function MobileInboundScanner({ initialTracking }: MobileInboundScannerProps) {
-  const navigate = useNavigate();
   const [step, setStep] = useState<ScanStep>("idle");
   const [trackingInput, setTrackingInput] = useState("");
   const [lpnInput, setLpnInput] = useState("");
   const [matchedShipment, setMatchedShipment] = useState<RemovalShipment | null>(null);
+  const [matchedShipments, setMatchedShipments] = useState<RemovalShipment[]>([]);
   const [scannedLpns, setScannedLpns] = useState<string[]>([]);
+
+  // 处理对话框状态
+  const [isProcessDrawerOpen, setIsProcessDrawerOpen] = useState(false);
+  const [currentLpn, setCurrentLpn] = useState("");
+  const [matchedOrders, setMatchedOrders] = useState<Order[]>([]);
+  const [selectedMissingParts, setSelectedMissingParts] = useState<string[]>([]);
+  const [hasProductDamage, setHasProductDamage] = useState(false);
+  const [isPhotoCaptureOpen, setIsPhotoCaptureOpen] = useState(false);
+  const [capturedPhotos, setCapturedPhotos] = useState<Record<string, string>>({});
+  const [skuMismatchWarning, setSkuMismatchWarning] = useState<{ lpnSku: string; shipmentSkus: string[] } | null>(null);
+  const [overQuantityWarning, setOverQuantityWarning] = useState(false);
+  const [isForceCompleteOpen, setIsForceCompleteOpen] = useState(false);
 
   const { data: shipments } = useRemovalShipments();
   const { data: inboundItems } = useInboundItems();
+  const { data: products } = useProducts();
+  const createMutation = useCreateInboundItem();
+  const updateShipmentMutation = useUpdateRemovalShipment();
+  const updateInventoryMutation = useUpdateInventoryStock();
+  const updateOrderMutation = useUpdateOrder();
+
+  const currentOrderSku = matchedOrders.length > 0 && matchedOrders[0].product_sku
+    ? matchedOrders[0].product_sku
+    : matchedShipment?.product_sku;
+  const matchedProduct = currentOrderSku
+    ? products?.find(p => p.sku === currentOrderSku)
+    : null;
+  const { data: productParts } = useProductParts(matchedProduct?.id || null);
 
   // 获取该物流号已入库的LPN数量
   const getInboundedCount = (trackingNumber: string) => {
     return (inboundItems || []).filter(item => item.tracking_number === trackingNumber).length;
   };
 
+  const getInboundedCountBySku = (trackingNumber: string, sku: string) => {
+    return (inboundItems || []).filter(
+      item => item.tracking_number === trackingNumber && item.product_sku === sku
+    ).length;
+  };
+
   // 初始化时如果有传入的物流号，自动进入扫描LPN步骤
   useEffect(() => {
     if (initialTracking && shipments) {
-      const found = shipments.find(
+      const allMatched = shipments.filter(
         s => s.tracking_number.toLowerCase() === initialTracking.toLowerCase()
       );
-      if (found) {
-        const inboundedCount = getInboundedCount(found.tracking_number);
-        if (inboundedCount < found.quantity) {
-          setMatchedShipment(found);
-          setTrackingInput(found.tracking_number);
+      if (allMatched.length > 0) {
+        const totalQuantity = allMatched.reduce((sum, s) => sum + s.quantity, 0);
+        const inboundedCount = getInboundedCount(allMatched[0].tracking_number);
+        if (inboundedCount < totalQuantity) {
+          setMatchedShipment(allMatched[0]);
+          setMatchedShipments(allMatched);
+          setTrackingInput(allMatched[0].tracking_number);
           setStep("scan_lpn");
         }
       }
@@ -81,29 +122,32 @@ export function MobileInboundScanner({ initialTracking }: MobileInboundScannerPr
     const trackingCode = code.trim();
     if (!trackingCode) return;
 
-    const found = shipments?.find(
+    const allMatched = shipments?.filter(
       s => s.tracking_number.toLowerCase() === trackingCode.toLowerCase()
-    );
+    ) || [];
 
-    if (!found) {
+    if (allMatched.length === 0) {
       vibrateError();
       toast.error(`未找到物流跟踪号: ${trackingCode}`);
       return;
     }
 
-    const inboundedCount = getInboundedCount(found.tracking_number);
-    if (inboundedCount >= found.quantity) {
+    const totalQuantity = allMatched.reduce((sum, s) => sum + s.quantity, 0);
+    const inboundedCount = getInboundedCount(allMatched[0].tracking_number);
+    if (inboundedCount >= totalQuantity) {
       vibrateWarning();
-      toast.warning(`该物流号下的 ${found.quantity} 件货物已全部入库`);
+      toast.warning(`该物流号下的 ${totalQuantity} 件货物已全部入库`);
       return;
     }
 
     vibrateSuccess();
-    setMatchedShipment(found);
+    setMatchedShipment(allMatched[0]);
+    setMatchedShipments(allMatched);
     setTrackingInput(trackingCode);
     setScannedLpns([]);
     setStep("scan_lpn");
-    toast.success(`匹配成功: ${found.product_name}`);
+    const productNames = [...new Set(allMatched.map(s => s.product_name))];
+    toast.success(`匹配成功: ${allMatched.length} 种产品`);
   };
 
   // 处理LPN扫描
@@ -116,6 +160,7 @@ export function MobileInboundScanner({ initialTracking }: MobileInboundScannerPr
     if (lpnOrders.length === 0) {
       vibrateError();
       toast.error(`LPN号 "${lpn}" 不存在于退货订单列表中`);
+      setLpnInput("");
       return;
     }
 
@@ -123,6 +168,7 @@ export function MobileInboundScanner({ initialTracking }: MobileInboundScannerPr
     if (scannedLpns.includes(lpn)) {
       vibrateWarning();
       toast.error("该LPN已扫描过");
+      setLpnInput("");
       return;
     }
 
@@ -131,41 +177,219 @@ export function MobileInboundScanner({ initialTracking }: MobileInboundScannerPr
     if (existingItem) {
       vibrateWarning();
       toast.error("该LPN已入库");
+      setLpnInput("");
       return;
     }
 
-    // 成功振动并跳转到入库处理页面
-    vibrateSuccess();
-    if (matchedShipment) {
-      navigate(`/inbound/process?lpn=${encodeURIComponent(lpn)}&tracking=${encodeURIComponent(matchedShipment.tracking_number)}`);
+    // SKU匹配检查
+    const lpnSku = lpnOrders[0].product_sku;
+    const shipmentSkus = matchedShipments.map(s => s.product_sku);
+    const isSkuMatched = !lpnSku || shipmentSkus.includes(lpnSku);
+    
+    if (!isSkuMatched) {
+      setSkuMismatchWarning({
+        lpnSku: lpnSku || "未知",
+        shipmentSkus: shipmentSkus,
+      });
+    } else {
+      setSkuMismatchWarning(null);
     }
+
+    // 数量检查
+    const totalQuantity = matchedShipments.reduce((sum, s) => sum + s.quantity, 0);
+    const currentInbounded = getInboundedCount(matchedShipment?.tracking_number || "");
+    const willExceed = currentInbounded + 1 > totalQuantity;
+    
+    if (willExceed) {
+      setOverQuantityWarning(true);
+      vibrateWarning();
+    } else {
+      setOverQuantityWarning(false);
+    }
+
+    // 成功振动并打开处理抽屉
+    vibrateSuccess();
+    setCurrentLpn(lpn);
+    setMatchedOrders(lpnOrders);
+    setIsProcessDrawerOpen(true);
+    setLpnInput("");
+  };
+
+  // 处理入库完成
+  const handleProcessComplete = () => {
+    if (!matchedShipment) {
+      toast.error("货件信息丢失");
+      return;
+    }
+
+    // 如果有配件缺失或产品损坏，必须拍照
+    const needsPhoto = selectedMissingParts.length > 0 || hasProductDamage;
+    if (needsPhoto && Object.keys(capturedPhotos).length === 0) {
+      toast.error("配件缺失或产品损坏时必须拍照");
+      return;
+    }
+
+    const orderSku = matchedOrders.length > 0 && matchedOrders[0].product_sku 
+      ? matchedOrders[0].product_sku 
+      : matchedShipment.product_sku;
+    const orderProductName = matchedOrders.length > 0 && matchedOrders[0].product_name 
+      ? matchedOrders[0].product_name 
+      : matchedShipment.product_name;
+    const returnQty = matchedOrders.length > 0 ? (matchedOrders[0].return_quantity || 1) : 1;
+
+    const matchingShipmentBySku = matchedShipments.find(s => s.product_sku === orderSku) || matchedShipment;
+
+    createMutation.mutate(
+      {
+        lpn: currentLpn,
+        removal_order_id: matchingShipmentBySku.order_id,
+        product_sku: orderSku,
+        product_name: orderProductName,
+        return_reason: null,
+        grade: "A" as "A" | "B" | "C" | "new",
+        missing_parts: selectedMissingParts.length > 0 ? selectedMissingParts : null,
+        processed_at: new Date().toISOString(),
+        processed_by: "操作员",
+        tracking_number: matchedShipment.tracking_number,
+        shipment_id: matchingShipmentBySku.id,
+        lpn_label_photo: capturedPhotos.lpn_label_photo || null,
+        packaging_photo_1: capturedPhotos.packaging_photo_1 || null,
+        packaging_photo_2: capturedPhotos.packaging_photo_2 || null,
+        packaging_photo_3: capturedPhotos.packaging_photo_3 || null,
+        packaging_photo_4: capturedPhotos.packaging_photo_4 || null,
+        packaging_photo_5: capturedPhotos.packaging_photo_5 || null,
+        packaging_photo_6: capturedPhotos.packaging_photo_6 || null,
+        accessories_photo: capturedPhotos.accessories_photo || null,
+        detail_photo: capturedPhotos.detail_photo || null,
+      },
+      {
+        onSuccess: () => {
+          updateInventoryMutation.mutate({
+            sku: orderSku,
+            product_name: orderProductName,
+            grade: "A" as "A" | "B" | "C",
+            quantity: returnQty,
+          });
+
+          matchedOrders.forEach(order => {
+            updateOrderMutation.mutate({
+              id: order.id,
+              inbound_at: new Date().toISOString(),
+            });
+          });
+
+          const newScannedLpns = [...scannedLpns, currentLpn];
+          setScannedLpns(newScannedLpns);
+          
+          const totalInbounded = getInboundedCount(matchedShipment.tracking_number) + 1;
+          const totalQuantity = matchedShipments.reduce((sum, s) => sum + s.quantity, 0);
+          
+          if (totalInbounded >= totalQuantity) {
+            vibrateSuccess();
+            setTimeout(() => vibrateSuccess(), 200);
+            toast.success(`所有 ${totalQuantity} 件货物已扫描完成！`);
+          } else {
+            vibrateSuccess();
+            toast.success(`入库成功！还剩 ${totalQuantity - totalInbounded} 件待入库`);
+          }
+          
+          setIsProcessDrawerOpen(false);
+          resetProcessForm();
+        },
+      }
+    );
+  };
+
+  const resetProcessForm = () => {
+    setSelectedMissingParts([]);
+    setHasProductDamage(false);
+    setCurrentLpn("");
+    setCapturedPhotos({});
+    setSkuMismatchWarning(null);
+    setOverQuantityWarning(false);
+    setMatchedOrders([]);
   };
 
   // 重置
   const handleReset = () => {
     setStep("idle");
     setMatchedShipment(null);
+    setMatchedShipments([]);
     setTrackingInput("");
     setLpnInput("");
     setScannedLpns([]);
+    resetProcessForm();
   };
 
   // 关闭当前步骤
   const handleClose = () => {
     if (step === "scan_lpn" && matchedShipment) {
-      // 如果在扫描LPN阶段，保留货件信息返回待命状态
       setStep("idle");
     } else {
       handleReset();
     }
   };
 
+  const toggleMissingPart = (partName: string) => {
+    setSelectedMissingParts((prev) =>
+      prev.includes(partName)
+        ? prev.filter((name) => name !== partName)
+        : [...prev, partName]
+    );
+  };
+
+  // 强制完成入库
+  const handleForceComplete = () => {
+    if (!matchedShipment || !matchedShipments.length) return;
+    
+    const totalInbounded = getInboundedCount(matchedShipment.tracking_number);
+    const totalQuantity = matchedShipments.reduce((sum, s) => sum + s.quantity, 0);
+    
+    matchedShipments.forEach(shipment => {
+      updateShipmentMutation.mutate({
+        id: shipment.id,
+        status: "inbound",
+        note: `强制完成入库：实际入库 ${totalInbounded} 件，申报 ${totalQuantity} 件，差异 ${totalQuantity - totalInbounded} 件`,
+      });
+    });
+    
+    vibrateSuccess();
+    toast.success(`已强制完成入库！实际入库 ${totalInbounded} 件，申报 ${totalQuantity} 件`);
+    setIsForceCompleteOpen(false);
+    handleReset();
+  };
+
+  // 完成包裹
+  const handleCompletePackage = () => {
+    if (!matchedShipment || !matchedShipments.length) return;
+    
+    const totalInbounded = getInboundedCount(matchedShipment.tracking_number);
+    const totalQuantity = matchedShipments.reduce((sum, s) => sum + s.quantity, 0);
+    
+    if (totalInbounded < totalQuantity) {
+      toast.error(`还有 ${totalQuantity - totalInbounded} 件未扫描`);
+      return;
+    }
+    
+    matchedShipments.forEach(shipment => {
+      updateShipmentMutation.mutate({
+        id: shipment.id,
+        status: "inbound",
+      });
+    });
+    
+    vibrateSuccess();
+    setTimeout(() => vibrateSuccess(), 200);
+    toast.success(`包裹入库完成！共 ${totalInbounded} 件货物`);
+    handleReset();
+  };
+
   // 空闲状态 - 显示浮动按钮
   if (step === "idle") {
     const hasActiveShipment = matchedShipment !== null;
-    const remainingCount = matchedShipment 
-      ? matchedShipment.quantity - getInboundedCount(matchedShipment.tracking_number)
-      : 0;
+    const inboundedCount = matchedShipment ? getInboundedCount(matchedShipment.tracking_number) : 0;
+    const totalQuantity = matchedShipments.reduce((sum, s) => sum + s.quantity, 0);
+    const remainingCount = totalQuantity - inboundedCount;
 
     return (
       <div className="min-h-[calc(100vh-120px)] flex flex-col items-center justify-center p-6 bg-gradient-to-b from-background to-muted/30">
@@ -187,16 +411,33 @@ export function MobileInboundScanner({ initialTracking }: MobileInboundScannerPr
             <p className="text-sm text-muted-foreground mb-4 font-mono">{matchedShipment.tracking_number}</p>
             <div className="flex items-center justify-between text-sm mb-2">
               <span className="text-muted-foreground">入库进度</span>
-              <span className="font-semibold text-primary">{getInboundedCount(matchedShipment.tracking_number)} / {matchedShipment.quantity}</span>
+              <span className="font-semibold text-primary">{inboundedCount} / {totalQuantity}</span>
             </div>
             <Progress 
-              value={(getInboundedCount(matchedShipment.tracking_number) / matchedShipment.quantity) * 100}
+              value={(inboundedCount / totalQuantity) * 100}
               className="h-2"
             />
+            
+            {/* 完成/强制完成按钮 */}
+            {inboundedCount > 0 && (
+              <div className="mt-4 pt-4 border-t space-y-2">
+                {inboundedCount >= totalQuantity ? (
+                  <Button onClick={handleCompletePackage} className="w-full bg-green-600 hover:bg-green-700">
+                    <PackageCheck className="mr-2 h-4 w-4" />
+                    完成包裹
+                  </Button>
+                ) : (
+                  <Button variant="outline" onClick={() => setIsForceCompleteOpen(true)} className="w-full border-amber-300 text-amber-700">
+                    <AlertCircle className="mr-2 h-4 w-4" />
+                    强制完成 (差 {remainingCount} 件)
+                  </Button>
+                )}
+              </div>
+            )}
           </div>
         )}
 
-        {/* 中央浮动扫描按钮 - 方形设计 */}
+        {/* 中央浮动扫描按钮 */}
         <div className="relative">
           <div className="absolute inset-0 bg-primary/15 rounded-2xl blur-xl pointer-events-none" />
           <Button
@@ -233,6 +474,32 @@ export function MobileInboundScanner({ initialTracking }: MobileInboundScannerPr
             </div>
           </div>
         </div>
+
+        {/* 强制完成确认抽屉 */}
+        <Drawer open={isForceCompleteOpen} onOpenChange={setIsForceCompleteOpen}>
+          <DrawerContent>
+            <DrawerHeader>
+              <DrawerTitle className="flex items-center gap-2 text-amber-600">
+                <AlertCircle className="h-5 w-5" />
+                确认强制完成
+              </DrawerTitle>
+            </DrawerHeader>
+            <div className="px-4 pb-4">
+              <p className="text-sm text-muted-foreground mb-4">
+                物流单申报 {totalQuantity} 件，实际入库 {inboundedCount} 件，差异 {remainingCount} 件。
+                确定要强制完成入库吗？
+              </p>
+            </div>
+            <DrawerFooter className="flex-row gap-3">
+              <Button variant="outline" onClick={() => setIsForceCompleteOpen(false)} className="flex-1">
+                取消
+              </Button>
+              <Button onClick={handleForceComplete} className="flex-1 bg-amber-600 hover:bg-amber-700">
+                确认强制完成
+              </Button>
+            </DrawerFooter>
+          </DrawerContent>
+        </Drawer>
       </div>
     );
   }
@@ -262,7 +529,7 @@ export function MobileInboundScanner({ initialTracking }: MobileInboundScannerPr
             </div>
           </div>
 
-          {/* 扫描按钮 - 方形设计 */}
+          {/* 扫描按钮 */}
           <div className="mb-8 relative">
             <div className="absolute inset-0 bg-primary/15 rounded-2xl blur-xl pointer-events-none" />
             <Scanner 
@@ -308,7 +575,8 @@ export function MobileInboundScanner({ initialTracking }: MobileInboundScannerPr
   // 扫描LPN步骤
   if (step === "scan_lpn" && matchedShipment) {
     const inboundedCount = getInboundedCount(matchedShipment.tracking_number);
-    const remainingCount = matchedShipment.quantity - inboundedCount;
+    const totalQuantity = matchedShipments.reduce((sum, s) => sum + s.quantity, 0);
+    const remainingCount = totalQuantity - inboundedCount;
 
     return (
       <div className="fixed inset-0 z-50 bg-gradient-to-b from-background to-muted/30 pt-[env(safe-area-inset-top,0px)]">
@@ -343,11 +611,28 @@ export function MobileInboundScanner({ initialTracking }: MobileInboundScannerPr
                 <p className="font-semibold truncate">{matchedShipment.product_name}</p>
                 <p className="text-sm text-muted-foreground mt-1 font-mono">{matchedShipment.tracking_number}</p>
                 <div className="flex items-center gap-3 mt-3">
-                  <Progress value={(inboundedCount / matchedShipment.quantity) * 100} className="h-2 flex-1" />
-                  <span className="text-sm font-semibold text-primary">{inboundedCount}/{matchedShipment.quantity}</span>
+                  <Progress value={(inboundedCount / totalQuantity) * 100} className="h-2 flex-1" />
+                  <span className="text-sm font-semibold text-primary">{inboundedCount}/{totalQuantity}</span>
                 </div>
               </div>
             </div>
+            
+            {/* 完成/强制完成按钮 */}
+            {inboundedCount > 0 && (
+              <div className="mt-4 pt-4 border-t">
+                {inboundedCount >= totalQuantity ? (
+                  <Button onClick={handleCompletePackage} className="w-full bg-green-600 hover:bg-green-700">
+                    <PackageCheck className="mr-2 h-4 w-4" />
+                    完成包裹
+                  </Button>
+                ) : (
+                  <Button variant="outline" onClick={() => setIsForceCompleteOpen(true)} size="sm" className="w-full border-amber-300 text-amber-700">
+                    <AlertCircle className="mr-2 h-4 w-4" />
+                    强制完成
+                  </Button>
+                )}
+              </div>
+            )}
           </div>
 
           {/* 剩余数量 */}
@@ -357,7 +642,7 @@ export function MobileInboundScanner({ initialTracking }: MobileInboundScannerPr
             </Badge>
           </div>
 
-          {/* 扫描按钮 - 方形设计 */}
+          {/* 扫描按钮 */}
           <div className="mb-6 relative">
             <div className="absolute inset-0 bg-primary/15 rounded-2xl blur-xl pointer-events-none" />
             <Scanner 
@@ -410,6 +695,168 @@ export function MobileInboundScanner({ initialTracking }: MobileInboundScannerPr
             </div>
           )}
         </div>
+
+        {/* 强制完成确认抽屉 */}
+        <Drawer open={isForceCompleteOpen} onOpenChange={setIsForceCompleteOpen}>
+          <DrawerContent>
+            <DrawerHeader>
+              <DrawerTitle className="flex items-center gap-2 text-amber-600">
+                <AlertCircle className="h-5 w-5" />
+                确认强制完成
+              </DrawerTitle>
+            </DrawerHeader>
+            <div className="px-4 pb-4">
+              <p className="text-sm text-muted-foreground mb-4">
+                物流单申报 {totalQuantity} 件，实际入库 {inboundedCount} 件，差异 {remainingCount} 件。
+                确定要强制完成入库吗？
+              </p>
+            </div>
+            <DrawerFooter className="flex-row gap-3">
+              <Button variant="outline" onClick={() => setIsForceCompleteOpen(false)} className="flex-1">
+                取消
+              </Button>
+              <Button onClick={handleForceComplete} className="flex-1 bg-amber-600 hover:bg-amber-700">
+                确认强制完成
+              </Button>
+            </DrawerFooter>
+          </DrawerContent>
+        </Drawer>
+
+        {/* 入库处理抽屉 */}
+        <Drawer open={isProcessDrawerOpen} onOpenChange={setIsProcessDrawerOpen}>
+          <DrawerContent className="max-h-[90vh]">
+            <DrawerHeader>
+              <DrawerTitle className="flex items-center gap-2">
+                <Package className="h-5 w-5 text-primary" />
+                产品入库处理 - {currentLpn}
+              </DrawerTitle>
+            </DrawerHeader>
+            <ScrollArea className="flex-1 px-4 max-h-[60vh]">
+              <div className="space-y-4 pb-4">
+                {/* SKU不匹配警告 */}
+                {skuMismatchWarning && (
+                  <div className="rounded-lg bg-amber-50 dark:bg-amber-950/30 p-3 border border-amber-300">
+                    <div className="flex items-start gap-2">
+                      <AlertCircle className="h-4 w-4 text-amber-600 flex-shrink-0 mt-0.5" />
+                      <div className="text-sm">
+                        <p className="font-medium text-amber-800">SKU不匹配</p>
+                        <p className="text-amber-700">LPN: {skuMismatchWarning.lpnSku}</p>
+                        <p className="text-amber-700">物流单: {skuMismatchWarning.shipmentSkus.join(", ")}</p>
+                      </div>
+                    </div>
+                  </div>
+                )}
+
+                {/* 超出数量警告 */}
+                {overQuantityWarning && (
+                  <div className="rounded-lg bg-red-50 dark:bg-red-950/30 p-3 border border-red-300">
+                    <div className="flex items-start gap-2">
+                      <AlertCircle className="h-4 w-4 text-red-600 flex-shrink-0 mt-0.5" />
+                      <div className="text-sm">
+                        <p className="font-medium text-red-800">超出申报数量</p>
+                        <p className="text-red-700">本次入库将超出申报数量</p>
+                      </div>
+                    </div>
+                  </div>
+                )}
+
+                {/* 退货订单信息 */}
+                {matchedOrders.length > 0 && (
+                  <div className="rounded-lg bg-blue-50 dark:bg-blue-950/30 p-3 border border-blue-200">
+                    <p className="font-medium text-blue-900 dark:text-blue-100 mb-2 text-sm">退货订单信息</p>
+                    <div className="grid grid-cols-2 gap-2 text-xs">
+                      <div><p className="text-muted-foreground">产品</p><p className="font-medium">{matchedOrders[0].product_name || "-"}</p></div>
+                      <div><p className="text-muted-foreground">SKU</p><p className="font-medium">{matchedOrders[0].product_sku || "-"}</p></div>
+                      <div><p className="text-muted-foreground">退货原因</p><p className="font-medium">{matchedOrders[0].return_reason || "-"}</p></div>
+                      <div><p className="text-muted-foreground">买家备注</p><p className="font-medium">{matchedOrders[0].buyer_note || "-"}</p></div>
+                    </div>
+                  </div>
+                )}
+
+                {/* 缺少配件 */}
+                <div className="space-y-2">
+                  <Label className="text-sm">缺少配件</Label>
+                  {productParts && productParts.length > 0 ? (
+                    <div className="grid grid-cols-2 gap-2">
+                      {productParts.map((part) => (
+                        <div key={part.id} className="flex items-center space-x-2 rounded-lg border p-2">
+                          <Checkbox
+                            id={`mobile-${part.id}`}
+                            checked={selectedMissingParts.includes(part.name)}
+                            onCheckedChange={() => toggleMissingPart(part.name)}
+                          />
+                          <label htmlFor={`mobile-${part.id}`} className="text-sm cursor-pointer flex-1">
+                            {part.name}
+                          </label>
+                        </div>
+                      ))}
+                    </div>
+                  ) : (
+                    <p className="text-sm text-muted-foreground p-2 bg-muted/50 rounded">暂无配件信息</p>
+                  )}
+                </div>
+
+                {/* 产品损坏 */}
+                <div className="flex items-center space-x-2 rounded-lg border p-3">
+                  <Checkbox
+                    id="mobile-damage"
+                    checked={hasProductDamage}
+                    onCheckedChange={(checked) => setHasProductDamage(checked as boolean)}
+                  />
+                  <label htmlFor="mobile-damage" className="text-sm cursor-pointer flex-1">
+                    产品有损坏
+                  </label>
+                </div>
+
+                {/* 拍照按钮 */}
+                {(selectedMissingParts.length > 0 || hasProductDamage) && (
+                  <div className="space-y-2">
+                    <Label className="text-sm text-red-600">* 必须拍照</Label>
+                    <Button
+                      variant="outline"
+                      className="w-full h-16 border-2 border-dashed"
+                      onClick={() => setIsPhotoCaptureOpen(true)}
+                    >
+                      <div className="text-center">
+                        <Camera className="mx-auto h-5 w-5 text-muted-foreground" />
+                        <span className="mt-1 block text-sm">
+                          {Object.keys(capturedPhotos).length > 0 
+                            ? `已拍 ${Object.keys(capturedPhotos).length} 张` 
+                            : "点击拍照"}
+                        </span>
+                      </div>
+                    </Button>
+                  </div>
+                )}
+              </div>
+            </ScrollArea>
+            <DrawerFooter className="flex-row gap-3 border-t pt-4">
+              <Button variant="outline" onClick={() => { setIsProcessDrawerOpen(false); resetProcessForm(); }} className="flex-1">
+                取消
+              </Button>
+              <Button 
+                onClick={handleProcessComplete} 
+                className="flex-1 gradient-primary"
+                disabled={createMutation.isPending}
+              >
+                <CheckCircle className="mr-2 h-4 w-4" />
+                确认入库
+              </Button>
+            </DrawerFooter>
+          </DrawerContent>
+        </Drawer>
+
+        {/* 原生拍照 */}
+        {isPhotoCaptureOpen && (
+          <NativePhotoCapture
+            lpn={currentLpn}
+            onComplete={(photos) => {
+              setCapturedPhotos(photos);
+              setIsPhotoCaptureOpen(false);
+            }}
+            onCancel={() => setIsPhotoCaptureOpen(false)}
+          />
+        )}
       </div>
     );
   }

@@ -181,67 +181,104 @@ export const useCreateOrder = () => {
 
   return useMutation({
     mutationFn: async (order: OrderInsert) => {
-      const { data, error } = await supabase
-        .from("orders")
-        .insert(order)
-        .select()
-        .single();
+      const normalizedOrder: OrderInsert = {
+        ...order,
+        lpn: order.lpn.trim(),
+        order_number: order.order_number.trim(),
+        store_name: order.store_name.trim(),
+        station: order.station?.trim?.() || order.station,
+        removal_order_id: order.removal_order_id?.trim?.() || order.removal_order_id,
+      };
 
-      if (error) throw error;
+      // 如果已存在"无入库信息/待同步"的临时订单（order_number='待同步'），则更新该订单而不是新建
+      const { data: pendingOrder, error: pendingError } = await supabase
+        .from("orders")
+        .select("id")
+        .eq("lpn", normalizedOrder.lpn)
+        .eq("order_number", "待同步")
+        .maybeSingle();
+
+      if (pendingError) throw pendingError;
+
+      let data: any = null;
+
+      if (pendingOrder?.id) {
+        const { data: updated, error: updateError } = await supabase
+          .from("orders")
+          .update({
+            ...normalizedOrder,
+            // 用真实订单号覆盖临时订单号/标记
+            order_number: normalizedOrder.order_number,
+            removal_order_id: normalizedOrder.removal_order_id || normalizedOrder.order_number,
+            station: normalizedOrder.station || "已同步",
+          })
+          .eq("id", pendingOrder.id)
+          .select()
+          .single();
+
+        if (updateError) throw updateError;
+        data = updated;
+      } else {
+        const res = await supabase.from("orders").insert(normalizedOrder).select().single();
+        if (res.error) throw res.error;
+        data = res.data;
+      }
       
       // 检查是否有匹配的"待同步"入库记录需要同步
-      if (data && order.lpn) {
+      if (data && normalizedOrder.lpn) {
         const { data: pendingInbound } = await supabase
           .from("inbound_items")
-          .select("*")
+          .select("id, refurbishment_notes")
           .eq("product_sku", "待同步")
-          .ilike("lpn", order.lpn);
+          .eq("lpn", normalizedOrder.lpn);
 
         if (pendingInbound && pendingInbound.length > 0) {
           for (const inboundItem of pendingInbound) {
             await supabase
               .from("inbound_items")
               .update({
-                product_sku: order.product_sku || "待同步",
-                product_name: order.product_name || "待同步",
-                removal_order_id: order.removal_order_id || order.order_number || "无入库信息",
-                return_reason: order.return_reason,
-                refurbishment_notes: inboundItem.refurbishment_notes?.replace("[无入库信息翻新]", "[已同步]") || "[已同步]",
+                product_sku: normalizedOrder.product_sku || "待同步",
+                product_name: normalizedOrder.product_name || "待同步",
+                removal_order_id:
+                  normalizedOrder.removal_order_id || normalizedOrder.order_number || "无入库信息",
+                return_reason: normalizedOrder.return_reason,
+                refurbishment_notes:
+                  inboundItem.refurbishment_notes?.replace("[无入库信息翻新]", "[已同步]") || "[已同步]",
               })
               .eq("id", inboundItem.id);
           }
         }
 
-        // 同时检查并更新"待同步"的订单记录
+        // 同时检查并更新"待同步"的订单记录（同LPN的临时订单）
         const { data: pendingOrders } = await supabase
           .from("orders")
-          .select("*")
+          .select("id")
           .eq("removal_order_id", "无入库信息")
-          .ilike("lpn", order.lpn)
-          .neq("id", data.id); // 排除刚创建的订单
+          .eq("lpn", normalizedOrder.lpn)
+          .neq("id", data.id);
 
         if (pendingOrders && pendingOrders.length > 0) {
           for (const pendingOrder of pendingOrders) {
             await supabase
               .from("orders")
               .update({
-                product_sku: order.product_sku,
-                product_name: order.product_name,
-                removal_order_id: order.removal_order_id || order.order_number,
-                order_number: order.order_number,
-                store_name: order.store_name,
-                station: order.station || "已同步",
-                country: order.country,
-                return_reason: order.return_reason,
-                msku: order.msku,
-                asin: order.asin,
-                fnsku: order.fnsku,
-                buyer_note: order.buyer_note,
-                inventory_attribute: order.inventory_attribute,
-                return_quantity: order.return_quantity,
-                warehouse_location: order.warehouse_location,
-                return_time: order.return_time,
-                order_time: order.order_time,
+                product_sku: normalizedOrder.product_sku,
+                product_name: normalizedOrder.product_name,
+                removal_order_id: normalizedOrder.removal_order_id || normalizedOrder.order_number,
+                order_number: normalizedOrder.order_number,
+                store_name: normalizedOrder.store_name,
+                station: normalizedOrder.station || "已同步",
+                country: normalizedOrder.country,
+                return_reason: normalizedOrder.return_reason,
+                msku: normalizedOrder.msku,
+                asin: normalizedOrder.asin,
+                fnsku: normalizedOrder.fnsku,
+                buyer_note: normalizedOrder.buyer_note,
+                inventory_attribute: normalizedOrder.inventory_attribute,
+                return_quantity: normalizedOrder.return_quantity,
+                warehouse_location: normalizedOrder.warehouse_location,
+                return_time: normalizedOrder.return_time,
+                order_time: normalizedOrder.order_time,
               })
               .eq("id", pendingOrder.id);
           }
@@ -255,8 +292,13 @@ export const useCreateOrder = () => {
       queryClient.invalidateQueries({ queryKey: ["inbound_items"] });
       toast.success("订单创建成功");
     },
-    onError: (error) => {
-      toast.error("创建失败: " + error.message);
+    onError: (error: any) => {
+      const msg = String(error?.message || error);
+      if (msg.includes("duplicate") || msg.includes("23505")) {
+        toast.error("该LPN与订单号组合已存在");
+        return;
+      }
+      toast.error("创建失败: " + msg);
     },
   });
 };

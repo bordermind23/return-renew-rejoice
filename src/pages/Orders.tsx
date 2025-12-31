@@ -64,6 +64,7 @@ import {
   type OrderUpdate,
 } from "@/hooks/useOrders";
 import { useInboundItems } from "@/hooks/useInboundItems";
+import { supabase } from "@/integrations/supabase/client";
 import { Skeleton } from "@/components/ui/skeleton";
 import { toast } from "sonner";
 import * as XLSX from "xlsx";
@@ -462,10 +463,22 @@ export default function Orders() {
 
           const errors: ImportError[] = [];
           const validItems: OrderInsert[] = [];
-          const existingLpnOrderMap = new Map<string, Set<string>>();
+          const updateItems: { id: string; lpn: string; data: OrderUpdate }[] = [];
+          
+          // 构建现有订单映射：LPN -> { orderNumber -> order }
+          const existingLpnOrderMap = new Map<string, Map<string, Order>>();
+          // 构建"无入库信息"临时订单映射：LPN -> order
+          const pendingOrdersMap = new Map<string, Order>();
+          
           (orders || []).forEach(o => {
-            if (!existingLpnOrderMap.has(o.lpn)) existingLpnOrderMap.set(o.lpn, new Set());
-            existingLpnOrderMap.get(o.lpn)!.add(o.order_number);
+            const lpnLower = o.lpn.toLowerCase();
+            if (!existingLpnOrderMap.has(lpnLower)) existingLpnOrderMap.set(lpnLower, new Map());
+            existingLpnOrderMap.get(lpnLower)!.set(o.order_number, o);
+            
+            // 记录"无入库信息"的临时订单
+            if (o.removal_order_id === "无入库信息" || o.order_number === "待同步") {
+              pendingOrdersMap.set(lpnLower, o);
+            }
           });
           const importedLpnOrderMap = new Map<string, Set<string>>();
 
@@ -479,20 +492,54 @@ export default function Orders() {
             }
 
             const lpn = String(row[0]).trim();
+            const lpnLower = lpn.toLowerCase();
             const orderNumber = String(row[8]).trim();
+            
+            // 检查是否有"无入库信息"的临时订单需要更新
+            const pendingOrder = pendingOrdersMap.get(lpnLower);
+            if (pendingOrder) {
+              // 更新临时订单而不是创建新订单
+              updateItems.push({
+                id: pendingOrder.id,
+                lpn: lpn,
+                data: {
+                  product_name: row[1] ? String(row[1]).trim() : null,
+                  buyer_note: row[2] ? String(row[2]).trim() : null,
+                  return_reason: row[3] ? String(row[3]).trim() : null,
+                  inventory_attribute: row[4] ? String(row[4]).trim() : null,
+                  store_name: String(row[5]).trim(),
+                  country: row[6] ? String(row[6]).trim() : null,
+                  product_sku: row[7] ? String(row[7]).trim() : null,
+                  order_number: orderNumber,
+                  msku: row[9] ? String(row[9]).trim() : null,
+                  asin: row[10] ? String(row[10]).trim() : null,
+                  fnsku: row[11] ? String(row[11]).trim() : null,
+                  return_quantity: parseInt(String(row[12])) || 1,
+                  warehouse_location: row[13] ? String(row[13]).trim() : null,
+                  return_time: row[14] ? String(row[14]).trim() : null,
+                  order_time: row[15] ? String(row[15]).trim() : null,
+                  removal_order_id: orderNumber,
+                  station: "已同步",
+                }
+              });
+              // 从待处理映射中移除，避免重复更新
+              pendingOrdersMap.delete(lpnLower);
+              continue;
+            }
 
-            if (existingLpnOrderMap.has(lpn) && existingLpnOrderMap.get(lpn)!.has(orderNumber)) {
+            // 检查正常订单是否重复
+            if (existingLpnOrderMap.has(lpnLower) && existingLpnOrderMap.get(lpnLower)!.has(orderNumber)) {
               errors.push({ row: rowIndex, message: `第${rowIndex}行：LPN号 "${lpn}" 与订单号 "${orderNumber}" 的组合已存在于系统中` });
               continue;
             }
 
-            if (importedLpnOrderMap.has(lpn) && importedLpnOrderMap.get(lpn)!.has(orderNumber)) {
+            if (importedLpnOrderMap.has(lpnLower) && importedLpnOrderMap.get(lpnLower)!.has(orderNumber)) {
               errors.push({ row: rowIndex, message: `第${rowIndex}行：LPN号 "${lpn}" 与订单号 "${orderNumber}" 的组合在导入文件中重复` });
               continue;
             }
 
-            if (!importedLpnOrderMap.has(lpn)) importedLpnOrderMap.set(lpn, new Set());
-            importedLpnOrderMap.get(lpn)!.add(orderNumber);
+            if (!importedLpnOrderMap.has(lpnLower)) importedLpnOrderMap.set(lpnLower, new Set());
+            importedLpnOrderMap.get(lpnLower)!.add(orderNumber);
 
             validItems.push({
               lpn,
@@ -521,8 +568,52 @@ export default function Orders() {
 
           setImportProgress(prev => ({ ...prev, processed: dataRows.length, errors }));
 
-          if (validItems.length === 0) {
+          if (validItems.length === 0 && updateItems.length === 0) {
             setImportProgress(prev => ({ ...prev, isImporting: false, showResult: true }));
+            return;
+          }
+
+          // 先处理更新操作（同步"无入库信息"的临时订单）
+          let updatedCount = 0;
+          for (const item of updateItems) {
+            try {
+              const { error } = await supabase
+                .from("orders")
+                .update(item.data)
+                .eq("id", item.id);
+              
+              if (!error) {
+                updatedCount++;
+                
+                // 同时更新对应的入库记录（按LPN匹配）
+                await supabase
+                  .from("inbound_items")
+                  .update({
+                    product_sku: item.data.product_sku || "待同步",
+                    product_name: item.data.product_name || "待同步",
+                    removal_order_id: item.data.order_number || "无入库信息",
+                    return_reason: item.data.return_reason,
+                  })
+                  .eq("product_sku", "待同步")
+                  .ilike("lpn", item.lpn);
+              }
+            } catch (err) {
+              console.error("更新订单失败:", err);
+            }
+          }
+
+          if (updatedCount > 0) {
+            toast.success(`已同步更新 ${updatedCount} 条"无入库信息"订单`);
+          }
+
+          // 再处理新建操作
+          if (validItems.length === 0) {
+            setImportProgress(prev => ({ 
+              ...prev, 
+              isImporting: false, 
+              showResult: true,
+              successCount: updatedCount,
+            }));
             return;
           }
 
@@ -532,7 +623,7 @@ export default function Orders() {
                 ...prev,
                 isImporting: false,
                 showResult: true,
-                successCount: data.length,
+                successCount: data.length + updatedCount,
               }));
               
               // 自动同步"待同步"的入库记录

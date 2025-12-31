@@ -51,6 +51,7 @@ import { OrderTableRow } from "@/components/orders/OrderTableRow";
 import {
   useOrdersPaginated,
   useOrderStores,
+  useOrderStats,
   useCreateOrder,
   useUpdateOrder,
   useDeleteOrder,
@@ -159,6 +160,7 @@ export default function Orders() {
     gradeFilter 
   });
   const { data: stores = [] } = useOrderStores();
+  const { data: orderStats } = useOrderStats();
   const { data: inboundItems } = useInboundItems();
   
   // Mutations
@@ -182,16 +184,15 @@ export default function Orders() {
     }, {} as Record<string, typeof inboundItems[0]>);
   }, [inboundItems]);
 
-  // 统计数据
+  // 统计数据 - 使用从数据库获取的全量统计
   const stats = useMemo(() => {
-    const allOrders = orders;
     return {
-      total: totalCount,
-      pending: allOrders.filter(o => o.status === "未到货").length,
-      arrived: allOrders.filter(o => o.status === "到货").length,
-      shipped: allOrders.filter(o => o.status === "出库").length,
+      total: orderStats?.total || 0,
+      pending: orderStats?.pending || 0,
+      arrived: orderStats?.arrived || 0,
+      shipped: orderStats?.shipped || 0,
     };
-  }, [orders, totalCount]);
+  }, [orderStats]);
 
   // 按内部订单号分组
   const { groupedOrders, singleOrders } = useMemo(() => {

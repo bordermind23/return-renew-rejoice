@@ -151,13 +151,12 @@ export default function InboundProcess() {
               status: "inbound"
             });
             toast.success(`所有 ${matchedShipment.quantity} 件货物已全部入库！`);
-            // 全部入库完成，返回入库页面首页
-            navigate("/inbound");
           } else {
             toast.success(`入库成功！还剩 ${matchedShipment.quantity - totalInbounded} 件待入库`);
-            // 还有剩余，返回入库页面并保留物流号
-            navigate(`/inbound?tracking=${encodeURIComponent(matchedShipment.tracking_number)}`);
           }
+          
+          // 始终返回入库扫描页面并保留物流号，让用户继续扫描下一个LPN
+          navigate(`/inbound?tracking=${encodeURIComponent(matchedShipment.tracking_number)}`, { replace: true });
         },
       }
     );

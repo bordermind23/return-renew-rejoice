@@ -1,5 +1,5 @@
-import { useState, useRef, useEffect, useMemo } from "react";
-import { useNavigate, useSearchParams } from "react-router-dom";
+import { useState, useRef, useEffect, useMemo, useCallback } from "react";
+import { useNavigate, useSearchParams, useBlocker } from "react-router-dom";
 import { ScanLine, Camera, Package, CheckCircle, Search, PackageCheck, AlertCircle, ChevronRight } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -163,6 +163,34 @@ export default function InboundScan() {
       localStorage.setItem(PENDING_INBOUND_KEY, JSON.stringify(session));
     }
   }, [matchedShipment, currentStep]);
+
+  // 判断是否处于入库进行中（有入库记录但未完成）
+  const isInboundInProgress = useMemo(() => {
+    if (!matchedShipment || !matchedShipments.length || currentStep !== "scan_lpn") return false;
+    const totalQuantity = matchedShipments.reduce((sum, s) => sum + s.quantity, 0);
+    const inboundedCount = (inboundItems || []).filter(
+      item => item.tracking_number === matchedShipment.tracking_number
+    ).length;
+    return inboundedCount > 0 && inboundedCount < totalQuantity;
+  }, [matchedShipment, matchedShipments, currentStep, inboundItems]);
+
+  // 使用 useBlocker 拦截页面导航
+  const blocker = useBlocker(
+    useCallback(() => isInboundInProgress, [isInboundInProgress])
+  );
+
+  // 处理浏览器刷新/关闭时的警告
+  useEffect(() => {
+    const handleBeforeUnload = (e: BeforeUnloadEvent) => {
+      if (isInboundInProgress) {
+        e.preventDefault();
+        e.returnValue = '';
+      }
+    };
+
+    window.addEventListener('beforeunload', handleBeforeUnload);
+    return () => window.removeEventListener('beforeunload', handleBeforeUnload);
+  }, [isInboundInProgress]);
 
   // 恢复未完成的会话
   const handleRestoreSession = () => {
@@ -1158,6 +1186,48 @@ export default function InboundScan() {
             </AlertDialogCancel>
             <AlertDialogAction onClick={handleRestoreSession} className="gradient-primary">
               继续入库
+            </AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
+
+      {/* 页面切换警告对话框 */}
+      <AlertDialog open={blocker.state === "blocked"}>
+        <AlertDialogContent>
+          <AlertDialogHeader>
+            <AlertDialogTitle className="flex items-center gap-2">
+              <AlertCircle className="h-5 w-5 text-amber-500" />
+              入库尚未完成
+            </AlertDialogTitle>
+            <AlertDialogDescription asChild>
+              <div className="space-y-3">
+                <p>您当前有一个正在进行的入库操作尚未完成。</p>
+                <div className="rounded-lg bg-muted p-3 space-y-1">
+                  <p className="text-sm">
+                    <span className="text-muted-foreground">物流跟踪号：</span>
+                    <code className="ml-1 font-medium bg-background px-1.5 py-0.5 rounded">
+                      {matchedShipment?.tracking_number}
+                    </code>
+                  </p>
+                  <p className="text-sm text-muted-foreground">
+                    已入库: {getInboundedCount(matchedShipment?.tracking_number || "")} / {matchedShipments.reduce((sum, s) => sum + s.quantity, 0)} 件
+                  </p>
+                </div>
+                <p className="text-sm text-amber-600 dark:text-amber-400">
+                  离开此页面后，您可以稍后通过"继续入库"功能恢复此操作。
+                </p>
+              </div>
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+          <AlertDialogFooter className="gap-2 sm:gap-0">
+            <AlertDialogCancel onClick={() => blocker.reset?.()}>
+              继续入库
+            </AlertDialogCancel>
+            <AlertDialogAction 
+              onClick={() => blocker.proceed?.()}
+              className="bg-amber-600 hover:bg-amber-700"
+            >
+              确认离开
             </AlertDialogAction>
           </AlertDialogFooter>
         </AlertDialogContent>

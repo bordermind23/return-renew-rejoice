@@ -35,14 +35,31 @@ const LiveSoundWave = () => (
   </div>
 );
 
+// 添加标点符号处理
+const addPunctuation = (text: string): string => {
+  let result = text.trim();
+  if (!result) return result;
+  
+  // 如果结尾没有标点，添加逗号
+  const lastChar = result[result.length - 1];
+  const punctuations = ['，', '。', '！', '？', '、', ',', '.', '!', '?', '；', ';', '：', ':'];
+  
+  if (!punctuations.includes(lastChar)) {
+    result += '，';
+  }
+  
+  return result;
+};
+
 export const VoiceInputButton = ({
   onTranscript,
   disabled = false,
   className,
 }: VoiceInputButtonProps) => {
-  const { isListening, isSupported, toggleListening, transcript } = useSpeechToText({
+  const { isListening, isSupported, toggleListening } = useSpeechToText({
     onResult: (text) => {
-      onTranscript(text);
+      const processedText = addPunctuation(text);
+      onTranscript(processedText);
       toast.success("语音已识别");
     },
     onError: (error) => {

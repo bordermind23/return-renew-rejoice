@@ -39,6 +39,7 @@ import {
   useDeleteCaseType,
   type CaseTypeItem,
 } from "@/hooks/useCaseTypes";
+import { useLanguage } from "@/i18n/LanguageContext";
 
 export default function CaseTypeManager() {
   const [isCreateOpen, setIsCreateOpen] = useState(false);
@@ -54,6 +55,7 @@ export default function CaseTypeManager() {
   const createMutation = useCreateCaseType();
   const updateMutation = useUpdateCaseType();
   const deleteMutation = useDeleteCaseType();
+  const { t } = useLanguage();
 
   const resetForm = () => {
     setFormData({ code: "", label: "", description: "" });
@@ -125,12 +127,12 @@ export default function CaseTypeManager() {
     <div className="space-y-4">
       <div className="flex items-center justify-between">
         <div>
-          <h3 className="text-lg font-medium">CASE类型管理</h3>
-          <p className="text-sm text-muted-foreground">管理CASE的类型分类</p>
+          <h3 className="text-lg font-medium">{t.caseTypes.title}</h3>
+          <p className="text-sm text-muted-foreground">{t.caseTypes.description}</p>
         </div>
         <Button onClick={() => setIsCreateOpen(true)}>
           <Plus className="mr-2 h-4 w-4" />
-          添加类型
+          {t.caseTypes.addType}
         </Button>
       </div>
 
@@ -138,18 +140,18 @@ export default function CaseTypeManager() {
         <Table>
           <TableHeader>
             <TableRow className="bg-muted/50">
-              <TableHead className="font-semibold w-[120px]">类型代码</TableHead>
-              <TableHead className="font-semibold w-[150px]">显示名称</TableHead>
-              <TableHead className="font-semibold">描述</TableHead>
-              <TableHead className="font-semibold w-[100px] text-center">类型</TableHead>
-              <TableHead className="font-semibold w-[100px] text-center">操作</TableHead>
+              <TableHead className="font-semibold w-[120px]">{t.caseTypes.typeCode}</TableHead>
+              <TableHead className="font-semibold w-[150px]">{t.caseTypes.displayName}</TableHead>
+              <TableHead className="font-semibold">{t.common.description}</TableHead>
+              <TableHead className="font-semibold w-[100px] text-center">{t.common.type}</TableHead>
+              <TableHead className="font-semibold w-[100px] text-center">{t.common.actions}</TableHead>
             </TableRow>
           </TableHeader>
           <TableBody>
             {caseTypes?.length === 0 ? (
               <TableRow>
                 <TableCell colSpan={5} className="h-32 text-center text-muted-foreground">
-                  暂无CASE类型
+                  {t.caseTypes.noCaseTypes}
                 </TableCell>
               </TableRow>
             ) : (

@@ -19,6 +19,7 @@ import {
   ScanLine,
   History,
   AlertTriangle,
+  Wrench,
 } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { Button } from "@/components/ui/button";
@@ -54,6 +55,7 @@ const getNavItems = (t: ReturnType<typeof useLanguage>['t']): NavItem[] => [
   { to: "/removals", icon: PackageX, label: t.nav.removals },
   { to: "/inventory", icon: Warehouse, label: t.nav.inventory },
   { to: "/products", icon: Package, label: t.nav.products },
+  { to: "/refurbishment", icon: Wrench, label: t.nav.refurbishment || "翻新处理" },
   { to: "/outbound", icon: PackageOpen, label: t.nav.outbound },
   { to: "/cases", icon: FileWarning, label: t.nav.cases },
 ];

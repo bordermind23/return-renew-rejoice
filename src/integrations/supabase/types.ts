@@ -205,6 +205,12 @@ export type Database = {
           product_name: string
           product_photo: string | null
           product_sku: string
+          refurbished_at: string | null
+          refurbished_by: string | null
+          refurbishment_grade: string | null
+          refurbishment_notes: string | null
+          refurbishment_photos: string[] | null
+          refurbishment_videos: string[] | null
           removal_order_id: string
           return_reason: string | null
           shipment_id: string | null
@@ -231,6 +237,12 @@ export type Database = {
           product_name: string
           product_photo?: string | null
           product_sku: string
+          refurbished_at?: string | null
+          refurbished_by?: string | null
+          refurbishment_grade?: string | null
+          refurbishment_notes?: string | null
+          refurbishment_photos?: string[] | null
+          refurbishment_videos?: string[] | null
           removal_order_id: string
           return_reason?: string | null
           shipment_id?: string | null
@@ -257,6 +269,12 @@ export type Database = {
           product_name?: string
           product_photo?: string | null
           product_sku?: string
+          refurbished_at?: string | null
+          refurbished_by?: string | null
+          refurbishment_grade?: string | null
+          refurbishment_notes?: string | null
+          refurbishment_photos?: string[] | null
+          refurbishment_videos?: string[] | null
           removal_order_id?: string
           return_reason?: string | null
           shipment_id?: string | null

@@ -44,13 +44,14 @@ export const useSpeechToText = (options: UseSpeechToTextOptions = {}) => {
     onResult,
     onError,
     language = 'zh-CN',
-    continuous = true,
+    continuous = false, // 改为非连续模式，识别完一句就停止
   } = options;
 
   const [isListening, setIsListening] = useState(false);
   const [transcript, setTranscript] = useState('');
   const [isSupported, setIsSupported] = useState(false);
   const recognitionRef = useRef<SpeechRecognitionInstance | null>(null);
+  const manualStopRef = useRef(false);
 
   useEffect(() => {
     // Check if Web Speech API is supported
@@ -81,13 +82,16 @@ export const useSpeechToText = (options: UseSpeechToTextOptions = {}) => {
         
         if (finalTranscript && onResult) {
           onResult(finalTranscript);
+          // 识别到最终结果后自动停止
+          setIsListening(false);
         }
       };
 
       recognitionRef.current.onerror = (event: SpeechRecognitionErrorEvent) => {
         console.error('Speech recognition error:', event.error);
         setIsListening(false);
-        if (onError) {
+        // 只在非中断错误时显示错误提示
+        if (onError && event.error !== 'aborted') {
           let errorMessage = '语音识别错误';
           switch (event.error) {
             case 'no-speech':
@@ -114,7 +118,11 @@ export const useSpeechToText = (options: UseSpeechToTextOptions = {}) => {
 
     return () => {
       if (recognitionRef.current) {
-        recognitionRef.current.stop();
+        try {
+          recognitionRef.current.stop();
+        } catch {
+          // ignore
+        }
       }
     };
   }, [language, continuous, onResult, onError]);
@@ -122,21 +130,28 @@ export const useSpeechToText = (options: UseSpeechToTextOptions = {}) => {
   const startListening = useCallback(() => {
     if (recognitionRef.current && !isListening) {
       setTranscript('');
+      manualStopRef.current = false;
       try {
         recognitionRef.current.start();
         setIsListening(true);
       } catch (error) {
         console.error('Error starting speech recognition:', error);
+        setIsListening(false);
       }
     }
   }, [isListening]);
 
   const stopListening = useCallback(() => {
-    if (recognitionRef.current && isListening) {
-      recognitionRef.current.stop();
+    if (recognitionRef.current) {
+      manualStopRef.current = true;
+      try {
+        recognitionRef.current.stop();
+      } catch {
+        // ignore
+      }
       setIsListening(false);
     }
-  }, [isListening]);
+  }, []);
 
   const toggleListening = useCallback(() => {
     if (isListening) {

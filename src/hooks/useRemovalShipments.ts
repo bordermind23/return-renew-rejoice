@@ -21,9 +21,10 @@ export interface RemovalShipment {
   product_type: string | null;
   created_at: string;
   updated_at: string;
+  duplicate_confirmed: boolean;
 }
 
-export type RemovalShipmentInsert = Omit<RemovalShipment, "id" | "created_at" | "updated_at" | "product_image"> & { product_image?: string | null };
+export type RemovalShipmentInsert = Omit<RemovalShipment, "id" | "created_at" | "updated_at" | "product_image" | "duplicate_confirmed"> & { product_image?: string | null; duplicate_confirmed?: boolean };
 export type RemovalShipmentUpdate = Partial<RemovalShipmentInsert>;
 
 export const useRemovalShipments = () => {

@@ -1,5 +1,5 @@
 import { useState } from "react";
-import { Plus, Search, Eye, Trash2, MessageSquare, ExternalLink, Filter, DollarSign } from "lucide-react";
+import { Plus, Search, Eye, Trash2, MessageSquare, ExternalLink, Filter, DollarSign, Settings } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { PageHeader } from "@/components/ui/page-header";
@@ -40,6 +40,7 @@ import { Label } from "@/components/ui/label";
 import { Textarea } from "@/components/ui/textarea";
 import { Skeleton } from "@/components/ui/skeleton";
 import { Badge } from "@/components/ui/badge";
+import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { CaseStatusBadge } from "@/components/ui/case-status-badge";
 import { CaseTypeBadge } from "@/components/ui/case-type-badge";
 import {
@@ -55,10 +56,11 @@ import {
   type CaseType,
   type CaseStatus,
 } from "@/hooks/useCases";
+import { useCaseTypes } from "@/hooks/useCaseTypes";
+import CaseTypeManager from "@/components/CaseTypeManager";
 import { toast } from "sonner";
 import { format } from "date-fns";
 
-const caseTypes: CaseType[] = ['lpn_missing', 'sku_mismatch', 'accessory_missing', 'product_damaged', 'other'];
 const caseStatuses: CaseStatus[] = ['pending', 'submitted', 'in_progress', 'approved', 'rejected', 'closed'];
 
 export default function Cases() {
@@ -71,11 +73,18 @@ export default function Cases() {
   const [noteContent, setNoteContent] = useState("");
 
   const { data: cases, isLoading } = useCases();
+  const { data: caseTypes } = useCaseTypes();
   const { data: notes } = useCaseNotes(selectedCase?.id || null);
   const createMutation = useCreateCase();
   const updateMutation = useUpdateCase();
   const deleteMutation = useDeleteCase();
   const createNoteMutation = useCreateCaseNote();
+
+  // 构建类型标签映射
+  const typeLabels = caseTypes?.reduce((acc, t) => {
+    acc[t.code] = t.label;
+    return acc;
+  }, {} as Record<string, string>) || caseTypeLabels;
 
   const [formData, setFormData] = useState({
     case_type: 'lpn_missing' as CaseType,
@@ -216,16 +225,28 @@ export default function Cases() {
       <PageHeader
         title="CASE管理"
         description="管理亚马逊索赔案例，跟踪处理进度"
-        actions={
-          <Button onClick={() => setIsCreateOpen(true)} className="gradient-primary">
-            <Plus className="mr-2 h-4 w-4" />
-            新建CASE
-          </Button>
-        }
       />
 
-      {/* 统计卡片 */}
-      <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
+      <Tabs defaultValue="cases" className="space-y-6">
+        <TabsList>
+          <TabsTrigger value="cases">CASE列表</TabsTrigger>
+          <TabsTrigger value="types" className="gap-2">
+            <Settings className="h-4 w-4" />
+            类型管理
+          </TabsTrigger>
+        </TabsList>
+
+        <TabsContent value="cases" className="space-y-6">
+          {/* 新建按钮 */}
+          <div className="flex justify-end">
+            <Button onClick={() => setIsCreateOpen(true)} className="gradient-primary">
+              <Plus className="mr-2 h-4 w-4" />
+              新建CASE
+            </Button>
+          </div>
+
+          {/* 统计卡片 */}
+          <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
         <Card>
           <CardContent className="pt-4">
             <div className="text-2xl font-bold">{stats.total}</div>
@@ -270,8 +291,8 @@ export default function Cases() {
           </SelectTrigger>
           <SelectContent>
             <SelectItem value="all">全部类型</SelectItem>
-            {caseTypes.map((type) => (
-              <SelectItem key={type} value={type}>{caseTypeLabels[type]}</SelectItem>
+            {caseTypes?.map((type) => (
+              <SelectItem key={type.code} value={type.code}>{type.label}</SelectItem>
             ))}
           </SelectContent>
         </Select>
@@ -372,6 +393,12 @@ export default function Cases() {
           <ScrollBar orientation="horizontal" />
         </ScrollArea>
       </Card>
+        </TabsContent>
+
+        <TabsContent value="types">
+          <CaseTypeManager />
+        </TabsContent>
+      </Tabs>
 
       {/* 创建CASE对话框 */}
       <Dialog open={isCreateOpen} onOpenChange={setIsCreateOpen}>
@@ -386,8 +413,8 @@ export default function Cases() {
                 <Select value={formData.case_type} onValueChange={(v) => setFormData({ ...formData, case_type: v as CaseType })}>
                   <SelectTrigger><SelectValue /></SelectTrigger>
                   <SelectContent>
-                    {caseTypes.map((type) => (
-                      <SelectItem key={type} value={type}>{caseTypeLabels[type]}</SelectItem>
+                    {caseTypes?.map((type) => (
+                      <SelectItem key={type.code} value={type.code}>{type.label}</SelectItem>
                     ))}
                   </SelectContent>
                 </Select>

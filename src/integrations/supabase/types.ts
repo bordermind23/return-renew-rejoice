@@ -67,6 +67,33 @@ export type Database = {
           },
         ]
       }
+      case_types: {
+        Row: {
+          code: string
+          created_at: string
+          description: string | null
+          id: string
+          is_system: boolean
+          label: string
+        }
+        Insert: {
+          code: string
+          created_at?: string
+          description?: string | null
+          id?: string
+          is_system?: boolean
+          label: string
+        }
+        Update: {
+          code?: string
+          created_at?: string
+          description?: string | null
+          id?: string
+          is_system?: boolean
+          label?: string
+        }
+        Relationships: []
+      }
       cases: {
         Row: {
           actual_sku: string | null

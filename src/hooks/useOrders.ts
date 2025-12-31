@@ -2,6 +2,8 @@ import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { supabase } from "@/integrations/supabase/client";
 import { toast } from "sonner";
 
+export type OrderStatus = '未到货' | '到货' | '出库';
+
 export interface Order {
   id: string;
   lpn: string;
@@ -28,11 +30,12 @@ export interface Order {
   order_time: string | null;
   grade: string | null;
   internal_order_no: string | null;
+  status: OrderStatus;
 }
 
-// internal_order_no 由数据库触发器自动生成，所以在 Insert 类型中排除它
-export type OrderInsert = Omit<Order, "id" | "created_at" | "internal_order_no">;
-export type OrderUpdate = Partial<OrderInsert>;
+// internal_order_no 由数据库触发器自动生成，status 由流程自动更新，所以在 Insert 类型中排除
+export type OrderInsert = Omit<Order, "id" | "created_at" | "internal_order_no" | "status">;
+export type OrderUpdate = Partial<Omit<OrderInsert, "status">>;
 
 export const useOrders = () => {
   return useQuery({

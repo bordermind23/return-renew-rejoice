@@ -182,6 +182,7 @@ export type Database = {
           return_reason: string | null
           return_time: string | null
           station: string
+          status: Database["public"]["Enums"]["order_status"]
           store_name: string
           warehouse_location: string | null
         }
@@ -208,6 +209,7 @@ export type Database = {
           return_reason?: string | null
           return_time?: string | null
           station: string
+          status?: Database["public"]["Enums"]["order_status"]
           store_name: string
           warehouse_location?: string | null
         }
@@ -234,6 +236,7 @@ export type Database = {
           return_reason?: string | null
           return_time?: string | null
           station?: string
+          status?: Database["public"]["Enums"]["order_status"]
           store_name?: string
           warehouse_location?: string | null
         }
@@ -437,6 +440,7 @@ export type Database = {
     }
     Enums: {
       app_role: "admin" | "warehouse_staff" | "viewer"
+      order_status: "未到货" | "到货" | "出库"
     }
     CompositeTypes: {
       [_ in never]: never
@@ -565,6 +569,7 @@ export const Constants = {
   public: {
     Enums: {
       app_role: ["admin", "warehouse_staff", "viewer"],
+      order_status: ["未到货", "到货", "出库"],
     },
   },
 } as const

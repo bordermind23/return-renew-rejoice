@@ -221,7 +221,7 @@ export default function Orders() {
   }, [orders]);
 
   const hasGroups = groupedOrders.length > 0;
-  const hasActiveFilters = debouncedSearch || storeFilter !== "all" || statusFilters.length > 0 || gradeFilter !== "all";
+  const hasActiveFilters = !!(debouncedSearch || storeFilter !== "all" || statusFilters.length > 0 || gradeFilter !== "all");
   const photoInboundItem = photoViewOrder ? inboundByLpn[photoViewOrder.lpn] : null;
 
   // 照片列表构建

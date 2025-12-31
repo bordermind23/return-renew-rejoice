@@ -140,12 +140,22 @@ export const useBulkDeleteRemovalShipments = () => {
 
   return useMutation({
     mutationFn: async (ids: string[]) => {
-      const { error } = await supabase
-        .from("removal_shipments")
-        .delete()
-        .in("id", ids);
+      // 分批删除，每批最多100条
+      const batchSize = 100;
+      const batches: string[][] = [];
+      
+      for (let i = 0; i < ids.length; i += batchSize) {
+        batches.push(ids.slice(i, i + batchSize));
+      }
 
-      if (error) throw error;
+      for (const batch of batches) {
+        const { error } = await supabase
+          .from("removal_shipments")
+          .delete()
+          .in("id", batch);
+
+        if (error) throw error;
+      }
     },
     onSuccess: (_, ids) => {
       queryClient.invalidateQueries({ queryKey: ["removal_shipments"] });

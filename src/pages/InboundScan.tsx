@@ -771,11 +771,8 @@ export default function InboundScan() {
                           <div className="col-span-2 text-xs text-blue-600 dark:text-blue-400 font-medium">订单 {index + 1}</div>
                         )}
                         <div><p className="text-muted-foreground text-xs">产品名称</p><p className="font-medium text-sm">{order.product_name || "-"}</p></div>
-                        <div><p className="text-muted-foreground text-xs">产品SKU</p><p className="font-medium text-sm">{order.product_sku || "-"}</p></div>
                         <div><p className="text-muted-foreground text-xs">退货原因</p><p className="font-medium text-sm">{order.return_reason || "-"}</p></div>
                         <div><p className="text-muted-foreground text-xs">买家备注</p><p className="font-medium text-sm">{order.buyer_note || "-"}</p></div>
-                        <div><p className="text-muted-foreground text-xs">店铺</p><p className="font-medium text-sm">{order.store_name}</p></div>
-                        <div><p className="text-muted-foreground text-xs">订单号</p><p className="font-medium text-sm">{order.order_number}</p></div>
                       </div>
                     ))}
                   </div>

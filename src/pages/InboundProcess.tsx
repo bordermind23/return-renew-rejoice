@@ -233,24 +233,12 @@ export default function InboundProcess() {
                     <p className="font-medium">{order.product_name || matchedShipment.product_name}</p>
                   </div>
                   <div>
-                    <p className="text-xs text-muted-foreground">产品SKU</p>
-                    <p className="font-medium">{order.product_sku || matchedShipment.product_sku}</p>
-                  </div>
-                  <div>
                     <p className="text-xs text-muted-foreground">退货原因</p>
                     <p className="font-medium">{order.return_reason || "-"}</p>
                   </div>
-                  <div>
+                  <div className="col-span-2">
                     <p className="text-xs text-muted-foreground">买家备注</p>
                     <p className="font-medium">{order.buyer_note || "-"}</p>
-                  </div>
-                  <div>
-                    <p className="text-xs text-muted-foreground">店铺</p>
-                    <p className="font-medium">{order.store_name}</p>
-                  </div>
-                  <div>
-                    <p className="text-xs text-muted-foreground">订单号</p>
-                    <p className="font-medium font-mono text-xs">{order.order_number}</p>
                   </div>
                 </div>
               </CardContent>

@@ -9,32 +9,51 @@ import {
   PackageOpen,
   ChevronLeft,
   ChevronRight,
+  ChevronDown,
   Package,
   Menu,
   X,
   LogOut,
   Users,
   FileWarning,
+  ScanLine,
+  History,
 } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { Button } from "@/components/ui/button";
 import { Sheet, SheetContent, SheetTrigger } from "@/components/ui/sheet";
+import { Collapsible, CollapsibleContent, CollapsibleTrigger } from "@/components/ui/collapsible";
 import { useAuth } from "@/hooks/useAuth";
 import { useCurrentUserRole } from "@/hooks/useUserManagement";
 import { toast } from "sonner";
 
-const navItems = [
+type NavItem = {
+  to: string;
+  icon: React.ElementType;
+  label: string;
+  children?: { to: string; icon: React.ElementType; label: string }[];
+};
+
+const navItems: NavItem[] = [
   { to: "/", icon: LayoutDashboard, label: "仪表盘" },
   { to: "/products", icon: Package, label: "产品管理" },
   { to: "/removals", icon: PackageX, label: "移除货件" },
-  { to: "/inbound", icon: PackageCheck, label: "入库处理" },
+  { 
+    to: "/inbound", 
+    icon: PackageCheck, 
+    label: "入库处理",
+    children: [
+      { to: "/inbound/scan", icon: ScanLine, label: "入库扫码" },
+      { to: "/inbound/records", icon: History, label: "入库记录" },
+    ]
+  },
   { to: "/inventory", icon: Warehouse, label: "库存管理" },
   { to: "/orders", icon: ClipboardList, label: "退货订单列表" },
   { to: "/outbound", icon: PackageOpen, label: "出库管理" },
   { to: "/cases", icon: FileWarning, label: "CASE管理" },
 ];
 
-const adminNavItems = [
+const adminNavItems: NavItem[] = [
   { to: "/users", icon: Users, label: "用户管理" },
 ];
 
@@ -79,6 +98,46 @@ function MobileSidebarContent({ onClose }: { onClose: () => void }) {
       {/* Navigation */}
       <nav className="flex-1 space-y-1 px-3 py-4">
         {allNavItems.map((item) => {
+          if (item.children) {
+            const isChildActive = item.children.some(child => location.pathname === child.to);
+            return (
+              <Collapsible key={item.to} defaultOpen={isChildActive}>
+                <CollapsibleTrigger className={cn(
+                  "flex w-full items-center justify-between gap-3 rounded-lg px-3 py-3 text-base font-medium transition-all duration-200",
+                  isChildActive
+                    ? "bg-sidebar-accent text-sidebar-accent-foreground"
+                    : "text-sidebar-foreground hover:bg-sidebar-accent hover:text-sidebar-accent-foreground"
+                )}>
+                  <div className="flex items-center gap-3">
+                    <item.icon className="h-5 w-5 flex-shrink-0" />
+                    <span>{item.label}</span>
+                  </div>
+                  <ChevronDown className="h-4 w-4 transition-transform duration-200 [[data-state=open]>&]:rotate-180" />
+                </CollapsibleTrigger>
+                <CollapsibleContent className="pl-4 pt-1 space-y-1">
+                  {item.children.map((child) => {
+                    const isActive = location.pathname === child.to;
+                    return (
+                      <NavLink
+                        key={child.to}
+                        to={child.to}
+                        onClick={onClose}
+                        className={cn(
+                          "flex items-center gap-3 rounded-lg px-3 py-2 text-sm font-medium transition-all duration-200",
+                          isActive
+                            ? "bg-sidebar-primary text-sidebar-primary-foreground shadow-lg"
+                            : "text-sidebar-foreground hover:bg-sidebar-accent hover:text-sidebar-accent-foreground"
+                        )}
+                      >
+                        <child.icon className="h-4 w-4 flex-shrink-0" />
+                        <span>{child.label}</span>
+                      </NavLink>
+                    );
+                  })}
+                </CollapsibleContent>
+              </Collapsible>
+            );
+          }
           const isActive = location.pathname === item.to;
           return (
             <NavLink
@@ -168,6 +227,48 @@ function DesktopSidebar({ collapsed, setCollapsed }: { collapsed: boolean; setCo
         {/* Navigation */}
         <nav className="flex-1 space-y-1 px-3 py-4">
           {allNavItems.map((item) => {
+            if (item.children) {
+              const isChildActive = item.children.some(child => location.pathname === child.to);
+              return (
+                <Collapsible key={item.to} defaultOpen={isChildActive}>
+                  <CollapsibleTrigger className={cn(
+                    "flex w-full items-center justify-between gap-3 rounded-lg px-3 py-2.5 text-sm font-medium transition-all duration-200",
+                    isChildActive
+                      ? "bg-sidebar-accent text-sidebar-accent-foreground"
+                      : "text-sidebar-foreground hover:bg-sidebar-accent hover:text-sidebar-accent-foreground",
+                    collapsed && "justify-center"
+                  )}>
+                    <div className="flex items-center gap-3">
+                      <item.icon className="h-5 w-5 flex-shrink-0" />
+                      {!collapsed && <span>{item.label}</span>}
+                    </div>
+                    {!collapsed && <ChevronDown className="h-4 w-4 transition-transform duration-200 [[data-state=open]>&]:rotate-180" />}
+                  </CollapsibleTrigger>
+                  {!collapsed && (
+                    <CollapsibleContent className="pl-4 pt-1 space-y-1">
+                      {item.children.map((child) => {
+                        const isActive = location.pathname === child.to;
+                        return (
+                          <NavLink
+                            key={child.to}
+                            to={child.to}
+                            className={cn(
+                              "flex items-center gap-3 rounded-lg px-3 py-2 text-sm font-medium transition-all duration-200",
+                              isActive
+                                ? "bg-sidebar-primary text-sidebar-primary-foreground shadow-lg"
+                                : "text-sidebar-foreground hover:bg-sidebar-accent hover:text-sidebar-accent-foreground"
+                            )}
+                          >
+                            <child.icon className="h-4 w-4 flex-shrink-0" />
+                            <span>{child.label}</span>
+                          </NavLink>
+                        );
+                      })}
+                    </CollapsibleContent>
+                  )}
+                </Collapsible>
+              );
+            }
             const isActive = location.pathname === item.to;
             return (
               <NavLink

@@ -26,6 +26,8 @@ import { Sheet, SheetContent, SheetTrigger } from "@/components/ui/sheet";
 import { Collapsible, CollapsibleContent, CollapsibleTrigger } from "@/components/ui/collapsible";
 import { useAuth } from "@/hooks/useAuth";
 import { useCurrentUserRole } from "@/hooks/useUserManagement";
+import { useLanguage } from "@/i18n/LanguageContext";
+import LanguageSwitcher from "@/components/LanguageSwitcher";
 import { toast } from "sonner";
 
 type NavItem = {
@@ -35,28 +37,29 @@ type NavItem = {
   children?: { to: string; icon: React.ElementType; label: string }[];
 };
 
-const navItems: NavItem[] = [
-  { to: "/", icon: LayoutDashboard, label: "仪表盘" },
-  { to: "/products", icon: Package, label: "产品管理" },
-  { to: "/removals", icon: PackageX, label: "移除货件" },
+// 使用翻译的导航项生成函数
+const getNavItems = (t: ReturnType<typeof useLanguage>['t']): NavItem[] => [
+  { to: "/", icon: LayoutDashboard, label: t.nav.dashboard },
+  { to: "/products", icon: Package, label: t.nav.products },
+  { to: "/removals", icon: PackageX, label: t.nav.removals },
   { 
     to: "/inbound", 
     icon: PackageCheck, 
-    label: "入库处理",
+    label: t.nav.inbound,
     children: [
-      { to: "/inbound/scan", icon: ScanLine, label: "入库扫码" },
-      { to: "/inbound/records", icon: History, label: "入库记录" },
-      { to: "/inbound/discrepancy", icon: AlertTriangle, label: "差异包裹" },
+      { to: "/inbound/scan", icon: ScanLine, label: t.nav.inboundScan },
+      { to: "/inbound/records", icon: History, label: t.nav.inboundRecords },
+      { to: "/inbound/discrepancy", icon: AlertTriangle, label: t.nav.inboundDiscrepancy },
     ]
   },
-  { to: "/inventory", icon: Warehouse, label: "库存管理" },
-  { to: "/orders", icon: ClipboardList, label: "退货订单列表" },
-  { to: "/outbound", icon: PackageOpen, label: "出库管理" },
-  { to: "/cases", icon: FileWarning, label: "CASE管理" },
+  { to: "/inventory", icon: Warehouse, label: t.nav.inventory },
+  { to: "/orders", icon: ClipboardList, label: t.nav.orders },
+  { to: "/outbound", icon: PackageOpen, label: t.nav.outbound },
+  { to: "/cases", icon: FileWarning, label: t.nav.cases },
 ];
 
-const adminNavItems: NavItem[] = [
-  { to: "/users", icon: Users, label: "用户管理" },
+const getAdminNavItems = (t: ReturnType<typeof useLanguage>['t']): NavItem[] => [
+  { to: "/users", icon: Users, label: t.nav.users },
 ];
 
 // 移动端侧边栏内容
@@ -65,7 +68,11 @@ function MobileSidebarContent({ onClose }: { onClose: () => void }) {
   const navigate = useNavigate();
   const { signOut, user } = useAuth();
   const { data: userRole } = useCurrentUserRole();
+  const { t } = useLanguage();
   const isAdmin = userRole === "admin";
+
+  const navItems = getNavItems(t);
+  const adminNavItems = getAdminNavItems(t);
 
   const handleLogout = async () => {
     const { error } = await signOut();
@@ -185,7 +192,11 @@ function DesktopSidebar({ collapsed, setCollapsed }: { collapsed: boolean; setCo
   const navigate = useNavigate();
   const { signOut, user } = useAuth();
   const { data: userRole } = useCurrentUserRole();
+  const { t } = useLanguage();
   const isAdmin = userRole === "admin";
+
+  const navItems = getNavItems(t);
+  const adminNavItems = getAdminNavItems(t);
 
   const handleLogout = async () => {
     const { error } = await signOut();
@@ -297,6 +308,11 @@ function DesktopSidebar({ collapsed, setCollapsed }: { collapsed: boolean; setCo
               {user.email}
             </div>
           )}
+          {!collapsed && (
+            <div className="px-1">
+              <LanguageSwitcher />
+            </div>
+          )}
           <button
             onClick={handleLogout}
             className={cn(
@@ -338,24 +354,27 @@ export function MobileHeader() {
   }, [location.pathname]);
 
   return (
-    <header className="lg:hidden fixed top-0 left-0 right-0 z-50 h-14 bg-background border-b flex items-center px-4">
-      <Sheet open={isOpen} onOpenChange={setIsOpen}>
-        <SheetTrigger asChild>
-          <Button variant="ghost" size="icon">
-            <Menu className="h-6 w-6" />
-          </Button>
-        </SheetTrigger>
-        <SheetContent side="left" className="p-0 w-72">
-          <MobileSidebarContent onClose={() => setIsOpen(false)} />
-        </SheetContent>
-      </Sheet>
-      
-      <div className="flex items-center gap-2 ml-3">
-        <div className="flex h-7 w-7 items-center justify-center rounded-lg gradient-primary">
-          <Warehouse className="h-4 w-4 text-primary-foreground" />
+    <header className="lg:hidden fixed top-0 left-0 right-0 z-50 h-14 bg-background border-b flex items-center justify-between px-4">
+      <div className="flex items-center">
+        <Sheet open={isOpen} onOpenChange={setIsOpen}>
+          <SheetTrigger asChild>
+            <Button variant="ghost" size="icon">
+              <Menu className="h-6 w-6" />
+            </Button>
+          </SheetTrigger>
+          <SheetContent side="left" className="p-0 w-72">
+            <MobileSidebarContent onClose={() => setIsOpen(false)} />
+          </SheetContent>
+        </Sheet>
+        
+        <div className="flex items-center gap-2 ml-3">
+          <div className="flex h-7 w-7 items-center justify-center rounded-lg gradient-primary">
+            <Warehouse className="h-4 w-4 text-primary-foreground" />
+          </div>
+          <span className="text-base font-semibold">境焕</span>
         </div>
-        <span className="text-base font-semibold">境焕</span>
       </div>
+      <LanguageSwitcher />
     </header>
   );
 }

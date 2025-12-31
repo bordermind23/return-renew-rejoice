@@ -106,10 +106,18 @@ export default function InboundScan() {
     return inboundItems.filter(item => item.tracking_number === matchedShipment.tracking_number);
   }, [inboundItems, matchedShipment]);
 
-  // 检查是否有未完成的入库会话
+  // 用于标记是否已经检查过未完成会话（只在页面初始加载时检查一次）
+  const [hasCheckedPendingSession, setHasCheckedPendingSession] = useState(false);
+
+  // 检查是否有未完成的入库会话 - 只在页面初始加载且当前没有进行入库时检查
   useEffect(() => {
+    // 如果已经检查过，或者当前已经在进行入库，则不再检查
+    if (hasCheckedPendingSession || currentStep !== "scan_tracking" || matchedShipment) {
+      return;
+    }
+    
     const savedSession = localStorage.getItem(PENDING_INBOUND_KEY);
-    if (savedSession && shipments) {
+    if (savedSession && shipments && inboundItems) {
       try {
         const session = JSON.parse(savedSession) as PendingInboundSession;
         // 检查会话是否在24小时内
@@ -123,7 +131,7 @@ export default function InboundScan() {
           
           if (allMatched.length > 0) {
             const totalQuantity = allMatched.reduce((sum, s) => sum + s.quantity, 0);
-            const inboundedCount = (inboundItems || []).filter(
+            const inboundedCount = inboundItems.filter(
               item => item.tracking_number === session.trackingNumber
             ).length;
             
@@ -131,6 +139,7 @@ export default function InboundScan() {
             if (inboundedCount > 0 && inboundedCount < totalQuantity) {
               setPendingSession(session);
               setIsPendingSessionDialogOpen(true);
+              setHasCheckedPendingSession(true);
               return;
             }
           }
@@ -141,7 +150,8 @@ export default function InboundScan() {
         localStorage.removeItem(PENDING_INBOUND_KEY);
       }
     }
-  }, [shipments, inboundItems]);
+    setHasCheckedPendingSession(true);
+  }, [shipments, inboundItems, hasCheckedPendingSession, currentStep, matchedShipment]);
 
   // 保存当前入库会话到localStorage
   useEffect(() => {

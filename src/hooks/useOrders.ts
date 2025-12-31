@@ -119,6 +119,46 @@ export const useOrdersPaginated = (page: number, pageSize: number = 50, filters:
   });
 };
 
+// 获取订单状态统计（全量数据）
+export const useOrderStats = () => {
+  return useQuery({
+    queryKey: ["orders", "stats"],
+    queryFn: async () => {
+      // 获取总数
+      const { count: totalCount, error: totalError } = await supabase
+        .from("orders")
+        .select("*", { count: "exact", head: true });
+      if (totalError) throw totalError;
+
+      // 获取各状态数量
+      const { count: pendingCount, error: pendingError } = await supabase
+        .from("orders")
+        .select("*", { count: "exact", head: true })
+        .eq("status", "未到货");
+      if (pendingError) throw pendingError;
+
+      const { count: arrivedCount, error: arrivedError } = await supabase
+        .from("orders")
+        .select("*", { count: "exact", head: true })
+        .eq("status", "到货");
+      if (arrivedError) throw arrivedError;
+
+      const { count: shippedCount, error: shippedError } = await supabase
+        .from("orders")
+        .select("*", { count: "exact", head: true })
+        .eq("status", "出库");
+      if (shippedError) throw shippedError;
+
+      return {
+        total: totalCount || 0,
+        pending: pendingCount || 0,
+        arrived: arrivedCount || 0,
+        shipped: shippedCount || 0,
+      };
+    },
+  });
+};
+
 // 获取所有店铺（用于过滤下拉框）
 export const useOrderStores = () => {
   return useQuery({

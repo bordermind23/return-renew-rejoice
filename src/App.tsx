@@ -40,6 +40,16 @@ const App = () => (
             element={
               <ProtectedRoute>
                 <MainLayout>
+                  <InboundScan />
+                </MainLayout>
+              </ProtectedRoute>
+            }
+          />
+          <Route
+            path="/dashboard"
+            element={
+              <ProtectedRoute>
+                <MainLayout>
                   <Dashboard />
                 </MainLayout>
               </ProtectedRoute>

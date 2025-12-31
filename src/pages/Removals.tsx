@@ -1002,7 +1002,7 @@ export default function Removals() {
                 <TableHead className="font-semibold min-w-[140px]">移除订单号</TableHead>
                 <TableHead className="font-semibold min-w-[160px]">跟踪号</TableHead>
                 <TableHead className="font-semibold min-w-[100px]">承运商</TableHead>
-                <TableHead className="font-semibold min-w-[70px]">店铺</TableHead>
+                
                 <TableHead className="font-semibold min-w-[120px]">产品SKU</TableHead>
                 <TableHead className="font-semibold min-w-[150px]">产品名称</TableHead>
                 <TableHead className="font-semibold min-w-[80px] text-center">数量</TableHead>
@@ -1016,7 +1016,7 @@ export default function Removals() {
                 // 列表视图 - 不分组显示
                 filteredData.length === 0 ? (
                   <TableRow>
-                    <TableCell colSpan={12} className="h-32 text-center text-muted-foreground">
+                    <TableCell colSpan={11} className="h-32 text-center text-muted-foreground">
                       暂无移除货件记录
                     </TableCell>
                   </TableRow>
@@ -1035,7 +1035,6 @@ export default function Removals() {
                           <code className="text-xs bg-muted px-1.5 py-0.5 rounded">{item.tracking_number}</code>
                         </TableCell>
                         <TableCell className="text-muted-foreground">{item.carrier}</TableCell>
-                        <TableCell className="text-muted-foreground">{item.store_name || "-"}</TableCell>
                         <TableCell>
                           <code className="text-xs bg-muted px-1.5 py-0.5 rounded">{item.product_sku || "-"}</code>
                         </TableCell>
@@ -1103,7 +1102,7 @@ export default function Removals() {
                 // 分组视图
                 groupedByOrderTracking.length === 0 ? (
                   <TableRow>
-                    <TableCell colSpan={12} className="h-32 text-center text-muted-foreground">
+                    <TableCell colSpan={11} className="h-32 text-center text-muted-foreground">
                       暂无移除货件记录
                     </TableCell>
                   </TableRow>
@@ -1126,7 +1125,7 @@ export default function Removals() {
                             <code className="text-xs bg-muted px-1.5 py-0.5 rounded">{item.tracking_number}</code>
                           </TableCell>
                           <TableCell className="text-muted-foreground">{item.carrier}</TableCell>
-                          <TableCell className="text-muted-foreground">{item.store_name || "-"}</TableCell>
+                          
                           <TableCell>
                             <code className="text-xs bg-muted px-1.5 py-0.5 rounded">{item.product_sku || "-"}</code>
                           </TableCell>
@@ -1234,11 +1233,6 @@ export default function Removals() {
                               </TableCell>
                             </CollapsibleTrigger>
                             <CollapsibleTrigger asChild>
-                              <TableCell onClick={() => toggleGroup(group.groupKey)} className="text-muted-foreground">
-                                {group.storeName || "-"}
-                              </TableCell>
-                            </CollapsibleTrigger>
-                            <CollapsibleTrigger asChild>
                               <TableCell onClick={() => toggleGroup(group.groupKey)} colSpan={2}>
                                 <div className="flex items-center gap-1">
                                   <Package className="h-3.5 w-3.5 text-muted-foreground" />
@@ -1293,9 +1287,6 @@ export default function Removals() {
                                     </TableCell>
                                     <TableCell className="text-muted-foreground text-sm">
                                       {item.carrier}
-                                    </TableCell>
-                                    <TableCell className="text-muted-foreground text-sm">
-                                      {item.country || "-"}
                                     </TableCell>
                                     <TableCell>
                                       <code className="text-xs bg-muted px-1.5 py-0.5 rounded">{item.product_sku || "-"}</code>

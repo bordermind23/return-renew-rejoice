@@ -127,16 +127,47 @@ export const useDeleteInboundItem = () => {
 
   return useMutation({
     mutationFn: async (id: string) => {
-      const { error } = await supabase
+      // 先获取入库记录的 LPN
+      const { data: inboundItem, error: fetchError } = await supabase
+        .from("inbound_items")
+        .select("lpn")
+        .eq("id", id)
+        .single();
+
+      if (fetchError) throw fetchError;
+
+      const lpn = inboundItem?.lpn;
+
+      // 删除入库记录
+      const { error: deleteError } = await supabase
         .from("inbound_items")
         .delete()
         .eq("id", id);
 
-      if (error) throw error;
+      if (deleteError) throw deleteError;
+
+      // 更新对应订单状态：将 inbound_at 设为 null，状态回退到 "未到货"
+      if (lpn) {
+        const { error: updateError } = await supabase
+          .from("orders")
+          .update({ 
+            inbound_at: null,
+            status: "未到货" as const
+          })
+          .eq("lpn", lpn);
+
+        if (updateError) {
+          console.error("更新订单状态失败:", updateError);
+          // 不抛出错误，因为入库记录已经删除成功
+        }
+      }
+
+      return { lpn };
     },
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ["inbound_items"] });
-      toast.success("入库记录删除成功");
+      queryClient.invalidateQueries({ queryKey: ["orders"] });
+      toast.success("入库记录已删除，订单状态已更新");
     },
     onError: (error) => {
       toast.error("删除失败: " + error.message);

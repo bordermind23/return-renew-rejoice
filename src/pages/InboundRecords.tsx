@@ -27,6 +27,7 @@ import {
 } from "@/hooks/useInboundItems";
 import { fetchOrdersByLpn } from "@/hooks/useOrdersByLpn";
 import { useDecreaseInventoryStock } from "@/hooks/useInventoryItems";
+import { useRemovalShipments, useUpdateRemovalShipment } from "@/hooks/useRemovalShipments";
 import { Skeleton } from "@/components/ui/skeleton";
 import { InboundBatchList } from "@/components/InboundBatchList";
 import { toast } from "sonner";
@@ -42,8 +43,10 @@ export default function InboundRecords() {
   const [dateFilter, setDateFilter] = useState<string>("all");
 
   const { data: inboundItems, isLoading } = useInboundItems();
+  const { data: shipments } = useRemovalShipments();
   const deleteMutation = useDeleteInboundItem();
   const decreaseInventoryMutation = useDecreaseInventoryStock();
+  const updateShipmentMutation = useUpdateRemovalShipment();
 
   // 筛选后的数据
   const filteredItems = useMemo(() => {
@@ -91,6 +94,38 @@ export default function InboundRecords() {
     });
   }, [inboundItems, searchTerm, gradeFilter, dateFilter]);
 
+  // 获取某物流号下的已入库数量（不包含当前正在删除的项目）
+  const getInboundedCountExcluding = (trackingNumber: string, excludeIds: string[]) => {
+    return (inboundItems || []).filter(
+      item => item.tracking_number === trackingNumber && !excludeIds.includes(item.id)
+    ).length;
+  };
+
+  // 更新货件状态（如果入库数量小于申报数量，将状态从 inbound 改回 arrived）
+  const updateShipmentStatusAfterDelete = (trackingNumber: string, excludeIds: string[]) => {
+    if (!trackingNumber || !shipments) return;
+    
+    // 找到该物流号的所有货件
+    const matchedShipments = shipments.filter(s => s.tracking_number === trackingNumber);
+    if (matchedShipments.length === 0) return;
+    
+    const totalQuantity = matchedShipments.reduce((sum, s) => sum + s.quantity, 0);
+    const remainingInbounded = getInboundedCountExcluding(trackingNumber, excludeIds);
+    
+    // 如果删除后入库数量小于申报数量，更新货件状态
+    if (remainingInbounded < totalQuantity) {
+      matchedShipments.forEach(shipment => {
+        if (shipment.status === "inbound") {
+          updateShipmentMutation.mutate({
+            id: shipment.id,
+            status: "arrived",
+            note: `入库记录删除：剩余入库 ${remainingInbounded} 件，申报 ${totalQuantity} 件`,
+          });
+        }
+      });
+    }
+  };
+
   const handleDelete = async () => {
     if (deleteId && inboundItems) {
       const itemToDelete = inboundItems.find(item => item.id === deleteId);
@@ -111,6 +146,11 @@ export default function InboundRecords() {
             quantity: 1,
           });
         }
+        
+        // 更新货件差异数据
+        if (itemToDelete.tracking_number) {
+          updateShipmentStatusAfterDelete(itemToDelete.tracking_number, [deleteId]);
+        }
       }
       
       deleteMutation.mutate(deleteId, {
@@ -123,6 +163,9 @@ export default function InboundRecords() {
     if (deleteIds.length === 0 || !inboundItems) return;
     
     let successCount = 0;
+    
+    // 收集需要更新状态的物流号
+    const trackingNumbersToUpdate = new Set<string>();
     
     for (const id of deleteIds) {
       const itemToDelete = inboundItems.find(item => item.id === id);
@@ -144,10 +187,20 @@ export default function InboundRecords() {
           });
         }
         
+        // 记录物流号
+        if (itemToDelete.tracking_number) {
+          trackingNumbersToUpdate.add(itemToDelete.tracking_number);
+        }
+        
         deleteMutation.mutate(id);
         successCount++;
       }
     }
+    
+    // 更新所有相关货件的状态
+    trackingNumbersToUpdate.forEach(trackingNumber => {
+      updateShipmentStatusAfterDelete(trackingNumber, deleteIds);
+    });
     
     toast.success(`已删除 ${successCount} 条入库记录`);
     setDeleteIds([]);

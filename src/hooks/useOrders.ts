@@ -52,15 +52,24 @@ export const useOrders = () => {
   });
 };
 
-export const useOrdersPaginated = (page: number, pageSize: number = 50, searchTerm?: string, storeFilter?: string) => {
+export interface OrderFilters {
+  searchTerm?: string;
+  storeFilter?: string;
+  statusFilters?: OrderStatus[];
+  gradeFilter?: string;
+}
+
+export const useOrdersPaginated = (page: number, pageSize: number = 50, filters: OrderFilters = {}) => {
+  const { searchTerm, storeFilter, statusFilters, gradeFilter } = filters;
+  
   return useQuery({
-    queryKey: ["orders", "paginated", page, pageSize, searchTerm, storeFilter],
+    queryKey: ["orders", "paginated", page, pageSize, searchTerm, storeFilter, statusFilters, gradeFilter],
     queryFn: async () => {
       // 构建基础查询
       let countQuery = supabase.from("orders").select("*", { count: "exact", head: true });
       let dataQuery = supabase.from("orders").select("*");
 
-      // 应用搜索过滤
+      // 应用搜索过滤（包含产品名称）
       if (searchTerm) {
         const search = `%${searchTerm}%`;
         countQuery = countQuery.or(`order_number.ilike.${search},lpn.ilike.${search},store_name.ilike.${search},product_name.ilike.${search},internal_order_no.ilike.${search}`);
@@ -71,6 +80,18 @@ export const useOrdersPaginated = (page: number, pageSize: number = 50, searchTe
       if (storeFilter && storeFilter !== "all") {
         countQuery = countQuery.eq("store_name", storeFilter);
         dataQuery = dataQuery.eq("store_name", storeFilter);
+      }
+
+      // 应用状态过滤（多选）
+      if (statusFilters && statusFilters.length > 0) {
+        countQuery = countQuery.in("status", statusFilters);
+        dataQuery = dataQuery.in("status", statusFilters);
+      }
+
+      // 应用等级过滤
+      if (gradeFilter && gradeFilter !== "all") {
+        countQuery = countQuery.eq("grade", gradeFilter);
+        dataQuery = dataQuery.eq("grade", gradeFilter);
       }
 
       // 获取总数

@@ -8,8 +8,8 @@ export interface RemovalShipment {
   note: string | null;
   carrier: string;
   tracking_number: string;
-  product_sku: string;
-  product_name: string;
+  product_sku: string | null;
+  product_name: string | null;
   product_image: string | null;
   fnsku: string;
   quantity: number;

@@ -523,8 +523,8 @@ export type Database = {
           note: string | null
           order_id: string
           product_image: string | null
-          product_name: string
-          product_sku: string
+          product_name: string | null
+          product_sku: string | null
           product_type: string | null
           quantity: number
           ship_date: string | null
@@ -543,8 +543,8 @@ export type Database = {
           note?: string | null
           order_id: string
           product_image?: string | null
-          product_name: string
-          product_sku: string
+          product_name?: string | null
+          product_sku?: string | null
           product_type?: string | null
           quantity?: number
           ship_date?: string | null
@@ -563,8 +563,8 @@ export type Database = {
           note?: string | null
           order_id?: string
           product_image?: string | null
-          product_name?: string
-          product_sku?: string
+          product_name?: string | null
+          product_sku?: string | null
           product_type?: string | null
           quantity?: number
           ship_date?: string | null

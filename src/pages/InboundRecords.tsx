@@ -1,6 +1,16 @@
-import { useState } from "react";
-import { Trash2 } from "lucide-react";
+import { useState, useMemo } from "react";
+import { Search, Filter, X } from "lucide-react";
 import { PageHeader } from "@/components/ui/page-header";
+import { Input } from "@/components/ui/input";
+import { Button } from "@/components/ui/button";
+import { Badge } from "@/components/ui/badge";
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from "@/components/ui/select";
 import {
   AlertDialog,
   AlertDialogAction,
@@ -19,37 +29,88 @@ import { fetchOrdersByLpn } from "@/hooks/useOrdersByLpn";
 import { useDecreaseInventoryStock } from "@/hooks/useInventoryItems";
 import { Skeleton } from "@/components/ui/skeleton";
 import { InboundBatchList } from "@/components/InboundBatchList";
+import { toast } from "sonner";
 
 export default function InboundRecords() {
   const [deleteId, setDeleteId] = useState<string | null>(null);
+  const [deleteIds, setDeleteIds] = useState<string[]>([]);
+  const [isBatchDeleteOpen, setIsBatchDeleteOpen] = useState(false);
+  
+  // 筛选状态
+  const [searchTerm, setSearchTerm] = useState("");
+  const [gradeFilter, setGradeFilter] = useState<string>("all");
+  const [dateFilter, setDateFilter] = useState<string>("all");
 
   const { data: inboundItems, isLoading } = useInboundItems();
   const deleteMutation = useDeleteInboundItem();
   const decreaseInventoryMutation = useDecreaseInventoryStock();
 
-  const handleDelete = () => {
+  // 筛选后的数据
+  const filteredItems = useMemo(() => {
+    if (!inboundItems) return [];
+    
+    return inboundItems.filter(item => {
+      // 搜索过滤
+      if (searchTerm) {
+        const search = searchTerm.toLowerCase();
+        const matchesSearch = 
+          item.lpn.toLowerCase().includes(search) ||
+          item.product_sku.toLowerCase().includes(search) ||
+          item.product_name.toLowerCase().includes(search) ||
+          (item.tracking_number?.toLowerCase().includes(search) ?? false);
+        if (!matchesSearch) return false;
+      }
+      
+      // 级别过滤
+      if (gradeFilter !== "all" && item.grade !== gradeFilter) {
+        return false;
+      }
+      
+      // 日期过滤
+      if (dateFilter !== "all") {
+        const itemDate = new Date(item.processed_at);
+        const now = new Date();
+        
+        switch (dateFilter) {
+          case "today":
+            const today = new Date(now.getFullYear(), now.getMonth(), now.getDate());
+            if (itemDate < today) return false;
+            break;
+          case "week":
+            const weekAgo = new Date(now.getTime() - 7 * 24 * 60 * 60 * 1000);
+            if (itemDate < weekAgo) return false;
+            break;
+          case "month":
+            const monthAgo = new Date(now.getTime() - 30 * 24 * 60 * 60 * 1000);
+            if (itemDate < monthAgo) return false;
+            break;
+        }
+      }
+      
+      return true;
+    });
+  }, [inboundItems, searchTerm, gradeFilter, dateFilter]);
+
+  const handleDelete = async () => {
     if (deleteId && inboundItems) {
       const itemToDelete = inboundItems.find(item => item.id === deleteId);
       
       if (itemToDelete) {
-        const fetchAndDecrease = async () => {
-          try {
-            const orders = await fetchOrdersByLpn(itemToDelete.lpn);
-            const returnQty = orders.length > 0 ? (orders[0].return_quantity || 1) : 1;
-            decreaseInventoryMutation.mutate({
-              sku: itemToDelete.product_sku,
-              grade: itemToDelete.grade as "A" | "B" | "C",
-              quantity: returnQty,
-            });
-          } catch (error) {
-            decreaseInventoryMutation.mutate({
-              sku: itemToDelete.product_sku,
-              grade: itemToDelete.grade as "A" | "B" | "C",
-              quantity: 1,
-            });
-          }
-        };
-        fetchAndDecrease();
+        try {
+          const orders = await fetchOrdersByLpn(itemToDelete.lpn);
+          const returnQty = orders.length > 0 ? (orders[0].return_quantity || 1) : 1;
+          decreaseInventoryMutation.mutate({
+            sku: itemToDelete.product_sku,
+            grade: itemToDelete.grade as "A" | "B" | "C",
+            quantity: returnQty,
+          });
+        } catch (error) {
+          decreaseInventoryMutation.mutate({
+            sku: itemToDelete.product_sku,
+            grade: itemToDelete.grade as "A" | "B" | "C",
+            quantity: 1,
+          });
+        }
       }
       
       deleteMutation.mutate(deleteId, {
@@ -57,6 +118,54 @@ export default function InboundRecords() {
       });
     }
   };
+
+  const handleBatchDelete = async () => {
+    if (deleteIds.length === 0 || !inboundItems) return;
+    
+    let successCount = 0;
+    
+    for (const id of deleteIds) {
+      const itemToDelete = inboundItems.find(item => item.id === id);
+      
+      if (itemToDelete) {
+        try {
+          const orders = await fetchOrdersByLpn(itemToDelete.lpn);
+          const returnQty = orders.length > 0 ? (orders[0].return_quantity || 1) : 1;
+          decreaseInventoryMutation.mutate({
+            sku: itemToDelete.product_sku,
+            grade: itemToDelete.grade as "A" | "B" | "C",
+            quantity: returnQty,
+          });
+        } catch (error) {
+          decreaseInventoryMutation.mutate({
+            sku: itemToDelete.product_sku,
+            grade: itemToDelete.grade as "A" | "B" | "C",
+            quantity: 1,
+          });
+        }
+        
+        deleteMutation.mutate(id);
+        successCount++;
+      }
+    }
+    
+    toast.success(`已删除 ${successCount} 条入库记录`);
+    setDeleteIds([]);
+    setIsBatchDeleteOpen(false);
+  };
+
+  const handleBatchDeleteRequest = (ids: string[]) => {
+    setDeleteIds(ids);
+    setIsBatchDeleteOpen(true);
+  };
+
+  const clearFilters = () => {
+    setSearchTerm("");
+    setGradeFilter("all");
+    setDateFilter("all");
+  };
+
+  const hasActiveFilters = searchTerm || gradeFilter !== "all" || dateFilter !== "all";
 
   if (isLoading) {
     return (
@@ -74,19 +183,75 @@ export default function InboundRecords() {
         description="查看所有已入库的产品记录"
       />
 
-      <div className="space-y-4">
-        <div className="flex items-center justify-between">
+      {/* 筛选区域 */}
+      <div className="flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
+        <div className="flex flex-col gap-3 sm:flex-row sm:items-center flex-1">
+          {/* 搜索框 */}
+          <div className="relative flex-1 max-w-sm">
+            <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
+            <Input
+              placeholder="搜索LPN、SKU、产品名称、物流号..."
+              value={searchTerm}
+              onChange={(e) => setSearchTerm(e.target.value)}
+              className="pl-9"
+            />
+          </div>
+          
+          {/* 级别筛选 */}
+          <Select value={gradeFilter} onValueChange={setGradeFilter}>
+            <SelectTrigger className="w-[120px]">
+              <SelectValue placeholder="全部级别" />
+            </SelectTrigger>
+            <SelectContent>
+              <SelectItem value="all">全部级别</SelectItem>
+              <SelectItem value="A">A级</SelectItem>
+              <SelectItem value="B">B级</SelectItem>
+              <SelectItem value="C">C级</SelectItem>
+            </SelectContent>
+          </Select>
+          
+          {/* 日期筛选 */}
+          <Select value={dateFilter} onValueChange={setDateFilter}>
+            <SelectTrigger className="w-[120px]">
+              <SelectValue placeholder="全部时间" />
+            </SelectTrigger>
+            <SelectContent>
+              <SelectItem value="all">全部时间</SelectItem>
+              <SelectItem value="today">今天</SelectItem>
+              <SelectItem value="week">最近7天</SelectItem>
+              <SelectItem value="month">最近30天</SelectItem>
+            </SelectContent>
+          </Select>
+          
+          {/* 清除筛选 */}
+          {hasActiveFilters && (
+            <Button variant="ghost" size="sm" onClick={clearFilters}>
+              <X className="h-4 w-4 mr-1" />
+              清除筛选
+            </Button>
+          )}
+        </div>
+        
+        <div className="flex items-center gap-2">
+          {hasActiveFilters && (
+            <Badge variant="secondary">
+              筛选结果: {filteredItems.length} 条
+            </Badge>
+          )}
           <div className="text-sm text-muted-foreground">
-            共 {inboundItems?.length || 0} 条入库记录
+            共 {inboundItems?.length || 0} 条记录
           </div>
         </div>
-        <InboundBatchList 
-          items={inboundItems || []} 
-          onDelete={(id) => setDeleteId(id)} 
-        />
       </div>
 
-      {/* 删除确认 */}
+      <InboundBatchList 
+        items={filteredItems} 
+        onDelete={(id) => setDeleteId(id)}
+        onBatchDelete={handleBatchDeleteRequest}
+        enableBatchSelect
+      />
+
+      {/* 单个删除确认 */}
       <AlertDialog open={!!deleteId} onOpenChange={() => setDeleteId(null)}>
         <AlertDialogContent>
           <AlertDialogHeader>
@@ -102,6 +267,28 @@ export default function InboundRecords() {
               className="bg-destructive text-destructive-foreground"
             >
               删除
+            </AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
+
+      {/* 批量删除确认 */}
+      <AlertDialog open={isBatchDeleteOpen} onOpenChange={setIsBatchDeleteOpen}>
+        <AlertDialogContent>
+          <AlertDialogHeader>
+            <AlertDialogTitle>确认批量删除</AlertDialogTitle>
+            <AlertDialogDescription>
+              您即将删除 <span className="font-semibold text-foreground">{deleteIds.length}</span> 条入库记录。
+              此操作无法撤销，确定要继续吗？
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+          <AlertDialogFooter>
+            <AlertDialogCancel>取消</AlertDialogCancel>
+            <AlertDialogAction
+              onClick={handleBatchDelete}
+              className="bg-destructive text-destructive-foreground"
+            >
+              确认删除 {deleteIds.length} 条
             </AlertDialogAction>
           </AlertDialogFooter>
         </AlertDialogContent>

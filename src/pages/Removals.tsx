@@ -523,67 +523,14 @@ export default function Removals() {
           return;
         }
 
-        // 检查重复记录：基于移除订单号、跟踪号、产品SKU、MSKU、商品类型、FNSKU、数量
-        const generateKey = (s: { order_id: string; tracking_number: string; product_sku?: string | null; msku?: string | null; product_type?: string | null; fnsku: string; quantity: number }) => 
-          `${s.order_id}|${s.tracking_number}|${s.product_sku || ''}|${s.msku || ''}|${s.product_type || ''}|${s.fnsku}|${s.quantity}`;
-        
-        const existingKeys = new Set(
-          (shipments || []).map(s => generateKey(s))
-        );
-        
-        const duplicateShipments: { row: number; orderId: string; trackingNumber: string }[] = [];
-        const newShipments: RemovalShipmentInsert[] = [];
-        
-        validShipments.forEach((shipment, index) => {
-          const key = generateKey(shipment);
-          if (existingKeys.has(key)) {
-            duplicateShipments.push({
-              row: index + 2,
-              orderId: shipment.order_id,
-              trackingNumber: shipment.tracking_number,
-            });
-          } else {
-            newShipments.push(shipment);
-            existingKeys.add(key); // 避免导入文件内部重复
-          }
-        });
-
-        // 添加重复记录的错误信息
-        duplicateShipments.forEach(dup => {
-          importErrors.push({
-            row: dup.row,
-            message: `重复记录：订单号 ${dup.orderId}，跟踪号 ${dup.trackingNumber} 已存在`
-          });
-        });
-
-        setImportProgress(prev => ({
-          ...prev,
-          errors: importErrors,
-        }));
-
-        if (newShipments.length === 0) {
-          setImportProgress(prev => ({
-            ...prev,
-            isImporting: false,
-            showResult: true,
-          }));
-          if (duplicateShipments.length > 0) {
-            toast.warning(`所有 ${duplicateShipments.length} 条记录都已存在，无需导入`);
-          }
-          return;
-        }
-
-        bulkCreateMutation.mutate(newShipments, {
+        bulkCreateMutation.mutate(validShipments, {
           onSuccess: () => {
             setImportProgress(prev => ({
               ...prev,
               isImporting: false,
               showResult: true,
-              successCount: newShipments.length,
+              successCount: validShipments.length,
             }));
-            if (duplicateShipments.length > 0) {
-              toast.warning(`跳过 ${duplicateShipments.length} 条重复记录`);
-            }
           },
           onError: (error) => {
             setImportProgress(prev => ({

@@ -39,9 +39,6 @@ type NavItem = {
 
 // 使用翻译的导航项生成函数
 const getNavItems = (t: ReturnType<typeof useLanguage>['t']): NavItem[] => [
-  { to: "/", icon: LayoutDashboard, label: t.nav.dashboard },
-  { to: "/products", icon: Package, label: t.nav.products },
-  { to: "/removals", icon: PackageX, label: t.nav.removals },
   { 
     to: "/inbound", 
     icon: PackageCheck, 
@@ -52,8 +49,11 @@ const getNavItems = (t: ReturnType<typeof useLanguage>['t']): NavItem[] => [
       { to: "/inbound/discrepancy", icon: AlertTriangle, label: t.nav.inboundDiscrepancy },
     ]
   },
-  { to: "/inventory", icon: Warehouse, label: t.nav.inventory },
+  { to: "/dashboard", icon: LayoutDashboard, label: t.nav.dashboard },
   { to: "/orders", icon: ClipboardList, label: t.nav.orders },
+  { to: "/removals", icon: PackageX, label: t.nav.removals },
+  { to: "/inventory", icon: Warehouse, label: t.nav.inventory },
+  { to: "/products", icon: Package, label: t.nav.products },
   { to: "/outbound", icon: PackageOpen, label: t.nav.outbound },
   { to: "/cases", icon: FileWarning, label: t.nav.cases },
 ];

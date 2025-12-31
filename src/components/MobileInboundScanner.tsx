@@ -17,6 +17,7 @@ import {
 import { useRemovalShipments, useUpdateRemovalShipment, type RemovalShipment } from "@/hooks/useRemovalShipments";
 import { useInboundItems } from "@/hooks/useInboundItems";
 import { fetchOrdersByLpn } from "@/hooks/useOrdersByLpn";
+import { useSound } from "@/hooks/useSound";
 import { toast } from "sonner";
 import { cn } from "@/lib/utils";
 
@@ -43,6 +44,7 @@ interface MobileInboundScannerProps {
 
 export function MobileInboundScanner({ initialTracking }: MobileInboundScannerProps) {
   const navigate = useNavigate();
+  const { playSuccess, playError, playWarning } = useSound();
   const [step, setStep] = useState<ScanStep>("idle");
   const [trackingInput, setTrackingInput] = useState("");
   const [lpnInput, setLpnInput] = useState("");
@@ -95,6 +97,7 @@ export function MobileInboundScanner({ initialTracking }: MobileInboundScannerPr
 
     if (allMatched.length === 0) {
       vibrateError();
+      playError();
       toast.error(`未找到物流跟踪号: ${trackingCode}`);
       return;
     }
@@ -103,11 +106,13 @@ export function MobileInboundScanner({ initialTracking }: MobileInboundScannerPr
     const inboundedCount = getInboundedCount(allMatched[0].tracking_number);
     if (inboundedCount >= totalQuantity) {
       vibrateWarning();
+      playWarning();
       toast.warning(`该物流号下的 ${totalQuantity} 件货物已全部入库`);
       return;
     }
 
     vibrateSuccess();
+    playSuccess();
     setMatchedShipment(allMatched[0]);
     setMatchedShipments(allMatched);
     setTrackingInput(trackingCode);
@@ -125,6 +130,7 @@ export function MobileInboundScanner({ initialTracking }: MobileInboundScannerPr
     const lpnOrders = await fetchOrdersByLpn(lpn);
     if (lpnOrders.length === 0) {
       vibrateError();
+      playError();
       toast.error(`LPN号 "${lpn}" 不存在于退货订单列表中`);
       setLpnInput("");
       return;
@@ -133,6 +139,7 @@ export function MobileInboundScanner({ initialTracking }: MobileInboundScannerPr
     // 检查是否已扫描过
     if (scannedLpns.includes(lpn)) {
       vibrateWarning();
+      playWarning();
       toast.error("该LPN已扫描过");
       setLpnInput("");
       return;
@@ -142,13 +149,15 @@ export function MobileInboundScanner({ initialTracking }: MobileInboundScannerPr
     const existingItem = inboundItems?.find(item => item.lpn === lpn);
     if (existingItem) {
       vibrateWarning();
+      playWarning();
       toast.error("该LPN已入库");
       setLpnInput("");
       return;
     }
 
-    // 成功振动并跳转到处理页面
+    // 成功振动和音效，然后跳转到处理页面
     vibrateSuccess();
+    playSuccess();
     setLpnInput("");
     
     // 跳转到入库处理页面
@@ -190,6 +199,7 @@ export function MobileInboundScanner({ initialTracking }: MobileInboundScannerPr
     });
     
     vibrateSuccess();
+    playSuccess();
     toast.success(`已强制完成入库！实际入库 ${totalInbounded} 件，申报 ${totalQuantity} 件`);
     setIsForceCompleteOpen(false);
     handleReset();
@@ -203,6 +213,7 @@ export function MobileInboundScanner({ initialTracking }: MobileInboundScannerPr
     const totalQuantity = matchedShipments.reduce((sum, s) => sum + s.quantity, 0);
     
     if (totalInbounded < totalQuantity) {
+      playError();
       toast.error(`还有 ${totalQuantity - totalInbounded} 件未扫描`);
       return;
     }
@@ -216,6 +227,7 @@ export function MobileInboundScanner({ initialTracking }: MobileInboundScannerPr
     
     vibrateSuccess();
     setTimeout(() => vibrateSuccess(), 200);
+    playSuccess();
     toast.success(`包裹入库完成！共 ${totalInbounded} 件货物`);
     handleReset();
   };

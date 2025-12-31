@@ -185,31 +185,34 @@ export default function Removals() {
     return matchesSearch && matchesStatus;
   });
 
-  // 按移除订单号分组
-  interface OrderGroup {
+  // 按移除订单号 + 跟踪号分组
+  interface OrderTrackingGroup {
     orderId: string;
+    trackingNumber: string;
+    groupKey: string;
     items: RemovalShipment[];
     totalQuantity: number;
     statuses: string[];
-    trackingNumbers: string[];
-    carriers: string[];
+    carrier: string;
     storeName: string | null;
     country: string | null;
   }
 
-  const groupedByOrder = useMemo(() => {
-    const groups: Record<string, OrderGroup> = {};
+  const groupedByOrderTracking = useMemo(() => {
+    const groups: Record<string, OrderTrackingGroup> = {};
     
     filteredData.forEach((item) => {
-      const key = item.order_id;
+      // 使用 order_id + tracking_number 作为组合键
+      const key = `${item.order_id}|||${item.tracking_number}`;
       if (!groups[key]) {
         groups[key] = {
           orderId: item.order_id,
+          trackingNumber: item.tracking_number,
+          groupKey: key,
           items: [],
           totalQuantity: 0,
           statuses: [],
-          trackingNumbers: [],
-          carriers: [],
+          carrier: item.carrier,
           storeName: item.store_name,
           country: item.country,
         };
@@ -218,12 +221,6 @@ export default function Removals() {
       groups[key].totalQuantity += item.quantity;
       if (!groups[key].statuses.includes(item.status)) {
         groups[key].statuses.push(item.status);
-      }
-      if (!groups[key].trackingNumbers.includes(item.tracking_number)) {
-        groups[key].trackingNumbers.push(item.tracking_number);
-      }
-      if (!groups[key].carriers.includes(item.carrier)) {
-        groups[key].carriers.push(item.carrier);
       }
     });
 
@@ -235,19 +232,19 @@ export default function Removals() {
     });
   }, [filteredData]);
 
-  const toggleGroup = (orderId: string) => {
+  const toggleGroup = (groupKey: string) => {
     setExpandedGroups(prev => {
       const newSet = new Set(prev);
-      if (newSet.has(orderId)) {
-        newSet.delete(orderId);
+      if (newSet.has(groupKey)) {
+        newSet.delete(groupKey);
       } else {
-        newSet.add(orderId);
+        newSet.add(groupKey);
       }
       return newSet;
     });
   };
 
-  const toggleSelectGroup = (group: OrderGroup) => {
+  const toggleSelectGroup = (group: OrderTrackingGroup) => {
     const groupIds = group.items.map(i => i.id);
     const allSelected = groupIds.every(id => selectedIds.includes(id));
     
@@ -945,14 +942,14 @@ export default function Removals() {
               </TableRow>
             </TableHeader>
             <TableBody>
-              {groupedByOrder.length === 0 ? (
+              {groupedByOrderTracking.length === 0 ? (
                 <TableRow>
                   <TableCell colSpan={11} className="h-32 text-center text-muted-foreground">
                     暂无移除货件记录
                   </TableCell>
                 </TableRow>
               ) : (
-                groupedByOrder.map((group) => {
+                groupedByOrderTracking.map((group) => {
                   // 如果只有一个产品，直接显示为普通行
                   if (group.items.length === 1) {
                     const item = group.items[0];
@@ -1007,13 +1004,13 @@ export default function Removals() {
                   }
 
                   // 多个产品时显示分组
-                  const isExpanded = expandedGroups.has(group.orderId);
+                  const isExpanded = expandedGroups.has(group.groupKey);
                   const groupIds = group.items.map(i => i.id);
                   const allSelected = groupIds.every(id => selectedIds.includes(id));
                   const someSelected = groupIds.some(id => selectedIds.includes(id)) && !allSelected;
                   
                   return (
-                    <Collapsible key={group.orderId} open={isExpanded} asChild>
+                    <Collapsible key={group.groupKey} open={isExpanded} asChild>
                       <>
                         {/* 分组头部行 */}
                         <TableRow className="bg-muted/30 hover:bg-muted/50 cursor-pointer">
@@ -1026,7 +1023,7 @@ export default function Removals() {
                             />
                           </TableCell>
                           <CollapsibleTrigger asChild>
-                            <TableCell onClick={() => toggleGroup(group.orderId)}>
+                            <TableCell onClick={() => toggleGroup(group.groupKey)}>
                               {isExpanded ? (
                                 <ChevronDown className="h-4 w-4 text-muted-foreground" />
                               ) : (
@@ -1035,31 +1032,27 @@ export default function Removals() {
                             </TableCell>
                           </CollapsibleTrigger>
                           <CollapsibleTrigger asChild>
-                            <TableCell onClick={() => toggleGroup(group.orderId)}>
+                            <TableCell onClick={() => toggleGroup(group.groupKey)}>
                               <span className="font-medium text-primary text-sm">{group.orderId}</span>
                             </TableCell>
                           </CollapsibleTrigger>
                           <CollapsibleTrigger asChild>
-                            <TableCell onClick={() => toggleGroup(group.orderId)}>
-                              <span className="text-sm text-muted-foreground">
-                                {group.trackingNumbers.length > 1 ? `${group.trackingNumbers.length} 个跟踪号` : (
-                                  <code className="text-xs bg-muted px-1.5 py-0.5 rounded">{group.trackingNumbers[0]}</code>
-                                )}
-                              </span>
+                            <TableCell onClick={() => toggleGroup(group.groupKey)}>
+                              <code className="text-xs bg-muted px-1.5 py-0.5 rounded">{group.trackingNumber}</code>
                             </TableCell>
                           </CollapsibleTrigger>
                           <CollapsibleTrigger asChild>
-                            <TableCell onClick={() => toggleGroup(group.orderId)} className="text-muted-foreground">
-                              {group.carriers.length > 1 ? `${group.carriers.length} 个承运商` : group.carriers[0]}
+                            <TableCell onClick={() => toggleGroup(group.groupKey)} className="text-muted-foreground">
+                              {group.carrier}
                             </TableCell>
                           </CollapsibleTrigger>
                           <CollapsibleTrigger asChild>
-                            <TableCell onClick={() => toggleGroup(group.orderId)} className="text-muted-foreground">
+                            <TableCell onClick={() => toggleGroup(group.groupKey)} className="text-muted-foreground">
                               {group.storeName || "-"}
                             </TableCell>
                           </CollapsibleTrigger>
                           <CollapsibleTrigger asChild>
-                            <TableCell onClick={() => toggleGroup(group.orderId)} colSpan={2}>
+                            <TableCell onClick={() => toggleGroup(group.groupKey)} colSpan={2}>
                               <div className="flex items-center gap-1">
                                 <Package className="h-3.5 w-3.5 text-muted-foreground" />
                                 <span className="text-sm text-muted-foreground">{group.items.length} 种产品</span>
@@ -1067,12 +1060,12 @@ export default function Removals() {
                             </TableCell>
                           </CollapsibleTrigger>
                           <CollapsibleTrigger asChild>
-                            <TableCell onClick={() => toggleGroup(group.orderId)} className="text-center">
+                            <TableCell onClick={() => toggleGroup(group.groupKey)} className="text-center">
                               <span className="font-semibold text-primary">{group.totalQuantity}</span>
                             </TableCell>
                           </CollapsibleTrigger>
                           <CollapsibleTrigger asChild>
-                            <TableCell onClick={() => toggleGroup(group.orderId)}>
+                            <TableCell onClick={() => toggleGroup(group.groupKey)}>
                               <div className="flex flex-wrap gap-1">
                                 {group.statuses.map((status, idx) => (
                                   <StatusBadge key={idx} status={status as "shipping" | "arrived" | "inbound" | "shelved"} />
@@ -1084,7 +1077,7 @@ export default function Removals() {
                             <Button
                               size="sm"
                               variant="ghost"
-                              onClick={() => toggleGroup(group.orderId)}
+                              onClick={() => toggleGroup(group.groupKey)}
                             >
                               {isExpanded ? "收起" : "展开"}
                             </Button>
@@ -1161,7 +1154,7 @@ export default function Removals() {
 
       {/* 数据统计 */}
       <div className="text-sm text-muted-foreground">
-        共 {groupedByOrder.length} 个移除订单（{filteredData.length} 条产品记录）
+        共 {groupedByOrderTracking.length} 个分组（{filteredData.length} 条产品记录）
         {statusFilter !== "all" && ` (已筛选)`}
       </div>
 

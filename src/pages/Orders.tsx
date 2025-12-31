@@ -53,6 +53,7 @@ import {
 import { ScrollArea, ScrollBar } from "@/components/ui/scroll-area";
 import { Checkbox } from "@/components/ui/checkbox";
 import { GradeBadge } from "@/components/ui/grade-badge";
+import { OrderStatusBadge } from "@/components/ui/order-status-badge";
 import { GradeEditDialog } from "@/components/GradeEditDialog";
 import { PhotoViewDialog } from "@/components/PhotoViewDialog";
 import {
@@ -838,6 +839,7 @@ export default function Orders() {
                   <Checkbox checked={selectedIds.length === orders.length && orders.length > 0} onCheckedChange={toggleSelectAll} />
                 </TableHead>
                 <TableHead className="font-semibold min-w-[110px]">内部订单号</TableHead>
+                <TableHead className="font-semibold min-w-[70px] text-center">状态</TableHead>
                 <TableHead className="font-semibold min-w-[100px]">LPN编号</TableHead>
                 <TableHead className="font-semibold min-w-[120px]">产品名称</TableHead>
                 <TableHead className="font-semibold min-w-[100px]">产品SKU</TableHead>
@@ -854,7 +856,7 @@ export default function Orders() {
             <TableBody>
               {orders.length === 0 ? (
                 <TableRow>
-                  <TableCell colSpan={13} className="h-32 text-center text-muted-foreground">暂无订单记录</TableCell>
+                  <TableCell colSpan={14} className="h-32 text-center text-muted-foreground">暂无订单记录</TableCell>
                 </TableRow>
               ) : (
                 <>
@@ -897,6 +899,9 @@ export default function Orders() {
                               </span>
                             </div>
                           </TableCell>
+                          <TableCell className="text-center">
+                            <span className="text-muted-foreground text-xs">-</span>
+                          </TableCell>
                           <TableCell>
                             <span className="text-muted-foreground text-xs">展开查看</span>
                           </TableCell>
@@ -930,6 +935,9 @@ export default function Orders() {
                               </TableCell>
                               <TableCell>
                                 <div className="pl-8 text-muted-foreground text-xs">└</div>
+                              </TableCell>
+                              <TableCell className="text-center">
+                                <OrderStatusBadge status={item.status} />
                               </TableCell>
                               <TableCell><code className="text-xs bg-muted px-1.5 py-0.5 rounded font-medium">{item.lpn}</code></TableCell>
                               <TableCell><span className="line-clamp-1 text-sm">{item.product_name || "-"}</span></TableCell>
@@ -998,6 +1006,9 @@ export default function Orders() {
                           <code className="text-xs bg-primary/10 text-primary px-1.5 py-0.5 rounded font-medium">
                             {item.internal_order_no || "-"}
                           </code>
+                        </TableCell>
+                        <TableCell className="text-center">
+                          <OrderStatusBadge status={item.status} />
                         </TableCell>
                         <TableCell><code className="text-xs bg-muted px-1.5 py-0.5 rounded font-medium">{item.lpn}</code></TableCell>
                         <TableCell><span className="line-clamp-1">{item.product_name || "-"}</span></TableCell>

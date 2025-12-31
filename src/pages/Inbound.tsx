@@ -43,7 +43,7 @@ import {
   type InboundItem,
 } from "@/hooks/useInboundItems";
 import { useRemovalShipments, useUpdateRemovalShipment, type RemovalShipment } from "@/hooks/useRemovalShipments";
-import { type Order } from "@/hooks/useOrders";
+import { type Order, useUpdateOrder } from "@/hooks/useOrders";
 import { fetchOrdersByLpn } from "@/hooks/useOrdersByLpn";
 import { useUpdateInventoryStock, useDecreaseInventoryStock } from "@/hooks/useInventoryItems";
 import { useProducts, useProductParts, type ProductPart } from "@/hooks/useProducts";
@@ -93,6 +93,7 @@ export default function Inbound() {
   const updateShipmentMutation = useUpdateRemovalShipment();
   const updateInventoryMutation = useUpdateInventoryStock();
   const decreaseInventoryMutation = useDecreaseInventoryStock();
+  const updateOrderMutation = useUpdateOrder();
   const { playSuccess, playError, playWarning } = useSound();
 
   // 通过 SKU 找到对应产品并获取其配件（优先从 matchedOrders 获取 SKU）
@@ -346,6 +347,14 @@ export default function Inbound() {
             product_name: orderProductName,
             grade: selectedGrade as "A" | "B" | "C",
             quantity: returnQty,
+          });
+
+          // 更新订单状态为"到货" - 使用 matchedOrders 中的订单ID
+          matchedOrders.forEach(order => {
+            updateOrderMutation.mutate({
+              id: order.id,
+              inbound_at: new Date().toISOString(),
+            });
           });
 
           const newScannedLpns = [...scannedLpns, currentLpn];

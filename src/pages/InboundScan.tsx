@@ -1,8 +1,7 @@
 import { useState, useRef, useEffect } from "react";
 import { useNavigate, useSearchParams } from "react-router-dom";
-import { ScanLine, Camera, Package, CheckCircle, Trash2, Search, PackageCheck, AlertCircle, ChevronRight, History } from "lucide-react";
+import { ScanLine, Camera, Package, CheckCircle, Search, PackageCheck, AlertCircle, ChevronRight } from "lucide-react";
 import { Button } from "@/components/ui/button";
-import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Input } from "@/components/ui/input";
 import { PageHeader } from "@/components/ui/page-header";
 import { GradeBadge } from "@/components/ui/grade-badge";
@@ -27,40 +26,29 @@ import {
   AlertDialogHeader,
   AlertDialogTitle,
 } from "@/components/ui/alert-dialog";
-import {
-  Table,
-  TableBody,
-  TableCell,
-  TableHead,
-  TableHeader,
-  TableRow,
-} from "@/components/ui/table";
-import { ScrollArea, ScrollBar } from "@/components/ui/scroll-area";
+import { ScrollArea } from "@/components/ui/scroll-area";
 import { Progress } from "@/components/ui/progress";
 import {
   useInboundItems,
   useCreateInboundItem,
-  useDeleteInboundItem,
-  type InboundItem,
 } from "@/hooks/useInboundItems";
 import { useRemovalShipments, useUpdateRemovalShipment, type RemovalShipment } from "@/hooks/useRemovalShipments";
 import { type Order, useUpdateOrder } from "@/hooks/useOrders";
 import { fetchOrdersByLpn } from "@/hooks/useOrdersByLpn";
-import { useUpdateInventoryStock, useDecreaseInventoryStock } from "@/hooks/useInventoryItems";
-import { useProducts, useProductParts, type ProductPart } from "@/hooks/useProducts";
+import { useUpdateInventoryStock } from "@/hooks/useInventoryItems";
+import { useProducts, useProductParts } from "@/hooks/useProducts";
 import { Skeleton } from "@/components/ui/skeleton";
 import { toast } from "sonner";
 import { Scanner } from "@/components/Scanner";
 import { SequentialPhotoCapture } from "@/components/SequentialPhotoCapture";
 import { MobileInboundScanner } from "@/components/MobileInboundScanner";
-import { InboundBatchList } from "@/components/InboundBatchList";
 import { cn } from "@/lib/utils";
 import { useIsMobile } from "@/hooks/use-mobile";
 import { useSound } from "@/hooks/useSound";
 
 type InboundStep = "scan_tracking" | "scan_lpn" | "process";
 
-export default function Inbound() {
+export default function InboundScan() {
   const navigate = useNavigate();
   const [searchParams] = useSearchParams();
   const isMobile = useIsMobile();
@@ -68,7 +56,7 @@ export default function Inbound() {
   const [trackingInput, setTrackingInput] = useState("");
   const [lpnInput, setLpnInput] = useState("");
   const [matchedShipment, setMatchedShipment] = useState<RemovalShipment | null>(null);
-  const [matchedShipments, setMatchedShipments] = useState<RemovalShipment[]>([]); // 同一跟踪号下的所有货件
+  const [matchedShipments, setMatchedShipments] = useState<RemovalShipment[]>([]);
   const [matchedOrders, setMatchedOrders] = useState<Order[]>([]);
   const [scannedLpns, setScannedLpns] = useState<string[]>([]);
   const [currentLpn, setCurrentLpn] = useState("");
@@ -76,7 +64,6 @@ export default function Inbound() {
   const [isProcessDialogOpen, setIsProcessDialogOpen] = useState(false);
   const [selectedGrade, setSelectedGrade] = useState<string>("");
   const [selectedMissingParts, setSelectedMissingParts] = useState<string[]>([]);
-  const [deleteId, setDeleteId] = useState<string | null>(null);
   const [notes, setNotes] = useState("");
   const [returnReason, setReturnReason] = useState("");
   const [isPhotoCaptureOpen, setIsPhotoCaptureOpen] = useState(false);
@@ -91,14 +78,11 @@ export default function Inbound() {
   const ordersLoading = false;
   const { data: products } = useProducts();
   const createMutation = useCreateInboundItem();
-  const deleteMutation = useDeleteInboundItem();
   const updateShipmentMutation = useUpdateRemovalShipment();
   const updateInventoryMutation = useUpdateInventoryStock();
-  const decreaseInventoryMutation = useDecreaseInventoryStock();
   const updateOrderMutation = useUpdateOrder();
   const { playSuccess, playError, playWarning } = useSound();
 
-  // 通过 SKU 找到对应产品并获取其配件（优先从 matchedOrders 获取 SKU）
   const currentOrderSku = matchedOrders.length > 0 && matchedOrders[0].product_sku
     ? matchedOrders[0].product_sku
     : matchedShipment?.product_sku;
@@ -107,14 +91,6 @@ export default function Inbound() {
     : null;
   const { data: productParts } = useProductParts(matchedProduct?.id || null);
 
-  // 计算同一跟踪号下的总数量
-  const getTotalQuantityByTracking = (trackingNumber: string) => {
-    return (shipments || [])
-      .filter(s => s.tracking_number === trackingNumber)
-      .reduce((sum, s) => sum + s.quantity, 0);
-  };
-
-  // 自动聚焦输入框
   useEffect(() => {
     if (currentStep === "scan_tracking" && trackingInputRef.current) {
       trackingInputRef.current.focus();
@@ -123,11 +99,9 @@ export default function Inbound() {
     }
   }, [currentStep]);
 
-  // 从 URL 参数恢复物流号状态（手机端入库完成后返回）
   useEffect(() => {
     const trackingFromUrl = searchParams.get("tracking");
     if (trackingFromUrl && shipments) {
-      // 找到所有匹配该跟踪号的货件
       const allMatched = shipments.filter(
         s => s.tracking_number.toLowerCase() === trackingFromUrl.toLowerCase()
       );
@@ -144,19 +118,16 @@ export default function Inbound() {
     }
   }, [searchParams, shipments]);
 
-  // 获取该物流号已入库的LPN数量
   const getInboundedCount = (trackingNumber: string) => {
     return (inboundItems || []).filter(item => item.tracking_number === trackingNumber).length;
   };
 
-  // 获取某个SKU在该跟踪号下已入库的数量
   const getInboundedCountBySku = (trackingNumber: string, sku: string) => {
     return (inboundItems || []).filter(
       item => item.tracking_number === trackingNumber && item.product_sku === sku
     ).length;
   };
 
-  // 扫描物流跟踪号
   const handleScanTracking = () => {
     if (!trackingInput.trim()) {
       playError();
@@ -164,7 +135,6 @@ export default function Inbound() {
       return;
     }
 
-    // 找到所有匹配该跟踪号的货件
     const allMatched = shipments?.filter(
       s => s.tracking_number.toLowerCase() === trackingInput.trim().toLowerCase()
     ) || [];
@@ -188,30 +158,23 @@ export default function Inbound() {
     setScannedLpns([]);
     setCurrentStep("scan_lpn");
     
-    // 显示匹配到的所有产品
     playSuccess();
     const productNames = [...new Set(allMatched.map(s => s.product_name))];
     toast.success(`匹配成功: ${allMatched.length} 种产品 (${productNames.slice(0, 2).join(", ")}${productNames.length > 2 ? "..." : ""})`);
   };
 
-  // 通过后端按 LPN 精确查询（避免 1000 行上限导致漏数据）
   const getOrdersByLpn = async (lpn: string) => {
     const matchedOrders = await fetchOrdersByLpn(lpn);
-    console.log(`[getOrdersByLpn] LPN: ${lpn}, 找到 ${matchedOrders.length} 条订单`, matchedOrders);
     return matchedOrders;
   };
 
-
-  // 状态：SKU不匹配警告
   const [skuMismatchWarning, setSkuMismatchWarning] = useState<{
     lpnSku: string;
     shipmentSkus: string[];
   } | null>(null);
 
-  // 状态：超出申报数量警告
   const [overQuantityWarning, setOverQuantityWarning] = useState(false);
 
-  // 扫描 LPN (支持手动输入和摄像头扫码)
   const handleScanLpn = async (lpnValue?: string) => {
     const lpn = (lpnValue || lpnInput).trim();
 
@@ -221,7 +184,6 @@ export default function Inbound() {
       return;
     }
 
-    // 检查LPN是否存在于退货订单列表（直接按LPN查询，避免 orders 1000 行上限）
     const lpnOrders = await getOrdersByLpn(lpn);
     if (lpnOrders.length === 0) {
       playError();
@@ -230,7 +192,6 @@ export default function Inbound() {
       return;
     }
 
-    // 检查是否已扫描过
     if (scannedLpns.includes(lpn)) {
       playWarning();
       toast.error("该LPN已扫描过");
@@ -238,7 +199,6 @@ export default function Inbound() {
       return;
     }
 
-    // 检查是否已存在于入库记录
     const existingItem = inboundItems?.find(item => item.lpn === lpn);
     if (existingItem) {
       playWarning();
@@ -247,10 +207,7 @@ export default function Inbound() {
       return;
     }
 
-    // 获取LPN的产品SKU
     const lpnSku = lpnOrders[0].product_sku;
-    
-    // 检查SKU是否匹配：LPN的SKU需要存在于跟踪号的货件列表中
     const shipmentSkus = matchedShipments.map(s => s.product_sku);
     const isSkuMatched = !lpnSku || shipmentSkus.includes(lpnSku);
     
@@ -263,7 +220,6 @@ export default function Inbound() {
       setSkuMismatchWarning(null);
     }
 
-    // 检查是否超出申报数量
     const totalQuantity = matchedShipments.reduce((sum, s) => sum + s.quantity, 0);
     const currentInbounded = getInboundedCount(matchedShipment?.tracking_number || "");
     const willExceed = currentInbounded + 1 > totalQuantity;
@@ -275,7 +231,6 @@ export default function Inbound() {
       setOverQuantityWarning(false);
     }
 
-    // 手机端跳转到新页面处理
     if (isMobile && matchedShipment) {
       navigate(`/inbound/process?lpn=${encodeURIComponent(lpn)}&tracking=${encodeURIComponent(matchedShipment.tracking_number)}`);
       setLpnInput("");
@@ -283,17 +238,14 @@ export default function Inbound() {
     }
 
     setCurrentLpn(lpn);
-    console.log("[handleScanLpn] Found orders for LPN:", lpn, lpnOrders);
     setMatchedOrders(lpnOrders);
     setIsProcessDialogOpen(true);
     setLpnInput("");
   };
 
-  // 处理摄像头扫描物流号
   const handleCameraScanTracking = (code: string) => {
     setTrackingInput(code);
     
-    // 找到所有匹配该跟踪号的货件
     const allMatched = shipments?.filter(
       s => s.tracking_number.toLowerCase() === code.trim().toLowerCase()
     ) || [];
@@ -322,12 +274,10 @@ export default function Inbound() {
     toast.success(`匹配成功: ${allMatched.length} 种产品 (${productNames.slice(0, 2).join(", ")}${productNames.length > 2 ? "..." : ""})`);
   };
 
-  // 处理摄像头扫描LPN
   const handleCameraScanLpn = (code: string) => {
     handleScanLpn(code);
   };
 
-  // 完成单个 LPN 处理
   const handleProcessComplete = () => {
     if (!selectedGrade) {
       toast.error("请选择产品级别");
@@ -339,10 +289,8 @@ export default function Inbound() {
       return;
     }
 
-    // 配件标签直接使用选中的配件名称
     const missingPartsLabels = selectedMissingParts;
 
-    // 优先使用退货订单的 SKU 和产品名称（更准确）
     const orderSku = matchedOrders.length > 0 && matchedOrders[0].product_sku 
       ? matchedOrders[0].product_sku 
       : matchedShipment.product_sku;
@@ -351,7 +299,6 @@ export default function Inbound() {
       : matchedShipment.product_name;
     const returnQty = matchedOrders.length > 0 ? (matchedOrders[0].return_quantity || 1) : 1;
 
-    // 根据 SKU 找到对应的 shipment（可能是 matchedShipments 中的某一个）
     const matchingShipmentBySku = matchedShipments.find(s => s.product_sku === orderSku) || matchedShipment;
 
     createMutation.mutate(
@@ -367,7 +314,6 @@ export default function Inbound() {
         processed_by: "操作员",
         tracking_number: matchedShipment.tracking_number,
         shipment_id: matchingShipmentBySku.id,
-        // 照片字段
         lpn_label_photo: capturedPhotos.lpn_label_photo || null,
         packaging_photo_1: capturedPhotos.packaging_photo_1 || null,
         packaging_photo_2: capturedPhotos.packaging_photo_2 || null,
@@ -380,7 +326,6 @@ export default function Inbound() {
       },
       {
         onSuccess: () => {
-          // 同步更新库存 - 使用订单的 SKU 和数量
           updateInventoryMutation.mutate({
             sku: orderSku,
             product_name: orderProductName,
@@ -388,7 +333,6 @@ export default function Inbound() {
             quantity: returnQty,
           });
 
-          // 更新订单状态为"到货" - 使用 matchedOrders 中的订单ID
           matchedOrders.forEach(order => {
             updateOrderMutation.mutate({
               id: order.id,
@@ -399,17 +343,14 @@ export default function Inbound() {
           const newScannedLpns = [...scannedLpns, currentLpn];
           setScannedLpns(newScannedLpns);
           
-          // 检查是否全部完成 - 使用整个跟踪号下的总数量
           const totalInbounded = getInboundedCount(matchedShipment.tracking_number) + 1;
           const totalQuantity = matchedShipments.reduce((sum, s) => sum + s.quantity, 0);
           
           if (totalInbounded >= totalQuantity) {
-            // 全部扫描完成，提示用户点击完成按钮
             playSuccess();
             setTimeout(() => playSuccess(), 200);
             toast.success(`所有 ${totalQuantity} 件货物已扫描完成，请点击"完成包裹"确认入库！`);
           } else {
-            // 播放成功提示音
             playSuccess();
             toast.success(`入库成功！还剩 ${totalQuantity - totalInbounded} 件待入库`);
           }
@@ -417,7 +358,6 @@ export default function Inbound() {
           setIsProcessDialogOpen(false);
           resetProcessForm();
           
-          // 聚焦回 LPN 输入框
           setTimeout(() => {
             lpnInputRef.current?.focus();
           }, 100);
@@ -457,49 +397,12 @@ export default function Inbound() {
     );
   };
 
-  const handleDelete = () => {
-    if (deleteId && inboundItems) {
-      // 找到要删除的入库记录
-      const itemToDelete = inboundItems.find(item => item.id === deleteId);
-      
-      if (itemToDelete) {
-        // 查找对应订单获取退货数量
-        const fetchAndDecrease = async () => {
-          try {
-            const orders = await fetchOrdersByLpn(itemToDelete.lpn);
-            const returnQty = orders.length > 0 ? (orders[0].return_quantity || 1) : 1;
-            decreaseInventoryMutation.mutate({
-              sku: itemToDelete.product_sku,
-              grade: itemToDelete.grade as "A" | "B" | "C",
-              quantity: returnQty,
-            });
-          } catch (error) {
-            // 如果查不到订单，默认扣减1
-            decreaseInventoryMutation.mutate({
-              sku: itemToDelete.product_sku,
-              grade: itemToDelete.grade as "A" | "B" | "C",
-              quantity: 1,
-            });
-          }
-        };
-        fetchAndDecrease();
-      }
-      
-      // 删除入库记录
-      deleteMutation.mutate(deleteId, {
-        onSuccess: () => setDeleteId(null),
-      });
-    }
-  };
-
-  // 强制完成入库（少于申报数量时使用）
   const handleForceComplete = () => {
     if (!matchedShipment || !matchedShipments.length) return;
     
     const totalInbounded = getInboundedCount(matchedShipment.tracking_number);
     const totalQuantity = matchedShipments.reduce((sum, s) => sum + s.quantity, 0);
     
-    // 更新所有相关货件状态为已入库
     matchedShipments.forEach(shipment => {
       updateShipmentMutation.mutate({
         id: shipment.id,
@@ -514,7 +417,6 @@ export default function Inbound() {
     handleReset();
   };
 
-  // 完成包裹入库（全部扫描完成后手动确认）
   const handleCompletePackage = () => {
     if (!matchedShipment || !matchedShipments.length) return;
     
@@ -526,7 +428,6 @@ export default function Inbound() {
       return;
     }
     
-    // 更新所有相关货件状态为已入库
     matchedShipments.forEach(shipment => {
       updateShipmentMutation.mutate({
         id: shipment.id,
@@ -552,7 +453,6 @@ export default function Inbound() {
     );
   }
 
-  // 手机端和平板端使用独立的扫描界面
   if (isMobile) {
     return <MobileInboundScanner initialTracking={searchParams.get("tracking") || undefined} />;
   }
@@ -560,39 +460,26 @@ export default function Inbound() {
   return (
     <div className="space-y-6 animate-fade-in pb-6">
       <PageHeader
-        title="入库处理"
+        title="入库扫码"
         description="扫描物流跟踪号匹配货件，逐个扫描LPN进行入库"
       />
 
-      <Tabs defaultValue="scan" className="w-full">
-        <TabsList className="grid w-full max-w-md grid-cols-2">
-          <TabsTrigger value="scan" className="flex items-center gap-2">
-            <ScanLine className="h-4 w-4" />
-            入库扫码
-          </TabsTrigger>
-          <TabsTrigger value="records" className="flex items-center gap-2">
-            <History className="h-4 w-4" />
-            入库记录
-          </TabsTrigger>
-        </TabsList>
-
-        <TabsContent value="scan" className="mt-6 space-y-6">
-          {/* 步骤指示器 */}
-          <div className="flex items-center gap-2 text-sm">
-            <div className={`flex items-center gap-2 ${currentStep === "scan_tracking" ? "text-primary font-medium" : "text-muted-foreground"}`}>
-              <div className={`h-6 w-6 rounded-full flex items-center justify-center text-xs ${currentStep === "scan_tracking" ? "bg-primary text-primary-foreground" : "bg-muted"}`}>
-                1
-              </div>
-              <span>扫描物流号</span>
-            </div>
-            <ChevronRight className="h-4 w-4 text-muted-foreground" />
-            <div className={`flex items-center gap-2 ${currentStep === "scan_lpn" ? "text-primary font-medium" : "text-muted-foreground"}`}>
-              <div className={`h-6 w-6 rounded-full flex items-center justify-center text-xs ${currentStep === "scan_lpn" ? "bg-primary text-primary-foreground" : "bg-muted"}`}>
-                2
-              </div>
-              <span>扫描LPN入库</span>
-            </div>
+      {/* 步骤指示器 */}
+      <div className="flex items-center gap-2 text-sm">
+        <div className={`flex items-center gap-2 ${currentStep === "scan_tracking" ? "text-primary font-medium" : "text-muted-foreground"}`}>
+          <div className={`h-6 w-6 rounded-full flex items-center justify-center text-xs ${currentStep === "scan_tracking" ? "bg-primary text-primary-foreground" : "bg-muted"}`}>
+            1
           </div>
+          <span>扫描物流号</span>
+        </div>
+        <ChevronRight className="h-4 w-4 text-muted-foreground" />
+        <div className={`flex items-center gap-2 ${currentStep === "scan_lpn" ? "text-primary font-medium" : "text-muted-foreground"}`}>
+          <div className={`h-6 w-6 rounded-full flex items-center justify-center text-xs ${currentStep === "scan_lpn" ? "bg-primary text-primary-foreground" : "bg-muted"}`}>
+            2
+          </div>
+          <span>扫描LPN入库</span>
+        </div>
+      </div>
 
       {/* 步骤1：扫描物流跟踪号 */}
       {currentStep === "scan_tracking" && (
@@ -711,7 +598,7 @@ export default function Inbound() {
                   value={(getInboundedCount(matchedShipment.tracking_number) / matchedShipments.reduce((sum, s) => sum + s.quantity, 0)) * 100} 
                 />
                 
-                {/* 强制完成按钮 - 当已有入库但少于申报数量时显示 */}
+                {/* 强制完成按钮 */}
                 {getInboundedCount(matchedShipment.tracking_number) > 0 && 
                  getInboundedCount(matchedShipment.tracking_number) < matchedShipments.reduce((sum, s) => sum + s.quantity, 0) && (
                   <div className="mt-3 p-3 rounded-lg bg-amber-50 dark:bg-amber-950/30 border border-amber-200 dark:border-amber-700">
@@ -784,7 +671,7 @@ export default function Inbound() {
                 </div>
               )}
 
-              {/* 完成包裹按钮 - 当全部扫描完成时显示 */}
+              {/* 完成包裹按钮 */}
               {matchedShipment && getInboundedCount(matchedShipment.tracking_number) >= matchedShipments.reduce((sum, s) => sum + s.quantity, 0) && (
                 <div className="mt-4 pt-4 border-t">
                   <div className="p-4 rounded-lg bg-green-50 dark:bg-green-950/30 border border-green-200 dark:border-green-700">
@@ -872,7 +759,7 @@ export default function Inbound() {
                 </div>
               )}
 
-              {/* 退货订单信息 - 显示所有匹配的订单 */}
+              {/* 退货订单信息 */}
               {matchedOrders.length > 0 && (
                 <div className="rounded-lg bg-blue-50 dark:bg-blue-950/30 p-4 border border-blue-200 dark:border-blue-800">
                   <h4 className="font-semibold text-blue-900 dark:text-blue-100 mb-3">
@@ -942,7 +829,6 @@ export default function Inbound() {
                     </span>
                   </div>
                 </Button>
-                {/* 已拍摄缩略图 */}
                 {Object.keys(capturedPhotos).length > 0 && (
                   <div className="flex gap-2 overflow-x-auto pb-1">
                     {Object.entries(capturedPhotos).map(([key, url]) => (
@@ -954,7 +840,7 @@ export default function Inbound() {
                 )}
               </div>
 
-              {/* 级别选择 - 改为点击框 */}
+              {/* 级别选择 */}
               <div className="space-y-2">
                 <Label className="text-sm">设定产品级别 *</Label>
                 <div className="grid grid-cols-3 gap-3">
@@ -1000,7 +886,7 @@ export default function Inbound() {
                 </div>
               </div>
 
-              {/* 缺少配件 - 使用产品配件列表 */}
+              {/* 缺少配件 */}
               <div className="space-y-2">
                 <Label className="text-sm">缺少配件 (可多选)</Label>
                 {productParts && productParts.length > 0 ? (
@@ -1063,46 +949,6 @@ export default function Inbound() {
         </DialogContent>
       </Dialog>
 
-        </TabsContent>
-
-        <TabsContent value="records" className="mt-6">
-          {/* 已处理记录 - 按批次分组 */}
-          <div className="space-y-4">
-            <div className="flex items-center justify-between">
-              <h3 className="text-lg font-semibold">已入库记录</h3>
-              <div className="text-sm text-muted-foreground">
-                共 {inboundItems?.length || 0} 条记录
-              </div>
-            </div>
-            <InboundBatchList 
-              items={inboundItems || []} 
-              onDelete={(id) => setDeleteId(id)} 
-            />
-          </div>
-        </TabsContent>
-      </Tabs>
-
-      {/* 删除确认 */}
-      <AlertDialog open={!!deleteId} onOpenChange={() => setDeleteId(null)}>
-        <AlertDialogContent>
-          <AlertDialogHeader>
-            <AlertDialogTitle>确认删除</AlertDialogTitle>
-            <AlertDialogDescription>
-              此操作无法撤销，确定要删除此入库记录吗？
-            </AlertDialogDescription>
-          </AlertDialogHeader>
-          <AlertDialogFooter>
-            <AlertDialogCancel>取消</AlertDialogCancel>
-            <AlertDialogAction
-              onClick={handleDelete}
-              className="bg-destructive text-destructive-foreground"
-            >
-              删除
-            </AlertDialogAction>
-          </AlertDialogFooter>
-        </AlertDialogContent>
-      </AlertDialog>
-
       {/* 强制完成确认对话框 */}
       <AlertDialog open={isForceCompleteDialogOpen} onOpenChange={setIsForceCompleteDialogOpen}>
         <AlertDialogContent>
@@ -1134,7 +980,7 @@ export default function Inbound() {
         </AlertDialogContent>
       </AlertDialog>
 
-      {/* 顺序拍照弹窗 - 使用全屏模式 */}
+      {/* 顺序拍照弹窗 */}
       {isPhotoCaptureOpen && (
         <SequentialPhotoCapture
           lpn={currentLpn}

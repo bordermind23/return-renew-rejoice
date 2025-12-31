@@ -8,7 +8,8 @@ import { ProtectedRoute } from "@/components/ProtectedRoute";
 import Dashboard from "./pages/Dashboard";
 import Products from "./pages/Products";
 import Removals from "./pages/Removals";
-import Inbound from "./pages/Inbound";
+import InboundScan from "./pages/InboundScan";
+import InboundRecords from "./pages/InboundRecords";
 import InboundProcess from "./pages/InboundProcess";
 import Inventory from "./pages/Inventory";
 import Orders from "./pages/Orders";
@@ -62,11 +63,21 @@ const App = () => (
             }
           />
           <Route
-            path="/inbound"
+            path="/inbound/scan"
             element={
               <ProtectedRoute>
                 <MainLayout>
-                  <Inbound />
+                  <InboundScan />
+                </MainLayout>
+              </ProtectedRoute>
+            }
+          />
+          <Route
+            path="/inbound/records"
+            element={
+              <ProtectedRoute>
+                <MainLayout>
+                  <InboundRecords />
                 </MainLayout>
               </ProtectedRoute>
             }

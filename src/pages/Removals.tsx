@@ -999,16 +999,16 @@ export default function Removals() {
                   <Checkbox checked={selectedIds.length === filteredData.length && filteredData.length > 0} onCheckedChange={toggleSelectAll} />
                 </TableHead>
                 {viewMode === "grouped" && <TableHead className="w-10"></TableHead>}
-                <TableHead className="font-semibold whitespace-nowrap">移除订单号</TableHead>
-                <TableHead className="font-semibold whitespace-nowrap">跟踪号</TableHead>
-                <TableHead className="font-semibold whitespace-nowrap hidden xl:table-cell">承运商</TableHead>
-                <TableHead className="font-semibold whitespace-nowrap hidden lg:table-cell">店铺</TableHead>
-                <TableHead className="font-semibold whitespace-nowrap hidden 2xl:table-cell">产品SKU</TableHead>
-                <TableHead className="font-semibold whitespace-nowrap max-w-[120px]">产品名称</TableHead>
-                <TableHead className="font-semibold whitespace-nowrap text-center">数量</TableHead>
-                <TableHead className="font-semibold whitespace-nowrap">状态</TableHead>
-                <TableHead className="font-semibold whitespace-nowrap text-center hidden md:table-cell">重复</TableHead>
-                <TableHead className="font-semibold whitespace-nowrap text-center">操作</TableHead>
+                <TableHead className="font-semibold min-w-[140px]">移除订单号</TableHead>
+                <TableHead className="font-semibold min-w-[160px]">跟踪号</TableHead>
+                <TableHead className="font-semibold min-w-[100px]">承运商</TableHead>
+                <TableHead className="font-semibold min-w-[100px]">店铺</TableHead>
+                <TableHead className="font-semibold min-w-[120px]">产品SKU</TableHead>
+                <TableHead className="font-semibold min-w-[150px]">产品名称</TableHead>
+                <TableHead className="font-semibold min-w-[80px] text-center">数量</TableHead>
+                <TableHead className="font-semibold min-w-[100px]">状态</TableHead>
+                <TableHead className="font-semibold min-w-[80px] text-center">重复</TableHead>
+                <TableHead className="font-semibold min-w-[100px] text-center">操作</TableHead>
               </TableRow>
             </TableHeader>
             <TableBody>
@@ -1029,18 +1029,18 @@ export default function Removals() {
                           <Checkbox checked={selectedIds.includes(item.id)} onCheckedChange={() => toggleSelect(item.id)} />
                         </TableCell>
                         <TableCell>
-                          <span className="font-medium text-primary text-sm whitespace-nowrap">{item.order_id}</span>
+                          <span className="font-medium text-primary text-sm">{item.order_id}</span>
                         </TableCell>
                         <TableCell>
-                          <code className="text-xs bg-muted px-1.5 py-0.5 rounded whitespace-nowrap">{item.tracking_number}</code>
+                          <code className="text-xs bg-muted px-1.5 py-0.5 rounded">{item.tracking_number}</code>
                         </TableCell>
-                        <TableCell className="text-muted-foreground hidden xl:table-cell">{item.carrier}</TableCell>
-                        <TableCell className="text-muted-foreground hidden lg:table-cell">{item.store_name || "-"}</TableCell>
-                        <TableCell className="hidden 2xl:table-cell">
+                        <TableCell className="text-muted-foreground">{item.carrier}</TableCell>
+                        <TableCell className="text-muted-foreground">{item.store_name || "-"}</TableCell>
+                        <TableCell>
                           <code className="text-xs bg-muted px-1.5 py-0.5 rounded">{item.product_sku || "-"}</code>
                         </TableCell>
-                        <TableCell className="max-w-[120px]">
-                          <span className="line-clamp-1 text-sm" title={item.product_name || undefined}>{item.product_name || "-"}</span>
+                        <TableCell>
+                          <span className="line-clamp-1" title={item.product_name || undefined}>{item.product_name || "-"}</span>
                         </TableCell>
                         <TableCell className="text-center">
                           <span className="font-semibold">{item.quantity}</span>
@@ -1048,7 +1048,7 @@ export default function Removals() {
                         <TableCell>
                           <StatusBadge status={item.status} />
                         </TableCell>
-                        <TableCell className="text-center hidden md:table-cell">
+                        <TableCell className="text-center">
                           {isDuplicate && (
                             <div className="flex items-center justify-center gap-1">
                               {item.duplicate_confirmed ? (
@@ -1120,18 +1120,18 @@ export default function Removals() {
                           </TableCell>
                           <TableCell></TableCell>
                           <TableCell>
-                            <span className="font-medium text-primary text-sm whitespace-nowrap">{item.order_id}</span>
+                            <span className="font-medium text-primary text-sm">{item.order_id}</span>
                           </TableCell>
                           <TableCell>
-                            <code className="text-xs bg-muted px-1.5 py-0.5 rounded whitespace-nowrap">{item.tracking_number}</code>
+                            <code className="text-xs bg-muted px-1.5 py-0.5 rounded">{item.tracking_number}</code>
                           </TableCell>
-                          <TableCell className="text-muted-foreground hidden xl:table-cell">{item.carrier}</TableCell>
-                          <TableCell className="text-muted-foreground hidden lg:table-cell">{item.store_name || "-"}</TableCell>
-                          <TableCell className="hidden 2xl:table-cell">
+                          <TableCell className="text-muted-foreground">{item.carrier}</TableCell>
+                          <TableCell className="text-muted-foreground">{item.store_name || "-"}</TableCell>
+                          <TableCell>
                             <code className="text-xs bg-muted px-1.5 py-0.5 rounded">{item.product_sku || "-"}</code>
                           </TableCell>
-                          <TableCell className="max-w-[120px]">
-                            <span className="line-clamp-1 text-sm" title={item.product_name || undefined}>{item.product_name || "-"}</span>
+                          <TableCell>
+                            <span className="line-clamp-1" title={item.product_name || undefined}>{item.product_name || "-"}</span>
                           </TableCell>
                           <TableCell className="text-center">
                             <span className="font-semibold">{item.quantity}</span>
@@ -1139,7 +1139,7 @@ export default function Removals() {
                           <TableCell>
                             <StatusBadge status={item.status} />
                           </TableCell>
-                          <TableCell className="text-center hidden md:table-cell">
+                          <TableCell className="text-center">
                             {isDuplicate && (
                               <div className="flex items-center justify-center gap-1">
                                 {item.duplicate_confirmed ? (
@@ -1220,31 +1220,28 @@ export default function Removals() {
                             </CollapsibleTrigger>
                             <CollapsibleTrigger asChild>
                               <TableCell onClick={() => toggleGroup(group.groupKey)}>
-                                <span className="font-medium text-primary text-sm whitespace-nowrap">{group.orderId}</span>
+                                <span className="font-medium text-primary text-sm">{group.orderId}</span>
                               </TableCell>
                             </CollapsibleTrigger>
                             <CollapsibleTrigger asChild>
                               <TableCell onClick={() => toggleGroup(group.groupKey)}>
-                                <code className="text-xs bg-muted px-1.5 py-0.5 rounded whitespace-nowrap">{group.trackingNumber}</code>
+                                <code className="text-xs bg-muted px-1.5 py-0.5 rounded">{group.trackingNumber}</code>
                               </TableCell>
                             </CollapsibleTrigger>
                             <CollapsibleTrigger asChild>
-                              <TableCell onClick={() => toggleGroup(group.groupKey)} className="text-muted-foreground hidden xl:table-cell">
+                              <TableCell onClick={() => toggleGroup(group.groupKey)} className="text-muted-foreground">
                                 {group.carrier}
                               </TableCell>
                             </CollapsibleTrigger>
                             <CollapsibleTrigger asChild>
-                              <TableCell onClick={() => toggleGroup(group.groupKey)} className="text-muted-foreground hidden lg:table-cell">
+                              <TableCell onClick={() => toggleGroup(group.groupKey)} className="text-muted-foreground">
                                 {group.storeName || "-"}
                               </TableCell>
                             </CollapsibleTrigger>
                             <CollapsibleTrigger asChild>
-                              <TableCell onClick={() => toggleGroup(group.groupKey)} className="hidden 2xl:table-cell"></TableCell>
-                            </CollapsibleTrigger>
-                            <CollapsibleTrigger asChild>
-                              <TableCell onClick={() => toggleGroup(group.groupKey)} className="max-w-[120px]">
+                              <TableCell onClick={() => toggleGroup(group.groupKey)} colSpan={2}>
                                 <div className="flex items-center gap-1">
-                                  <Package className="h-3.5 w-3.5 text-muted-foreground flex-shrink-0" />
+                                  <Package className="h-3.5 w-3.5 text-muted-foreground" />
                                   <span className="text-sm text-muted-foreground">{group.items.length} 种产品</span>
                                 </div>
                               </TableCell>
@@ -1264,7 +1261,7 @@ export default function Removals() {
                               </TableCell>
                             </CollapsibleTrigger>
                             <CollapsibleTrigger asChild>
-                              <TableCell onClick={() => toggleGroup(group.groupKey)} className="hidden md:table-cell"></TableCell>
+                              <TableCell onClick={() => toggleGroup(group.groupKey)}></TableCell>
                             </CollapsibleTrigger>
                             <TableCell>
                               <Button
@@ -1292,18 +1289,18 @@ export default function Removals() {
                                       <span className="text-sm text-muted-foreground pl-4">└</span>
                                     </TableCell>
                                     <TableCell>
-                                      <code className="text-xs bg-muted px-1.5 py-0.5 rounded whitespace-nowrap">{item.tracking_number}</code>
+                                      <code className="text-xs bg-muted px-1.5 py-0.5 rounded">{item.tracking_number}</code>
                                     </TableCell>
-                                    <TableCell className="text-muted-foreground text-sm hidden xl:table-cell">
+                                    <TableCell className="text-muted-foreground text-sm">
                                       {item.carrier}
                                     </TableCell>
-                                    <TableCell className="text-muted-foreground text-sm hidden lg:table-cell">
+                                    <TableCell className="text-muted-foreground text-sm">
                                       {item.country || "-"}
                                     </TableCell>
-                                    <TableCell className="hidden 2xl:table-cell">
+                                    <TableCell>
                                       <code className="text-xs bg-muted px-1.5 py-0.5 rounded">{item.product_sku || "-"}</code>
                                     </TableCell>
-                                    <TableCell className="max-w-[120px]">
+                                    <TableCell>
                                       <span className="line-clamp-1 text-sm" title={item.product_name || undefined}>{item.product_name || "-"}</span>
                                     </TableCell>
                                     <TableCell className="text-center">
@@ -1312,7 +1309,7 @@ export default function Removals() {
                                     <TableCell>
                                       <StatusBadge status={item.status} />
                                     </TableCell>
-                                    <TableCell className="text-center hidden md:table-cell">
+                                    <TableCell className="text-center">
                                       {isDuplicate && (
                                         <div className="flex items-center justify-center gap-1">
                                           {item.duplicate_confirmed ? (

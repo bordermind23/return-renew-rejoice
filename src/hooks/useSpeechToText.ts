@@ -44,14 +44,14 @@ export const useSpeechToText = (options: UseSpeechToTextOptions = {}) => {
     onResult,
     onError,
     language = 'zh-CN',
-    continuous = false, // 改为非连续模式，识别完一句就停止
+    continuous = true, // 连续模式，用户手动关闭
   } = options;
 
   const [isListening, setIsListening] = useState(false);
   const [transcript, setTranscript] = useState('');
   const [isSupported, setIsSupported] = useState(false);
   const recognitionRef = useRef<SpeechRecognitionInstance | null>(null);
-  const manualStopRef = useRef(false);
+  const isListeningRef = useRef(false);
 
   useEffect(() => {
     // Check if Web Speech API is supported
@@ -82,21 +82,16 @@ export const useSpeechToText = (options: UseSpeechToTextOptions = {}) => {
         
         if (finalTranscript && onResult) {
           onResult(finalTranscript);
-          // 识别到最终结果后自动停止
-          setIsListening(false);
+          // 不自动停止，继续监听
         }
       };
 
       recognitionRef.current.onerror = (event: SpeechRecognitionErrorEvent) => {
         console.error('Speech recognition error:', event.error);
-        setIsListening(false);
         // 只在非中断错误时显示错误提示
-        if (onError && event.error !== 'aborted') {
+        if (onError && event.error !== 'aborted' && event.error !== 'no-speech') {
           let errorMessage = '语音识别错误';
           switch (event.error) {
-            case 'no-speech':
-              errorMessage = '未检测到语音';
-              break;
             case 'audio-capture':
               errorMessage = '无法访问麦克风';
               break;
@@ -108,15 +103,25 @@ export const useSpeechToText = (options: UseSpeechToTextOptions = {}) => {
               break;
           }
           onError(errorMessage);
+          setIsListening(false);
+          isListeningRef.current = false;
         }
       };
 
       recognitionRef.current.onend = () => {
-        setIsListening(false);
+        // 如果用户没有手动停止，自动重新开始（保持连续录音）
+        if (isListeningRef.current && recognitionRef.current) {
+          try {
+            recognitionRef.current.start();
+          } catch {
+            // ignore - 可能已经在运行
+          }
+        }
       };
     }
 
     return () => {
+      isListeningRef.current = false;
       if (recognitionRef.current) {
         try {
           recognitionRef.current.stop();
@@ -130,26 +135,27 @@ export const useSpeechToText = (options: UseSpeechToTextOptions = {}) => {
   const startListening = useCallback(() => {
     if (recognitionRef.current && !isListening) {
       setTranscript('');
-      manualStopRef.current = false;
+      isListeningRef.current = true;
       try {
         recognitionRef.current.start();
         setIsListening(true);
       } catch (error) {
         console.error('Error starting speech recognition:', error);
         setIsListening(false);
+        isListeningRef.current = false;
       }
     }
   }, [isListening]);
 
   const stopListening = useCallback(() => {
+    isListeningRef.current = false;
+    setIsListening(false);
     if (recognitionRef.current) {
-      manualStopRef.current = true;
       try {
         recognitionRef.current.stop();
       } catch {
         // ignore
       }
-      setIsListening(false);
     }
   }, []);
 

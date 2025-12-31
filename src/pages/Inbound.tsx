@@ -1,7 +1,8 @@
 import { useState, useRef, useEffect } from "react";
 import { useNavigate, useSearchParams } from "react-router-dom";
-import { ScanLine, Camera, Package, CheckCircle, Trash2, Search, PackageCheck, AlertCircle, ChevronRight } from "lucide-react";
+import { ScanLine, Camera, Package, CheckCircle, Trash2, Search, PackageCheck, AlertCircle, ChevronRight, History } from "lucide-react";
 import { Button } from "@/components/ui/button";
+import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Input } from "@/components/ui/input";
 import { PageHeader } from "@/components/ui/page-header";
 import { GradeBadge } from "@/components/ui/grade-badge";
@@ -560,25 +561,38 @@ export default function Inbound() {
     <div className="space-y-6 animate-fade-in pb-6">
       <PageHeader
         title="入库处理"
-        description="先扫描物流跟踪号匹配货件，再逐个扫描LPN进行入库"
+        description="扫描物流跟踪号匹配货件，逐个扫描LPN进行入库"
       />
 
-      {/* 步骤指示器 */}
-      <div className="flex items-center gap-2 text-sm">
-        <div className={`flex items-center gap-2 ${currentStep === "scan_tracking" ? "text-primary font-medium" : "text-muted-foreground"}`}>
-          <div className={`h-6 w-6 rounded-full flex items-center justify-center text-xs ${currentStep === "scan_tracking" ? "bg-primary text-primary-foreground" : "bg-muted"}`}>
-            1
+      <Tabs defaultValue="scan" className="w-full">
+        <TabsList className="grid w-full max-w-md grid-cols-2">
+          <TabsTrigger value="scan" className="flex items-center gap-2">
+            <ScanLine className="h-4 w-4" />
+            入库扫码
+          </TabsTrigger>
+          <TabsTrigger value="records" className="flex items-center gap-2">
+            <History className="h-4 w-4" />
+            入库记录
+          </TabsTrigger>
+        </TabsList>
+
+        <TabsContent value="scan" className="mt-6 space-y-6">
+          {/* 步骤指示器 */}
+          <div className="flex items-center gap-2 text-sm">
+            <div className={`flex items-center gap-2 ${currentStep === "scan_tracking" ? "text-primary font-medium" : "text-muted-foreground"}`}>
+              <div className={`h-6 w-6 rounded-full flex items-center justify-center text-xs ${currentStep === "scan_tracking" ? "bg-primary text-primary-foreground" : "bg-muted"}`}>
+                1
+              </div>
+              <span>扫描物流号</span>
+            </div>
+            <ChevronRight className="h-4 w-4 text-muted-foreground" />
+            <div className={`flex items-center gap-2 ${currentStep === "scan_lpn" ? "text-primary font-medium" : "text-muted-foreground"}`}>
+              <div className={`h-6 w-6 rounded-full flex items-center justify-center text-xs ${currentStep === "scan_lpn" ? "bg-primary text-primary-foreground" : "bg-muted"}`}>
+                2
+              </div>
+              <span>扫描LPN入库</span>
+            </div>
           </div>
-          <span>扫描物流号</span>
-        </div>
-        <ChevronRight className="h-4 w-4 text-muted-foreground" />
-        <div className={`flex items-center gap-2 ${currentStep === "scan_lpn" ? "text-primary font-medium" : "text-muted-foreground"}`}>
-          <div className={`h-6 w-6 rounded-full flex items-center justify-center text-xs ${currentStep === "scan_lpn" ? "bg-primary text-primary-foreground" : "bg-muted"}`}>
-            2
-          </div>
-          <span>扫描LPN入库</span>
-        </div>
-      </div>
 
       {/* 步骤1：扫描物流跟踪号 */}
       {currentStep === "scan_tracking" && (
@@ -1049,17 +1063,24 @@ export default function Inbound() {
         </DialogContent>
       </Dialog>
 
-      {/* 已处理记录 - 按批次分组 */}
-      <div className="space-y-4">
-        <h3 className="text-lg font-semibold">已入库记录</h3>
-        <InboundBatchList 
-          items={inboundItems || []} 
-          onDelete={(id) => setDeleteId(id)} 
-        />
-        <div className="text-sm text-muted-foreground">
-          共 {inboundItems?.length || 0} 条入库记录
-        </div>
-      </div>
+        </TabsContent>
+
+        <TabsContent value="records" className="mt-6">
+          {/* 已处理记录 - 按批次分组 */}
+          <div className="space-y-4">
+            <div className="flex items-center justify-between">
+              <h3 className="text-lg font-semibold">已入库记录</h3>
+              <div className="text-sm text-muted-foreground">
+                共 {inboundItems?.length || 0} 条记录
+              </div>
+            </div>
+            <InboundBatchList 
+              items={inboundItems || []} 
+              onDelete={(id) => setDeleteId(id)} 
+            />
+          </div>
+        </TabsContent>
+      </Tabs>
 
       {/* 删除确认 */}
       <AlertDialog open={!!deleteId} onOpenChange={() => setDeleteId(null)}>

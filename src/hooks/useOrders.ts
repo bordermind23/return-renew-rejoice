@@ -188,10 +188,71 @@ export const useCreateOrder = () => {
         .single();
 
       if (error) throw error;
+      
+      // 检查是否有匹配的"待同步"入库记录需要同步
+      if (data && order.lpn) {
+        const { data: pendingInbound } = await supabase
+          .from("inbound_items")
+          .select("*")
+          .eq("product_sku", "待同步")
+          .ilike("lpn", order.lpn);
+
+        if (pendingInbound && pendingInbound.length > 0) {
+          for (const inboundItem of pendingInbound) {
+            await supabase
+              .from("inbound_items")
+              .update({
+                product_sku: order.product_sku || "待同步",
+                product_name: order.product_name || "待同步",
+                removal_order_id: order.removal_order_id || order.order_number || "无入库信息",
+                return_reason: order.return_reason,
+                refurbishment_notes: inboundItem.refurbishment_notes?.replace("[无入库信息翻新]", "[已同步]") || "[已同步]",
+              })
+              .eq("id", inboundItem.id);
+          }
+        }
+
+        // 同时检查并更新"待同步"的订单记录
+        const { data: pendingOrders } = await supabase
+          .from("orders")
+          .select("*")
+          .eq("removal_order_id", "无入库信息")
+          .ilike("lpn", order.lpn)
+          .neq("id", data.id); // 排除刚创建的订单
+
+        if (pendingOrders && pendingOrders.length > 0) {
+          for (const pendingOrder of pendingOrders) {
+            await supabase
+              .from("orders")
+              .update({
+                product_sku: order.product_sku,
+                product_name: order.product_name,
+                removal_order_id: order.removal_order_id || order.order_number,
+                order_number: order.order_number,
+                store_name: order.store_name,
+                station: order.station || "已同步",
+                country: order.country,
+                return_reason: order.return_reason,
+                msku: order.msku,
+                asin: order.asin,
+                fnsku: order.fnsku,
+                buyer_note: order.buyer_note,
+                inventory_attribute: order.inventory_attribute,
+                return_quantity: order.return_quantity,
+                warehouse_location: order.warehouse_location,
+                return_time: order.return_time,
+                order_time: order.order_time,
+              })
+              .eq("id", pendingOrder.id);
+          }
+        }
+      }
+      
       return data;
     },
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ["orders"] });
+      queryClient.invalidateQueries({ queryKey: ["inbound_items"] });
       toast.success("订单创建成功");
     },
     onError: (error) => {

@@ -1,5 +1,5 @@
-import { useState, useRef, useMemo } from "react";
-import { Plus, Search, Filter, Trash2, Edit, Upload, Download, FileSpreadsheet, ChevronDown, ChevronRight, AlertCircle, CheckCircle2, Loader2, Package } from "lucide-react";
+import { useState, useRef, useMemo, useCallback } from "react";
+import { Plus, Search, Filter, Trash2, Edit, Upload, Download, FileSpreadsheet, ChevronDown, ChevronRight, AlertCircle, CheckCircle2, Loader2, Package, Copy, LayoutGrid, List, Check } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { PageHeader } from "@/components/ui/page-header";
@@ -90,6 +90,7 @@ export default function Removals() {
   const [isBulkEditOpen, setIsBulkEditOpen] = useState(false);
   const [bulkEditData, setBulkEditData] = useState<RemovalShipmentUpdate>({});
   const fileInputRef = useRef<HTMLInputElement>(null);
+  const [viewMode, setViewMode] = useState<"grouped" | "list">("grouped");
   
   const [importProgress, setImportProgress] = useState<ImportProgress>({
     isImporting: false,
@@ -171,6 +172,38 @@ export default function Removals() {
   };
 
   const [expandedGroups, setExpandedGroups] = useState<Set<string>>(new Set());
+
+  // 检测重复数据的函数 - 基于关键字段判断
+  const getDuplicateKey = useCallback((item: RemovalShipment) => {
+    return `${item.order_id}|${item.tracking_number}|${item.fnsku}|${item.quantity}|${item.product_sku || ''}|${item.product_name || ''}`;
+  }, []);
+
+  // 找出所有重复的记录
+  const duplicateInfo = useMemo(() => {
+    const keyCount: Record<string, string[]> = {};
+    (shipments || []).forEach((item) => {
+      const key = getDuplicateKey(item);
+      if (!keyCount[key]) {
+        keyCount[key] = [];
+      }
+      keyCount[key].push(item.id);
+    });
+    
+    // 只有超过1个的才算重复
+    const duplicateIds = new Set<string>();
+    Object.values(keyCount).forEach((ids) => {
+      if (ids.length > 1) {
+        ids.forEach(id => duplicateIds.add(id));
+      }
+    });
+    
+    return duplicateIds;
+  }, [shipments, getDuplicateKey]);
+
+  // 确认重复是正常的
+  const handleConfirmDuplicate = useCallback((id: string) => {
+    updateMutation.mutate({ id, duplicate_confirmed: true });
+  }, [updateMutation]);
 
   const filteredData = (shipments || []).filter((item) => {
     const matchesSearch =
@@ -890,7 +923,7 @@ export default function Removals() {
       )}
 
       {/* Filters */}
-      <div className="flex flex-col gap-4 sm:flex-row">
+      <div className="flex flex-col gap-4 sm:flex-row sm:items-center">
         <div className="relative flex-1">
           <Search className="absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-muted-foreground" />
           <Input
@@ -913,9 +946,30 @@ export default function Removals() {
             <SelectItem value="shelved">上架</SelectItem>
           </SelectContent>
         </Select>
+        {/* 视图切换 */}
+        <div className="flex items-center border rounded-lg p-1 bg-muted/30">
+          <Button
+            variant={viewMode === "grouped" ? "secondary" : "ghost"}
+            size="sm"
+            className="h-8 px-3"
+            onClick={() => setViewMode("grouped")}
+          >
+            <LayoutGrid className="h-4 w-4 mr-1.5" />
+            分组
+          </Button>
+          <Button
+            variant={viewMode === "list" ? "secondary" : "ghost"}
+            size="sm"
+            className="h-8 px-3"
+            onClick={() => setViewMode("list")}
+          >
+            <List className="h-4 w-4 mr-1.5" />
+            列表
+          </Button>
+        </div>
       </div>
 
-      {/* 按移除订单号分组的数据表格 */}
+      {/* 数据表格 */}
       <Card>
         <ScrollArea className="w-full">
           <Table>
@@ -924,7 +978,7 @@ export default function Removals() {
                 <TableHead className="w-10">
                   <Checkbox checked={selectedIds.length === filteredData.length && filteredData.length > 0} onCheckedChange={toggleSelectAll} />
                 </TableHead>
-                <TableHead className="w-10"></TableHead>
+                {viewMode === "grouped" && <TableHead className="w-10"></TableHead>}
                 <TableHead className="font-semibold min-w-[140px]">移除订单号</TableHead>
                 <TableHead className="font-semibold min-w-[160px]">跟踪号</TableHead>
                 <TableHead className="font-semibold min-w-[100px]">承运商</TableHead>
@@ -933,27 +987,27 @@ export default function Removals() {
                 <TableHead className="font-semibold min-w-[150px]">产品名称</TableHead>
                 <TableHead className="font-semibold min-w-[80px] text-center">数量</TableHead>
                 <TableHead className="font-semibold min-w-[100px]">状态</TableHead>
-                <TableHead className="font-semibold min-w-[80px] text-center">操作</TableHead>
+                <TableHead className="font-semibold min-w-[80px] text-center">重复</TableHead>
+                <TableHead className="font-semibold min-w-[100px] text-center">操作</TableHead>
               </TableRow>
             </TableHeader>
             <TableBody>
-              {groupedByOrderTracking.length === 0 ? (
-                <TableRow>
-                  <TableCell colSpan={11} className="h-32 text-center text-muted-foreground">
-                    暂无移除货件记录
-                  </TableCell>
-                </TableRow>
-              ) : (
-                groupedByOrderTracking.map((group) => {
-                  // 如果只有一个产品，直接显示为普通行
-                  if (group.items.length === 1) {
-                    const item = group.items[0];
+              {viewMode === "list" ? (
+                // 列表视图 - 不分组显示
+                filteredData.length === 0 ? (
+                  <TableRow>
+                    <TableCell colSpan={12} className="h-32 text-center text-muted-foreground">
+                      暂无移除货件记录
+                    </TableCell>
+                  </TableRow>
+                ) : (
+                  filteredData.map((item) => {
+                    const isDuplicate = duplicateInfo.has(item.id);
                     return (
                       <TableRow key={item.id} className="hover:bg-muted/30">
                         <TableCell>
                           <Checkbox checked={selectedIds.includes(item.id)} onCheckedChange={() => toggleSelect(item.id)} />
                         </TableCell>
-                        <TableCell></TableCell>
                         <TableCell>
                           <span className="font-medium text-primary text-sm">{item.order_id}</span>
                         </TableCell>
@@ -963,16 +1017,43 @@ export default function Removals() {
                         <TableCell className="text-muted-foreground">{item.carrier}</TableCell>
                         <TableCell className="text-muted-foreground">{item.store_name || "-"}</TableCell>
                         <TableCell>
-                          <code className="text-xs bg-muted px-1.5 py-0.5 rounded">{item.product_sku}</code>
+                          <code className="text-xs bg-muted px-1.5 py-0.5 rounded">{item.product_sku || "-"}</code>
                         </TableCell>
                         <TableCell>
-                          <span className="line-clamp-1" title={item.product_name}>{item.product_name}</span>
+                          <span className="line-clamp-1" title={item.product_name || undefined}>{item.product_name || "-"}</span>
                         </TableCell>
                         <TableCell className="text-center">
                           <span className="font-semibold">{item.quantity}</span>
                         </TableCell>
                         <TableCell>
                           <StatusBadge status={item.status} />
+                        </TableCell>
+                        <TableCell className="text-center">
+                          {isDuplicate && (
+                            <div className="flex items-center justify-center gap-1">
+                              {item.duplicate_confirmed ? (
+                                <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded text-xs bg-green-100 text-green-700 dark:bg-green-900/30 dark:text-green-400">
+                                  <Check className="h-3 w-3" />
+                                  已确认
+                                </span>
+                              ) : (
+                                <>
+                                  <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded text-xs bg-amber-100 text-amber-700 dark:bg-amber-900/30 dark:text-amber-400">
+                                    <Copy className="h-3 w-3" />
+                                    重复
+                                  </span>
+                                  <Button
+                                    variant="ghost"
+                                    size="sm"
+                                    className="h-6 px-2 text-xs"
+                                    onClick={() => handleConfirmDuplicate(item.id)}
+                                  >
+                                    确认正常
+                                  </Button>
+                                </>
+                              )}
+                            </div>
+                          )}
                         </TableCell>
                         <TableCell>
                           <div className="flex justify-center gap-1">
@@ -996,150 +1077,275 @@ export default function Removals() {
                         </TableCell>
                       </TableRow>
                     );
-                  }
-
-                  // 多个产品时显示分组
-                  const isExpanded = expandedGroups.has(group.groupKey);
-                  const groupIds = group.items.map(i => i.id);
-                  const allSelected = groupIds.every(id => selectedIds.includes(id));
-                  const someSelected = groupIds.some(id => selectedIds.includes(id)) && !allSelected;
-                  
-                  return (
-                    <Collapsible key={group.groupKey} open={isExpanded} asChild>
-                      <>
-                        {/* 分组头部行 */}
-                        <TableRow className="bg-muted/30 hover:bg-muted/50 cursor-pointer">
-                          <TableCell onClick={(e) => e.stopPropagation()}>
-                            <Checkbox 
-                              checked={allSelected} 
-                              // @ts-ignore - indeterminate is valid HTML
-                              ref={(el) => el && (el.indeterminate = someSelected)}
-                              onCheckedChange={() => toggleSelectGroup(group)} 
-                            />
-                          </TableCell>
-                          <CollapsibleTrigger asChild>
-                            <TableCell onClick={() => toggleGroup(group.groupKey)}>
-                              {isExpanded ? (
-                                <ChevronDown className="h-4 w-4 text-muted-foreground" />
-                              ) : (
-                                <ChevronRight className="h-4 w-4 text-muted-foreground" />
-                              )}
-                            </TableCell>
-                          </CollapsibleTrigger>
-                          <CollapsibleTrigger asChild>
-                            <TableCell onClick={() => toggleGroup(group.groupKey)}>
-                              <span className="font-medium text-primary text-sm">{group.orderId}</span>
-                            </TableCell>
-                          </CollapsibleTrigger>
-                          <CollapsibleTrigger asChild>
-                            <TableCell onClick={() => toggleGroup(group.groupKey)}>
-                              <code className="text-xs bg-muted px-1.5 py-0.5 rounded">{group.trackingNumber}</code>
-                            </TableCell>
-                          </CollapsibleTrigger>
-                          <CollapsibleTrigger asChild>
-                            <TableCell onClick={() => toggleGroup(group.groupKey)} className="text-muted-foreground">
-                              {group.carrier}
-                            </TableCell>
-                          </CollapsibleTrigger>
-                          <CollapsibleTrigger asChild>
-                            <TableCell onClick={() => toggleGroup(group.groupKey)} className="text-muted-foreground">
-                              {group.storeName || "-"}
-                            </TableCell>
-                          </CollapsibleTrigger>
-                          <CollapsibleTrigger asChild>
-                            <TableCell onClick={() => toggleGroup(group.groupKey)} colSpan={2}>
-                              <div className="flex items-center gap-1">
-                                <Package className="h-3.5 w-3.5 text-muted-foreground" />
-                                <span className="text-sm text-muted-foreground">{group.items.length} 种产品</span>
-                              </div>
-                            </TableCell>
-                          </CollapsibleTrigger>
-                          <CollapsibleTrigger asChild>
-                            <TableCell onClick={() => toggleGroup(group.groupKey)} className="text-center">
-                              <span className="font-semibold text-primary">{group.totalQuantity}</span>
-                            </TableCell>
-                          </CollapsibleTrigger>
-                          <CollapsibleTrigger asChild>
-                            <TableCell onClick={() => toggleGroup(group.groupKey)}>
-                              <div className="flex flex-wrap gap-1">
-                                {group.statuses.map((status, idx) => (
-                                  <StatusBadge key={idx} status={status as "shipping" | "arrived" | "inbound" | "shelved"} />
-                                ))}
-                              </div>
-                            </TableCell>
-                          </CollapsibleTrigger>
+                  })
+                )
+              ) : (
+                // 分组视图
+                groupedByOrderTracking.length === 0 ? (
+                  <TableRow>
+                    <TableCell colSpan={12} className="h-32 text-center text-muted-foreground">
+                      暂无移除货件记录
+                    </TableCell>
+                  </TableRow>
+                ) : (
+                  groupedByOrderTracking.map((group) => {
+                    // 如果只有一个产品，直接显示为普通行
+                    if (group.items.length === 1) {
+                      const item = group.items[0];
+                      const isDuplicate = duplicateInfo.has(item.id);
+                      return (
+                        <TableRow key={item.id} className="hover:bg-muted/30">
                           <TableCell>
-                            <Button
-                              size="sm"
-                              variant="ghost"
-                              onClick={() => toggleGroup(group.groupKey)}
-                            >
-                              {isExpanded ? "收起" : "展开"}
-                            </Button>
+                            <Checkbox checked={selectedIds.includes(item.id)} onCheckedChange={() => toggleSelect(item.id)} />
+                          </TableCell>
+                          <TableCell></TableCell>
+                          <TableCell>
+                            <span className="font-medium text-primary text-sm">{item.order_id}</span>
+                          </TableCell>
+                          <TableCell>
+                            <code className="text-xs bg-muted px-1.5 py-0.5 rounded">{item.tracking_number}</code>
+                          </TableCell>
+                          <TableCell className="text-muted-foreground">{item.carrier}</TableCell>
+                          <TableCell className="text-muted-foreground">{item.store_name || "-"}</TableCell>
+                          <TableCell>
+                            <code className="text-xs bg-muted px-1.5 py-0.5 rounded">{item.product_sku || "-"}</code>
+                          </TableCell>
+                          <TableCell>
+                            <span className="line-clamp-1" title={item.product_name || undefined}>{item.product_name || "-"}</span>
+                          </TableCell>
+                          <TableCell className="text-center">
+                            <span className="font-semibold">{item.quantity}</span>
+                          </TableCell>
+                          <TableCell>
+                            <StatusBadge status={item.status} />
+                          </TableCell>
+                          <TableCell className="text-center">
+                            {isDuplicate && (
+                              <div className="flex items-center justify-center gap-1">
+                                {item.duplicate_confirmed ? (
+                                  <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded text-xs bg-green-100 text-green-700 dark:bg-green-900/30 dark:text-green-400">
+                                    <Check className="h-3 w-3" />
+                                    已确认
+                                  </span>
+                                ) : (
+                                  <>
+                                    <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded text-xs bg-amber-100 text-amber-700 dark:bg-amber-900/30 dark:text-amber-400">
+                                      <Copy className="h-3 w-3" />
+                                      重复
+                                    </span>
+                                    <Button
+                                      variant="ghost"
+                                      size="sm"
+                                      className="h-6 px-2 text-xs"
+                                      onClick={() => handleConfirmDuplicate(item.id)}
+                                    >
+                                      确认正常
+                                    </Button>
+                                  </>
+                                )}
+                              </div>
+                            )}
+                          </TableCell>
+                          <TableCell>
+                            <div className="flex justify-center gap-1">
+                              <Button
+                                size="icon"
+                                variant="ghost"
+                                className="h-8 w-8"
+                                onClick={() => handleEdit(item)}
+                              >
+                                <Edit className="h-4 w-4" />
+                              </Button>
+                              <Button
+                                size="icon"
+                                variant="ghost"
+                                className="h-8 w-8 text-destructive hover:text-destructive"
+                                onClick={() => setDeleteId(item.id)}
+                              >
+                                <Trash2 className="h-4 w-4" />
+                              </Button>
+                            </div>
                           </TableCell>
                         </TableRow>
-                        
-                        {/* 展开的子项 */}
-                        <CollapsibleContent asChild>
-                          <>
-                            {group.items.map((item) => (
-                              <TableRow key={item.id} className="hover:bg-muted/20 bg-background">
-                                <TableCell>
-                                  <Checkbox checked={selectedIds.includes(item.id)} onCheckedChange={() => toggleSelect(item.id)} />
-                                </TableCell>
-                                <TableCell></TableCell>
-                                <TableCell>
-                                  <span className="text-sm text-muted-foreground pl-4">└</span>
-                                </TableCell>
-                                <TableCell>
-                                  <code className="text-xs bg-muted px-1.5 py-0.5 rounded">{item.tracking_number}</code>
-                                </TableCell>
-                                <TableCell className="text-muted-foreground text-sm">
-                                  {item.carrier}
-                                </TableCell>
-                                <TableCell className="text-muted-foreground text-sm">
-                                  {item.country || "-"}
-                                </TableCell>
-                                <TableCell>
-                                  <code className="text-xs bg-muted px-1.5 py-0.5 rounded">{item.product_sku}</code>
-                                </TableCell>
-                                <TableCell>
-                                  <span className="line-clamp-1 text-sm" title={item.product_name}>{item.product_name}</span>
-                                </TableCell>
-                                <TableCell className="text-center">
-                                  <span className="font-semibold">{item.quantity}</span>
-                                </TableCell>
-                                <TableCell>
-                                  <StatusBadge status={item.status} />
-                                </TableCell>
-                                <TableCell>
-                                  <div className="flex justify-center gap-1">
-                                    <Button
-                                      size="icon"
-                                      variant="ghost"
-                                      className="h-7 w-7"
-                                      onClick={() => handleEdit(item)}
-                                    >
-                                      <Edit className="h-3.5 w-3.5" />
-                                    </Button>
-                                    <Button
-                                      size="icon"
-                                      variant="ghost"
-                                      className="h-7 w-7 text-destructive hover:text-destructive"
-                                      onClick={() => setDeleteId(item.id)}
-                                    >
-                                      <Trash2 className="h-3.5 w-3.5" />
-                                    </Button>
-                                  </div>
-                                </TableCell>
-                              </TableRow>
-                            ))}
-                          </>
-                        </CollapsibleContent>
-                      </>
-                    </Collapsible>
-                  );
-                })
+                      );
+                    }
+
+                    // 多个产品时显示分组
+                    const isExpanded = expandedGroups.has(group.groupKey);
+                    const groupIds = group.items.map(i => i.id);
+                    const allSelected = groupIds.every(id => selectedIds.includes(id));
+                    const someSelected = groupIds.some(id => selectedIds.includes(id)) && !allSelected;
+                    
+                    return (
+                      <Collapsible key={group.groupKey} open={isExpanded} asChild>
+                        <>
+                          {/* 分组头部行 */}
+                          <TableRow className="bg-muted/30 hover:bg-muted/50 cursor-pointer">
+                            <TableCell onClick={(e) => e.stopPropagation()}>
+                              <Checkbox 
+                                checked={allSelected} 
+                                // @ts-ignore - indeterminate is valid HTML
+                                ref={(el) => el && (el.indeterminate = someSelected)}
+                                onCheckedChange={() => toggleSelectGroup(group)} 
+                              />
+                            </TableCell>
+                            <CollapsibleTrigger asChild>
+                              <TableCell onClick={() => toggleGroup(group.groupKey)}>
+                                {isExpanded ? (
+                                  <ChevronDown className="h-4 w-4 text-muted-foreground" />
+                                ) : (
+                                  <ChevronRight className="h-4 w-4 text-muted-foreground" />
+                                )}
+                              </TableCell>
+                            </CollapsibleTrigger>
+                            <CollapsibleTrigger asChild>
+                              <TableCell onClick={() => toggleGroup(group.groupKey)}>
+                                <span className="font-medium text-primary text-sm">{group.orderId}</span>
+                              </TableCell>
+                            </CollapsibleTrigger>
+                            <CollapsibleTrigger asChild>
+                              <TableCell onClick={() => toggleGroup(group.groupKey)}>
+                                <code className="text-xs bg-muted px-1.5 py-0.5 rounded">{group.trackingNumber}</code>
+                              </TableCell>
+                            </CollapsibleTrigger>
+                            <CollapsibleTrigger asChild>
+                              <TableCell onClick={() => toggleGroup(group.groupKey)} className="text-muted-foreground">
+                                {group.carrier}
+                              </TableCell>
+                            </CollapsibleTrigger>
+                            <CollapsibleTrigger asChild>
+                              <TableCell onClick={() => toggleGroup(group.groupKey)} className="text-muted-foreground">
+                                {group.storeName || "-"}
+                              </TableCell>
+                            </CollapsibleTrigger>
+                            <CollapsibleTrigger asChild>
+                              <TableCell onClick={() => toggleGroup(group.groupKey)} colSpan={2}>
+                                <div className="flex items-center gap-1">
+                                  <Package className="h-3.5 w-3.5 text-muted-foreground" />
+                                  <span className="text-sm text-muted-foreground">{group.items.length} 种产品</span>
+                                </div>
+                              </TableCell>
+                            </CollapsibleTrigger>
+                            <CollapsibleTrigger asChild>
+                              <TableCell onClick={() => toggleGroup(group.groupKey)} className="text-center">
+                                <span className="font-semibold text-primary">{group.totalQuantity}</span>
+                              </TableCell>
+                            </CollapsibleTrigger>
+                            <CollapsibleTrigger asChild>
+                              <TableCell onClick={() => toggleGroup(group.groupKey)}>
+                                <div className="flex flex-wrap gap-1">
+                                  {group.statuses.map((status, idx) => (
+                                    <StatusBadge key={idx} status={status as "shipping" | "arrived" | "inbound" | "shelved"} />
+                                  ))}
+                                </div>
+                              </TableCell>
+                            </CollapsibleTrigger>
+                            <CollapsibleTrigger asChild>
+                              <TableCell onClick={() => toggleGroup(group.groupKey)}></TableCell>
+                            </CollapsibleTrigger>
+                            <TableCell>
+                              <Button
+                                size="sm"
+                                variant="ghost"
+                                onClick={() => toggleGroup(group.groupKey)}
+                              >
+                                {isExpanded ? "收起" : "展开"}
+                              </Button>
+                            </TableCell>
+                          </TableRow>
+                          
+                          {/* 展开的子项 */}
+                          <CollapsibleContent asChild>
+                            <>
+                              {group.items.map((item) => {
+                                const isDuplicate = duplicateInfo.has(item.id);
+                                return (
+                                  <TableRow key={item.id} className="hover:bg-muted/20 bg-background">
+                                    <TableCell>
+                                      <Checkbox checked={selectedIds.includes(item.id)} onCheckedChange={() => toggleSelect(item.id)} />
+                                    </TableCell>
+                                    <TableCell></TableCell>
+                                    <TableCell>
+                                      <span className="text-sm text-muted-foreground pl-4">└</span>
+                                    </TableCell>
+                                    <TableCell>
+                                      <code className="text-xs bg-muted px-1.5 py-0.5 rounded">{item.tracking_number}</code>
+                                    </TableCell>
+                                    <TableCell className="text-muted-foreground text-sm">
+                                      {item.carrier}
+                                    </TableCell>
+                                    <TableCell className="text-muted-foreground text-sm">
+                                      {item.country || "-"}
+                                    </TableCell>
+                                    <TableCell>
+                                      <code className="text-xs bg-muted px-1.5 py-0.5 rounded">{item.product_sku || "-"}</code>
+                                    </TableCell>
+                                    <TableCell>
+                                      <span className="line-clamp-1 text-sm" title={item.product_name || undefined}>{item.product_name || "-"}</span>
+                                    </TableCell>
+                                    <TableCell className="text-center">
+                                      <span className="font-semibold">{item.quantity}</span>
+                                    </TableCell>
+                                    <TableCell>
+                                      <StatusBadge status={item.status} />
+                                    </TableCell>
+                                    <TableCell className="text-center">
+                                      {isDuplicate && (
+                                        <div className="flex items-center justify-center gap-1">
+                                          {item.duplicate_confirmed ? (
+                                            <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded text-xs bg-green-100 text-green-700 dark:bg-green-900/30 dark:text-green-400">
+                                              <Check className="h-3 w-3" />
+                                              已确认
+                                            </span>
+                                          ) : (
+                                            <>
+                                              <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded text-xs bg-amber-100 text-amber-700 dark:bg-amber-900/30 dark:text-amber-400">
+                                                <Copy className="h-3 w-3" />
+                                                重复
+                                              </span>
+                                              <Button
+                                                variant="ghost"
+                                                size="sm"
+                                                className="h-6 px-2 text-xs"
+                                                onClick={() => handleConfirmDuplicate(item.id)}
+                                              >
+                                                确认正常
+                                              </Button>
+                                            </>
+                                          )}
+                                        </div>
+                                      )}
+                                    </TableCell>
+                                    <TableCell>
+                                      <div className="flex justify-center gap-1">
+                                        <Button
+                                          size="icon"
+                                          variant="ghost"
+                                          className="h-7 w-7"
+                                          onClick={() => handleEdit(item)}
+                                        >
+                                          <Edit className="h-3.5 w-3.5" />
+                                        </Button>
+                                        <Button
+                                          size="icon"
+                                          variant="ghost"
+                                          className="h-7 w-7 text-destructive hover:text-destructive"
+                                          onClick={() => setDeleteId(item.id)}
+                                        >
+                                          <Trash2 className="h-3.5 w-3.5" />
+                                        </Button>
+                                      </div>
+                                    </TableCell>
+                                  </TableRow>
+                                );
+                              })}
+                            </>
+                          </CollapsibleContent>
+                        </>
+                      </Collapsible>
+                    );
+                  })
+                )
               )}
             </TableBody>
           </Table>
@@ -1148,9 +1354,20 @@ export default function Removals() {
       </Card>
 
       {/* 数据统计 */}
-      <div className="text-sm text-muted-foreground">
-        共 {groupedByOrderTracking.length} 个分组（{filteredData.length} 条产品记录）
-        {statusFilter !== "all" && ` (已筛选)`}
+      <div className="text-sm text-muted-foreground flex items-center gap-4">
+        <span>
+          {viewMode === "grouped" 
+            ? `共 ${groupedByOrderTracking.length} 个分组（${filteredData.length} 条产品记录）`
+            : `共 ${filteredData.length} 条记录`
+          }
+          {statusFilter !== "all" && ` (已筛选)`}
+        </span>
+        {duplicateInfo.size > 0 && (
+          <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded text-xs bg-amber-100 text-amber-700 dark:bg-amber-900/30 dark:text-amber-400">
+            <Copy className="h-3 w-3" />
+            {duplicateInfo.size} 条可能重复
+          </span>
+        )}
       </div>
 
       {/* 批量编辑对话框 */}

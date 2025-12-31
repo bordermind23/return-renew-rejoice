@@ -517,6 +517,7 @@ export type Database = {
           carrier: string
           country: string | null
           created_at: string
+          duplicate_confirmed: boolean
           fnsku: string
           id: string
           msku: string | null
@@ -537,6 +538,7 @@ export type Database = {
           carrier: string
           country?: string | null
           created_at?: string
+          duplicate_confirmed?: boolean
           fnsku: string
           id?: string
           msku?: string | null
@@ -557,6 +559,7 @@ export type Database = {
           carrier?: string
           country?: string | null
           created_at?: string
+          duplicate_confirmed?: boolean
           fnsku?: string
           id?: string
           msku?: string | null

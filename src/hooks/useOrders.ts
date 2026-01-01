@@ -125,53 +125,55 @@ export const useOrderStats = () => {
   return useQuery({
     queryKey: ["orders", "stats"],
     queryFn: async () => {
-      // 获取所有订单的LPN和状态
-      const { data, error } = await supabase
+      // 分别获取各状态的唯一LPN数量
+      // 使用 RPC 或分页获取所有数据会更准确，但这里用 count 方式近似
+      
+      // 获取所有唯一的 LPN 总数
+      const { data: allLpns, error: allError } = await supabase
         .from("orders")
-        .select("lpn, status");
+        .select("lpn")
+        .limit(10000);
       
-      if (error) throw error;
+      if (allError) throw allError;
       
-      // 按LPN去重，保留每个LPN的最新状态（按优先级：出库 > 到货 > 未到货）
-      const lpnStatusMap = new Map<string, OrderStatus>();
-      const statusPriority: Record<OrderStatus, number> = {
-        '出库': 3,
-        '到货': 2,
-        '未到货': 1,
-        '待同步': 0,
-      };
+      // 获取未到货状态的订单
+      const { data: pendingData, error: pendingError } = await supabase
+        .from("orders")
+        .select("lpn")
+        .eq("status", "未到货")
+        .limit(10000);
       
-      for (const order of data || []) {
-        const existingStatus = lpnStatusMap.get(order.lpn);
-        if (!existingStatus || statusPriority[order.status] > statusPriority[existingStatus]) {
-          lpnStatusMap.set(order.lpn, order.status);
-        }
-      }
+      if (pendingError) throw pendingError;
       
-      // 统计各状态的唯一LPN数量
-      let pending = 0;
-      let arrived = 0;
-      let shipped = 0;
+      // 获取到货状态的订单
+      const { data: arrivedData, error: arrivedError } = await supabase
+        .from("orders")
+        .select("lpn")
+        .eq("status", "到货")
+        .limit(10000);
       
-      lpnStatusMap.forEach((status) => {
-        switch (status) {
-          case '未到货':
-            pending++;
-            break;
-          case '到货':
-            arrived++;
-            break;
-          case '出库':
-            shipped++;
-            break;
-        }
-      });
+      if (arrivedError) throw arrivedError;
+      
+      // 获取出库状态的订单
+      const { data: shippedData, error: shippedError } = await supabase
+        .from("orders")
+        .select("lpn")
+        .eq("status", "出库")
+        .limit(10000);
+      
+      if (shippedError) throw shippedError;
+      
+      // 按唯一 LPN 计算
+      const uniqueTotal = new Set(allLpns?.map(o => o.lpn) || []).size;
+      const uniquePending = new Set(pendingData?.map(o => o.lpn) || []).size;
+      const uniqueArrived = new Set(arrivedData?.map(o => o.lpn) || []).size;
+      const uniqueShipped = new Set(shippedData?.map(o => o.lpn) || []).size;
       
       return {
-        total: lpnStatusMap.size,
-        pending,
-        arrived,
-        shipped,
+        total: uniqueTotal,
+        pending: uniquePending,
+        arrived: uniqueArrived,
+        shipped: uniqueShipped,
       };
     },
   });

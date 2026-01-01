@@ -6,16 +6,31 @@ const corsHeaders = {
 };
 
 Deno.serve(async (req) => {
+  console.log("Create user function called, method:", req.method);
+  
   if (req.method === "OPTIONS") {
     return new Response(null, { headers: corsHeaders });
   }
 
   try {
-    const supabaseUrl = Deno.env.get("SUPABASE_URL")!;
-    const supabaseServiceRoleKey = Deno.env.get("SUPABASE_SERVICE_ROLE_KEY")!;
+    const supabaseUrl = Deno.env.get("SUPABASE_URL");
+    const supabaseServiceRoleKey = Deno.env.get("SUPABASE_SERVICE_ROLE_KEY");
+
+    console.log("SUPABASE_URL exists:", !!supabaseUrl);
+    console.log("SUPABASE_SERVICE_ROLE_KEY exists:", !!supabaseServiceRoleKey);
+
+    if (!supabaseUrl || !supabaseServiceRoleKey) {
+      console.error("Missing environment variables");
+      return new Response(
+        JSON.stringify({ error: "服务器配置错误" }),
+        { status: 500, headers: { ...corsHeaders, "Content-Type": "application/json" } }
+      );
+    }
 
     // Get the authorization header from the request
     const authHeader = req.headers.get("Authorization");
+    console.log("Authorization header present:", !!authHeader);
+    
     if (!authHeader) {
       return new Response(
         JSON.stringify({ error: "未授权" }),
@@ -23,12 +38,15 @@ Deno.serve(async (req) => {
       );
     }
 
-    // Create a client with the user's token to verify they're an admin
+    // Create a client with service role key
     const supabaseClient = createClient(supabaseUrl, supabaseServiceRoleKey);
     
     // Verify the requesting user is an admin
     const token = authHeader.replace("Bearer ", "");
     const { data: { user: requestingUser }, error: userError } = await supabaseClient.auth.getUser(token);
+    
+    console.log("Requesting user ID:", requestingUser?.id);
+    console.log("User verification error:", userError?.message);
     
     if (userError || !requestingUser) {
       return new Response(
@@ -44,6 +62,9 @@ Deno.serve(async (req) => {
       .eq("user_id", requestingUser.id)
       .single();
 
+    console.log("User role:", roleData?.role);
+    console.log("Role query error:", roleError?.message);
+
     if (roleError || roleData?.role !== "admin") {
       return new Response(
         JSON.stringify({ error: "只有管理员可以创建用户" }),
@@ -52,49 +73,85 @@ Deno.serve(async (req) => {
     }
 
     // Parse the request body
-    const { email, password, role } = await req.json();
+    const body = await req.json();
+    console.log("Request body:", JSON.stringify({ ...body, password: "***" }));
+    
+    const { email, username, password, role } = body;
 
-    if (!email || !password || !role) {
+    // Support both email and username - if username provided without @, treat as username
+    let finalEmail = email || username;
+    
+    // If it looks like a username (no @), create a fake email for it
+    if (finalEmail && !finalEmail.includes("@")) {
+      // Store the username in user metadata
+      finalEmail = `${finalEmail}@placeholder.local`;
+    }
+
+    if (!finalEmail || !password || !role) {
+      console.error("Missing required params:", { email: !!finalEmail, password: !!password, role: !!role });
       return new Response(
-        JSON.stringify({ error: "缺少必要参数" }),
+        JSON.stringify({ error: "缺少必要参数（邮箱/用户名、密码、角色）" }),
         { status: 400, headers: { ...corsHeaders, "Content-Type": "application/json" } }
       );
     }
 
     // Create the user using service role
+    console.log("Creating user with email:", finalEmail);
+    
     const { data: newUser, error: createError } = await supabaseClient.auth.admin.createUser({
-      email,
+      email: finalEmail,
       password,
       email_confirm: true, // Auto-confirm the email
+      user_metadata: {
+        username: email || username,
+        display_name: email || username,
+      }
     });
 
     if (createError) {
-      console.error("Error creating user:", createError);
+      console.error("Error creating user:", createError.message, createError);
       return new Response(
         JSON.stringify({ error: createError.message }),
         { status: 400, headers: { ...corsHeaders, "Content-Type": "application/json" } }
       );
     }
 
+    console.log("User created successfully:", newUser?.user?.id);
+
     // The user_roles entry should be created by the trigger, but let's update it with the correct role
     if (newUser.user) {
       // Wait a moment for the trigger to create the role entry
       await new Promise(resolve => setTimeout(resolve, 500));
       
-      const { error: updateRoleError } = await supabaseClient
+      // First check if role exists
+      const { data: existingRole } = await supabaseClient
         .from("user_roles")
-        .update({ role })
-        .eq("user_id", newUser.user.id);
+        .select("id")
+        .eq("user_id", newUser.user.id)
+        .single();
 
-      if (updateRoleError) {
-        console.error("Error updating role:", updateRoleError);
-        // If the role doesn't exist yet, insert it
+      if (existingRole) {
+        // Update existing role
+        const { error: updateRoleError } = await supabaseClient
+          .from("user_roles")
+          .update({ role })
+          .eq("user_id", newUser.user.id);
+
+        if (updateRoleError) {
+          console.error("Error updating role:", updateRoleError.message);
+        } else {
+          console.log("Role updated to:", role);
+        }
+      } else {
+        // Insert new role
         const { error: insertRoleError } = await supabaseClient
           .from("user_roles")
           .insert({ user_id: newUser.user.id, role });
         
         if (insertRoleError) {
-          console.error("Error inserting role:", insertRoleError);
+          console.error("Error inserting role:", insertRoleError.message);
+        } else {
+          console.log("Role inserted:", role);
         }
       }
     }
@@ -104,7 +161,7 @@ Deno.serve(async (req) => {
       { status: 200, headers: { ...corsHeaders, "Content-Type": "application/json" } }
     );
   } catch (error) {
-    console.error("Error:", error);
+    console.error("Unexpected error:", error);
     const errorMessage = error instanceof Error ? error.message : "未知错误";
     return new Response(
       JSON.stringify({ error: errorMessage }),

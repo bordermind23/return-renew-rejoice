@@ -503,8 +503,8 @@ export default function Orders() {
           
           // 构建待同步订单映射：LPN -> order（status为"待同步"或order_number为"待同步"）
           const pendingOrdersMap = new Map<string, Order>();
-          // LPN唯一性检查：已存在的非待同步订单LPN集合
-          const existingLpnSet = new Set<string>();
+          // 已存在的非待同步订单：LPN -> 订单数据（用于校验参数一致性）
+          const existingOrdersMap = new Map<string, Order>();
           
           (allOrdersData || []).forEach(o => {
             const lpnLower = o.lpn.toLowerCase();
@@ -513,12 +513,56 @@ export default function Orders() {
             if (isPending) {
               pendingOrdersMap.set(lpnLower, o as Order);
             } else {
-              existingLpnSet.add(lpnLower);
+              existingOrdersMap.set(lpnLower, o as Order);
             }
           });
           
-          // 本次导入中已处理的LPN集合
-          const importedLpnSet = new Set<string>();
+          // 本次导入中已处理的LPN -> 行数据（用于校验参数一致性）
+          const importedLpnDataMap = new Map<string, { row: string[]; rowIndex: number }>();
+
+          // 校验两行数据是否参数一致的辅助函数
+          const areRowsConsistent = (row1: string[], row2: string[]): boolean => {
+            // 比较除LPN外的所有字段
+            for (let j = 1; j < Math.max(row1.length, row2.length); j++) {
+              const val1 = (row1[j] || '').toString().trim();
+              const val2 = (row2[j] || '').toString().trim();
+              if (val1 !== val2) return false;
+            }
+            return true;
+          };
+
+          // 校验导入行与已存在订单是否参数一致
+          const isConsistentWithExisting = (row: string[], existing: Order): boolean => {
+            const productName = row[1] ? String(row[1]).trim() : null;
+            const buyerNote = row[2] ? String(row[2]).trim() : null;
+            const returnReason = row[3] ? String(row[3]).trim() : null;
+            const inventoryAttribute = row[4] ? String(row[4]).trim() : null;
+            const storeName = String(row[5]).trim();
+            const country = row[6] ? String(row[6]).trim() : null;
+            const productSku = row[7] ? String(row[7]).trim() : null;
+            const orderNumber = String(row[8]).trim();
+            const msku = row[9] ? String(row[9]).trim() : null;
+            const asin = row[10] ? String(row[10]).trim() : null;
+            const fnsku = row[11] ? String(row[11]).trim() : null;
+            const returnQuantity = parseInt(String(row[12])) || 1;
+            const warehouseLocation = row[13] ? String(row[13]).trim() : null;
+
+            return (
+              (productName || null) === (existing.product_name || null) &&
+              (buyerNote || null) === (existing.buyer_note || null) &&
+              (returnReason || null) === (existing.return_reason || null) &&
+              (inventoryAttribute || null) === (existing.inventory_attribute || null) &&
+              storeName === existing.store_name &&
+              (country || null) === (existing.country || null) &&
+              (productSku || null) === (existing.product_sku || null) &&
+              orderNumber === existing.order_number &&
+              (msku || null) === (existing.msku || null) &&
+              (asin || null) === (existing.asin || null) &&
+              (fnsku || null) === (existing.fnsku || null) &&
+              returnQuantity === (existing.return_quantity || 1) &&
+              (warehouseLocation || null) === (existing.warehouse_location || null)
+            );
+          };
 
           for (let i = 0; i < dataRows.length; i++) {
             const row = dataRows[i];
@@ -564,24 +608,34 @@ export default function Orders() {
               // 从待处理映射中移除，避免重复更新
               pendingOrdersMap.delete(lpnLower);
               // 标记为已处理
-              importedLpnSet.add(lpnLower);
+              importedLpnDataMap.set(lpnLower, { row, rowIndex });
               continue;
             }
 
-            // LPN唯一性检查：该LPN已存在于数据库中
-            if (existingLpnSet.has(lpnLower)) {
-              errors.push({ row: rowIndex, message: `第${rowIndex}行：LPN号 "${lpn}" 已存在于系统中，不能重复上传` });
+            // 检查该LPN是否已存在于数据库中
+            const existingOrder = existingOrdersMap.get(lpnLower);
+            if (existingOrder) {
+              // 允许重复LPN，但必须所有参数一致
+              if (!isConsistentWithExisting(row, existingOrder)) {
+                errors.push({ row: rowIndex, message: `第${rowIndex}行：LPN号 "${lpn}" 已存在于系统中，且参数不一致，无法导入` });
+              }
+              // 参数一致则跳过（不重复插入）
               continue;
             }
 
-            // LPN唯一性检查：该LPN已在本次导入中处理过
-            if (importedLpnSet.has(lpnLower)) {
-              errors.push({ row: rowIndex, message: `第${rowIndex}行：LPN号 "${lpn}" 在导入文件中重复` });
+            // 检查该LPN是否已在本次导入中处理过
+            const existingImport = importedLpnDataMap.get(lpnLower);
+            if (existingImport) {
+              // 允许重复LPN，但必须所有参数一致
+              if (!areRowsConsistent(row, existingImport.row)) {
+                errors.push({ row: rowIndex, message: `第${rowIndex}行：LPN号 "${lpn}" 在导入文件中重复，且与第${existingImport.rowIndex}行参数不一致` });
+              }
+              // 参数一致则跳过（不重复插入）
               continue;
             }
 
             // 标记该LPN为已处理
-            importedLpnSet.add(lpnLower);
+            importedLpnDataMap.set(lpnLower, { row, rowIndex });
 
             validItems.push({
               lpn,

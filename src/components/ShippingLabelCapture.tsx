@@ -104,34 +104,36 @@ export function ShippingLabelCapture({ onTrackingRecognized, onCancel }: Shippin
       if (error) {
         console.error("Recognition error:", error);
         toast.error("识别失败，请重试");
+        setIsRecognizing(false);
         return;
       }
 
       if (data.trackingNumbers && data.trackingNumbers.length > 0) {
         const trackingNumbers = data.trackingNumbers;
         setRecognizedNumbers(trackingNumbers);
-        toast.success(`识别到物流号: ${trackingNumbers[0]}`);
+        toast.success(`识别到物流号: ${trackingNumbers[0]}，正在处理...`);
         
         // 自动选择第一个识别到的物流号并上传照片
-        await uploadPhotoAndConfirm(trackingNumbers[0]);
+        await uploadPhotoAndConfirm(trackingNumbers[0], imageData);
       } else {
         toast.warning("未能识别到物流跟踪号，请确保照片清晰或手动输入");
+        setIsRecognizing(false);
       }
     } catch (error) {
       console.error("Recognition error:", error);
       toast.error("识别失败，请重试");
-    } finally {
       setIsRecognizing(false);
     }
   };
 
-  const uploadPhotoAndConfirm = async (trackingNumber: string) => {
-    if (!capturedImage) return;
+  const uploadPhotoAndConfirm = async (trackingNumber: string, imageData?: string) => {
+    const imageToUpload = imageData || capturedImage;
+    if (!imageToUpload) return;
 
     setIsUploading(true);
     try {
       // Convert base64 to blob
-      const response = await fetch(capturedImage);
+      const response = await fetch(imageToUpload);
       const blob = await response.blob();
       
       // Generate unique filename
@@ -162,6 +164,7 @@ export function ShippingLabelCapture({ onTrackingRecognized, onCancel }: Shippin
       toast.error("照片上传失败");
     } finally {
       setIsUploading(false);
+      setIsRecognizing(false);
     }
   };
 
@@ -278,46 +281,23 @@ export function ShippingLabelCapture({ onTrackingRecognized, onCancel }: Shippin
                   alt="物流面单"
                   className="w-full h-full object-contain bg-muted"
                 />
-                {isRecognizing && (
+                {(isRecognizing || isUploading) && (
                   <div className="absolute inset-0 bg-black/50 flex items-center justify-center">
                     <div className="text-center text-white">
                       <Loader2 className="h-8 w-8 animate-spin mx-auto mb-2" />
-                      <p>正在识别物流号...</p>
+                      <p>{isRecognizing ? "正在识别物流号..." : "正在处理..."}</p>
                     </div>
                   </div>
                 )}
               </div>
 
-              {recognizedNumbers.length > 0 && (
-                <div className="space-y-3">
-                  <p className="text-sm font-medium">识别结果（点击选择）:</p>
-                  <div className="flex flex-wrap gap-2 justify-center">
-                    {recognizedNumbers.map((num, idx) => (
-                      <Button
-                        key={idx}
-                        variant="outline"
-                        className="h-10 px-4 border-primary/50 hover:bg-primary hover:text-primary-foreground"
-                        onClick={() => uploadPhotoAndConfirm(num)}
-                        disabled={isUploading}
-                      >
-                        {isUploading ? (
-                          <Loader2 className="h-4 w-4 animate-spin mr-2" />
-                        ) : (
-                          <CheckCircle className="h-4 w-4 mr-2" />
-                        )}
-                        {num}
-                      </Button>
-                    ))}
-                  </div>
-                </div>
-              )}
-
-              <div className="flex gap-3 justify-center">
-                <Button variant="outline" onClick={retakePhoto} className="h-10">
-                  <RefreshCw className="mr-2 h-4 w-4" />
-                  重拍
-                </Button>
-                {recognizedNumbers.length === 0 && !isRecognizing && (
+              {/* 识别失败时显示重试选项 */}
+              {recognizedNumbers.length === 0 && !isRecognizing && !isUploading && (
+                <div className="flex gap-3 justify-center">
+                  <Button variant="outline" onClick={retakePhoto} className="h-10">
+                    <RefreshCw className="mr-2 h-4 w-4" />
+                    重拍
+                  </Button>
                   <Button 
                     variant="outline" 
                     onClick={() => recognizeTracking(capturedImage)}
@@ -326,11 +306,11 @@ export function ShippingLabelCapture({ onTrackingRecognized, onCancel }: Shippin
                     <RefreshCw className="mr-2 h-4 w-4" />
                     重新识别
                   </Button>
-                )}
-                <Button variant="ghost" onClick={handleCancel} className="h-10">
-                  取消
-                </Button>
-              </div>
+                  <Button variant="ghost" onClick={handleCancel} className="h-10">
+                    取消
+                  </Button>
+                </div>
+              )}
             </div>
           )}
         </div>

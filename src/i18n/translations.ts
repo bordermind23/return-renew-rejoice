@@ -66,6 +66,8 @@ export const translations = {
       cases: 'CASE管理',
       users: '用户管理',
       refurbishment: '翻新处理',
+      refurbishmentScan: '翻新扫码',
+      refurbishmentRecords: '翻新记录',
     },
     // 入库扫码
     inboundScan: {
@@ -409,6 +411,8 @@ export const translations = {
       cases: 'Gestione CASE',
       users: 'Gestione Utenti',
       refurbishment: 'Ricondizionamento',
+      refurbishmentScan: 'Scansione Ricondizionamento',
+      refurbishmentRecords: 'Registri Ricondizionamento',
     },
     // 入库扫码
     inboundScan: {

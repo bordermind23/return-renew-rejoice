@@ -2,7 +2,7 @@ import { Toaster } from "@/components/ui/toaster";
 import { Toaster as Sonner } from "@/components/ui/sonner";
 import { TooltipProvider } from "@/components/ui/tooltip";
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
-import { BrowserRouter, Routes, Route } from "react-router-dom";
+import { BrowserRouter, Routes, Route, Navigate } from "react-router-dom";
 import { LanguageProvider } from "@/i18n/LanguageContext";
 import { MainLayout } from "@/components/layout/MainLayout";
 import { ProtectedRoute } from "@/components/ProtectedRoute";
@@ -19,6 +19,8 @@ import Outbound from "./pages/Outbound";
 import UserManagement from "./pages/UserManagement";
 import Cases from "./pages/Cases";
 import Refurbishment from "./pages/Refurbishment";
+import RefurbishmentScan from "./pages/RefurbishmentScan";
+import RefurbishmentRecords from "./pages/RefurbishmentRecords";
 import Auth from "./pages/Auth";
 import NotFound from "./pages/NotFound";
 
@@ -158,8 +160,26 @@ const App = () => (
             path="/refurbishment"
             element={
               <ProtectedRoute>
+                <Navigate to="/refurbishment/scan" replace />
+              </ProtectedRoute>
+            }
+          />
+          <Route
+            path="/refurbishment/scan"
+            element={
+              <ProtectedRoute>
                 <MainLayout>
-                  <Refurbishment />
+                  <RefurbishmentScan />
+                </MainLayout>
+              </ProtectedRoute>
+            }
+          />
+          <Route
+            path="/refurbishment/records"
+            element={
+              <ProtectedRoute>
+                <MainLayout>
+                  <RefurbishmentRecords />
                 </MainLayout>
               </ProtectedRoute>
             }

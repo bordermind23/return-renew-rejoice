@@ -1378,7 +1378,7 @@ export default function Orders() {
                                 <div key={idx} className="space-y-1.5 group">
                                   <div 
                                     className="relative aspect-square rounded-lg border overflow-hidden cursor-pointer hover:ring-2 hover:ring-primary transition-all"
-                                    onClick={() => window.open(photo.url, '_blank')}
+                                    onClick={() => openLightbox(inboundPhotos.map(p => p.url), idx)}
                                   >
                                     <img 
                                       src={photo.url} 
@@ -1391,6 +1391,10 @@ export default function Orders() {
                                         {formatFileSize(size)}
                                       </div>
                                     )}
+                                    {/* 放大提示 */}
+                                    <div className="absolute inset-0 bg-black/0 group-hover:bg-black/20 transition-colors flex items-center justify-center">
+                                      <Eye className="h-6 w-6 text-white opacity-0 group-hover:opacity-100 transition-opacity" />
+                                    </div>
                                   </div>
                                   <p className="text-xs text-muted-foreground text-center truncate">{photo.label}</p>
                                 </div>
@@ -1431,7 +1435,20 @@ export default function Orders() {
                           <p className="text-sm font-medium">翻新照片</p>
                           <div className="grid grid-cols-4 gap-2">
                             {inboundItem.refurbishment_photos.map((photo, idx) => (
-                              <img key={idx} src={photo} alt={`翻新照片 ${idx + 1}`} className="w-full h-20 object-cover rounded-lg border" />
+                              <div 
+                                key={idx} 
+                                className="relative group cursor-pointer"
+                                onClick={() => openLightbox(inboundItem.refurbishment_photos!, idx)}
+                              >
+                                <img 
+                                  src={photo} 
+                                  alt={`翻新照片 ${idx + 1}`} 
+                                  className="w-full h-20 object-cover rounded-lg border group-hover:ring-2 group-hover:ring-primary transition-all" 
+                                />
+                                <div className="absolute inset-0 bg-black/0 group-hover:bg-black/20 transition-colors flex items-center justify-center rounded-lg">
+                                  <Eye className="h-5 w-5 text-white opacity-0 group-hover:opacity-100 transition-opacity" />
+                                </div>
+                              </div>
                             ))}
                           </div>
                         </div>

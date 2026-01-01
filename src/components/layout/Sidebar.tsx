@@ -70,11 +70,6 @@ const getNavItems = (t: ReturnType<typeof useLanguage>['t']): NavItem[] => [
       { to: "/inbound/discrepancy", icon: AlertTriangle, label: t.nav.inboundDiscrepancy },
     ]
   },
-  { to: "/dashboard", icon: LayoutDashboard, label: t.nav.dashboard },
-  { to: "/orders", icon: ClipboardList, label: t.nav.orders },
-  { to: "/removals", icon: PackageX, label: t.nav.removals },
-  { to: "/inventory", icon: Warehouse, label: t.nav.inventory },
-  { to: "/products", icon: Package, label: t.nav.products },
   { 
     to: "/refurbishment", 
     icon: Wrench, 
@@ -84,6 +79,11 @@ const getNavItems = (t: ReturnType<typeof useLanguage>['t']): NavItem[] => [
       { to: "/refurbishment/records", icon: History, label: t.nav.refurbishmentRecords || "翻新记录" },
     ]
   },
+  { to: "/dashboard", icon: LayoutDashboard, label: t.nav.dashboard },
+  { to: "/orders", icon: ClipboardList, label: t.nav.orders },
+  { to: "/removals", icon: PackageX, label: t.nav.removals },
+  { to: "/inventory", icon: Warehouse, label: t.nav.inventory },
+  { to: "/products", icon: Package, label: t.nav.products },
   { to: "/outbound", icon: PackageOpen, label: t.nav.outbound },
   { to: "/cases", icon: FileWarning, label: t.nav.cases },
 ];

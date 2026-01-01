@@ -478,19 +478,20 @@ export default function Orders() {
             pendingOrdersMap.set(lpnLower, o as Order);
           });
           
-          // 构建现有订单映射：LPN -> { orderNumber -> order }
+          // 构建现有订单映射：LPN -> 是否存在（LPN唯一性检查）
           // 需要获取所有现有订单来检查重复
           const { data: allOrdersData } = await supabase
             .from("orders")
             .select("id, lpn, order_number");
           
-          const existingLpnOrderMap = new Map<string, Set<string>>();
+          // LPN唯一性检查：已存在的LPN集合
+          const existingLpnSet = new Set<string>();
           (allOrdersData || []).forEach(o => {
-            const lpnLower = o.lpn.toLowerCase();
-            if (!existingLpnOrderMap.has(lpnLower)) existingLpnOrderMap.set(lpnLower, new Set());
-            existingLpnOrderMap.get(lpnLower)!.add(o.order_number);
+            existingLpnSet.add(o.lpn.toLowerCase());
           });
-          const importedLpnOrderMap = new Map<string, Set<string>>();
+          
+          // 本次导入中已处理的LPN集合
+          const importedLpnSet = new Set<string>();
 
           for (let i = 0; i < dataRows.length; i++) {
             const row = dataRows[i];
@@ -534,22 +535,25 @@ export default function Orders() {
               });
               // 从待处理映射中移除，避免重复更新
               pendingOrdersMap.delete(lpnLower);
+              // 标记为已处理
+              importedLpnSet.add(lpnLower);
               continue;
             }
 
-            // 检查正常订单是否重复
-            if (existingLpnOrderMap.has(lpnLower) && existingLpnOrderMap.get(lpnLower)!.has(orderNumber)) {
-              errors.push({ row: rowIndex, message: `第${rowIndex}行：LPN号 "${lpn}" 与订单号 "${orderNumber}" 的组合已存在于系统中` });
+            // LPN唯一性检查：该LPN已存在于数据库中
+            if (existingLpnSet.has(lpnLower)) {
+              errors.push({ row: rowIndex, message: `第${rowIndex}行：LPN号 "${lpn}" 已存在于系统中，不能重复上传` });
               continue;
             }
 
-            if (importedLpnOrderMap.has(lpnLower) && importedLpnOrderMap.get(lpnLower)!.has(orderNumber)) {
-              errors.push({ row: rowIndex, message: `第${rowIndex}行：LPN号 "${lpn}" 与订单号 "${orderNumber}" 的组合在导入文件中重复` });
+            // LPN唯一性检查：该LPN已在本次导入中处理过
+            if (importedLpnSet.has(lpnLower)) {
+              errors.push({ row: rowIndex, message: `第${rowIndex}行：LPN号 "${lpn}" 在导入文件中重复` });
               continue;
             }
 
-            if (!importedLpnOrderMap.has(lpnLower)) importedLpnOrderMap.set(lpnLower, new Set());
-            importedLpnOrderMap.get(lpnLower)!.add(orderNumber);
+            // 标记该LPN为已处理
+            importedLpnSet.add(lpnLower);
 
             validItems.push({
               lpn,

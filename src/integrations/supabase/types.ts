@@ -324,6 +324,7 @@ export type Database = {
           removal_order_id: string
           return_reason: string | null
           shipment_id: string | null
+          shipping_label_photo: string | null
           tracking_number: string | null
         }
         Insert: {
@@ -356,6 +357,7 @@ export type Database = {
           removal_order_id: string
           return_reason?: string | null
           shipment_id?: string | null
+          shipping_label_photo?: string | null
           tracking_number?: string | null
         }
         Update: {
@@ -388,6 +390,7 @@ export type Database = {
           removal_order_id?: string
           return_reason?: string | null
           shipment_id?: string | null
+          shipping_label_photo?: string | null
           tracking_number?: string | null
         }
         Relationships: []
@@ -696,6 +699,7 @@ export type Database = {
           product_type: string | null
           quantity: number
           ship_date: string | null
+          shipping_label_photo: string | null
           status: string
           store_name: string | null
           tracking_number: string
@@ -717,6 +721,7 @@ export type Database = {
           product_type?: string | null
           quantity?: number
           ship_date?: string | null
+          shipping_label_photo?: string | null
           status?: string
           store_name?: string | null
           tracking_number: string
@@ -738,6 +743,7 @@ export type Database = {
           product_type?: string | null
           quantity?: number
           ship_date?: string | null
+          shipping_label_photo?: string | null
           status?: string
           store_name?: string | null
           tracking_number?: string

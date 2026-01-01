@@ -36,9 +36,11 @@ export interface InboundItem {
   refurbishment_photos: string[] | null;
   refurbishment_videos: string[] | null;
   refurbishment_notes: string | null;
+  // 物流面单照片
+  shipping_label_photo: string | null;
 }
 
-export type InboundItemInsert = Omit<InboundItem, "id" | "created_at" | "package_photo" | "product_photo" | "lpn_label_photo" | "packaging_photo_1" | "packaging_photo_2" | "packaging_photo_3" | "packaging_photo_4" | "packaging_photo_5" | "packaging_photo_6" | "accessories_photo" | "detail_photo" | "refurbished_at" | "refurbished_by" | "refurbishment_grade" | "refurbishment_photos" | "refurbishment_videos" | "refurbishment_notes"> & { 
+export type InboundItemInsert = Omit<InboundItem, "id" | "created_at" | "package_photo" | "product_photo" | "lpn_label_photo" | "packaging_photo_1" | "packaging_photo_2" | "packaging_photo_3" | "packaging_photo_4" | "packaging_photo_5" | "packaging_photo_6" | "accessories_photo" | "detail_photo" | "refurbished_at" | "refurbished_by" | "refurbishment_grade" | "refurbishment_photos" | "refurbishment_videos" | "refurbishment_notes" | "shipping_label_photo"> & { 
   package_photo?: string | null; 
   product_photo?: string | null;
   lpn_label_photo?: string | null;
@@ -56,6 +58,7 @@ export type InboundItemInsert = Omit<InboundItem, "id" | "created_at" | "package
   refurbishment_photos?: string[] | null;
   refurbishment_videos?: string[] | null;
   refurbishment_notes?: string | null;
+  shipping_label_photo?: string | null;
 };
 export type InboundItemUpdate = Partial<InboundItemInsert>;
 

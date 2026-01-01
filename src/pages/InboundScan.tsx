@@ -1,6 +1,6 @@
 import { useState, useRef, useEffect, useMemo } from "react";
 import { useNavigate, useSearchParams } from "react-router-dom";
-import { ScanLine, Camera, Package, CheckCircle, Search, PackageCheck, AlertCircle, ChevronRight } from "lucide-react";
+import { Camera, Package, CheckCircle, Search, PackageCheck, AlertCircle, ChevronRight, ScanLine } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { PageHeader } from "@/components/ui/page-header";
@@ -41,6 +41,7 @@ import { toast } from "sonner";
 import { Scanner } from "@/components/Scanner";
 import { SequentialPhotoCapture } from "@/components/SequentialPhotoCapture";
 import { MobileInboundScanner } from "@/components/MobileInboundScanner";
+import { ShippingLabelCapture } from "@/components/ShippingLabelCapture";
 import { TranslatedText } from "@/components/TranslatedText";
 import { VoiceInputButton } from "@/components/VoiceInputButton";
 import { cn } from "@/lib/utils";
@@ -79,6 +80,8 @@ export default function InboundScan() {
   const [isForceCompleteDialogOpen, setIsForceCompleteDialogOpen] = useState(false);
   const [isPendingSessionDialogOpen, setIsPendingSessionDialogOpen] = useState(false);
   const [pendingSession, setPendingSession] = useState<PendingInboundSession | null>(null);
+  const [shippingLabelPhoto, setShippingLabelPhoto] = useState<string | null>(null);
+  const [showManualInput, setShowManualInput] = useState(false);
   
   const lpnInputRef = useRef<HTMLInputElement>(null);
   const trackingInputRef = useRef<HTMLInputElement>(null);
@@ -284,6 +287,47 @@ export default function InboundScan() {
     ).length;
   };
 
+  const handleShippingLabelRecognized = (trackingNumbers: string[], photoUrl: string) => {
+    if (trackingNumbers.length === 0) {
+      playError();
+      toast.error("未识别到物流跟踪号");
+      return;
+    }
+
+    // 尝试匹配第一个识别到的物流号
+    const trackingNumber = trackingNumbers[0];
+    
+    const allMatched = shipments?.filter(
+      s => s.tracking_number.toLowerCase() === trackingNumber.toLowerCase()
+    ) || [];
+
+    if (allMatched.length === 0) {
+      playError();
+      toast.error(`未找到物流跟踪号: ${trackingNumber}`);
+      return;
+    }
+
+    const totalQuantity = allMatched.reduce((sum, s) => sum + s.quantity, 0);
+    const inboundedCount = getInboundedCount(allMatched[0].tracking_number);
+    if (inboundedCount >= totalQuantity) {
+      playWarning();
+      toast.warning(`该物流号下的 ${totalQuantity} 件货物已全部入库`);
+      return;
+    }
+
+    // 保存物流面单照片URL
+    setShippingLabelPhoto(photoUrl);
+    setMatchedShipment(allMatched[0]);
+    setMatchedShipments(allMatched);
+    setTrackingInput(trackingNumber);
+    setScannedLpns([]);
+    setCurrentStep("scan_lpn");
+    
+    playSuccess();
+    const productNames = [...new Set(allMatched.map(s => s.product_name))];
+    toast.success(`匹配成功: ${allMatched.length} 种产品 (${productNames.slice(0, 2).join(", ")}${productNames.length > 2 ? "..." : ""})`);
+  };
+
   const handleScanTracking = () => {
     if (!trackingInput.trim()) {
       playError();
@@ -481,6 +525,7 @@ export default function InboundScan() {
         packaging_photo_6: capturedPhotos.packaging_photo_6 || null,
         accessories_photo: capturedPhotos.accessories_photo || null,
         detail_photo: capturedPhotos.detail_photo || null,
+        shipping_label_photo: shippingLabelPhoto || null,
       },
       {
         onSuccess: () => {
@@ -651,7 +696,7 @@ export default function InboundScan() {
           )}>
             {currentStep !== "scan_tracking" ? <CheckCircle className="h-5 w-5" /> : "1"}
           </div>
-          <span className="font-medium">扫描物流号</span>
+          <span className="font-medium">拍摄物流面单</span>
         </div>
         <div className="h-0.5 w-8 bg-muted" />
         <div className={cn(
@@ -670,40 +715,52 @@ export default function InboundScan() {
         </div>
       </div>
 
-      {/* 步骤1：扫描物流跟踪号 - 更突出的设计 */}
+      {/* 步骤1：拍摄物流面单 */}
       {currentStep === "scan_tracking" && (
-        <Card className="border-2 border-primary/40 bg-gradient-to-br from-primary/5 to-primary/10 shadow-lg">
-          <CardContent className="pt-8 pb-8">
-            <div className="max-w-2xl mx-auto text-center space-y-6">
-              <div className="inline-flex items-center justify-center h-16 w-16 rounded-full bg-primary/10 mb-2">
-                <Search className="h-8 w-8 text-primary" />
+        <div className="space-y-6">
+          {/* 主要方式：拍照识别 */}
+          <ShippingLabelCapture
+            onTrackingRecognized={handleShippingLabelRecognized}
+            onCancel={() => setShowManualInput(false)}
+          />
+
+          {/* 备用方式：手动输入 */}
+          <Card className="bg-muted/30">
+            <CardContent className="pt-4 pb-4">
+              <div className="flex items-center justify-between mb-3">
+                <span className="text-sm text-muted-foreground">
+                  如果拍照无法识别，可以手动输入物流号
+                </span>
+                <Button
+                  variant="ghost"
+                  size="sm"
+                  onClick={() => setShowManualInput(!showManualInput)}
+                >
+                  {showManualInput ? "收起" : "展开"}
+                </Button>
               </div>
-              <div>
-                <h2 className="text-xl font-semibold mb-2">扫描物流跟踪号</h2>
-                <p className="text-muted-foreground">
-                  使用扫码枪扫描包裹上的物流跟踪号，或手动输入
-                </p>
-              </div>
-              <div className="flex flex-col gap-3 sm:flex-row sm:items-center max-w-lg mx-auto">
-                <Input
-                  ref={trackingInputRef}
-                  placeholder="扫描或输入物流跟踪号..."
-                  value={trackingInput}
-                  onChange={(e) => setTrackingInput(e.target.value)}
-                  onKeyDown={(e) => e.key === "Enter" && handleScanTracking()}
-                  className="text-lg h-12 text-center sm:text-left"
-                />
-                <div className="flex gap-2">
-                  <Button onClick={handleScanTracking} className="gradient-primary h-12 px-6">
-                    <ScanLine className="mr-2 h-5 w-5" />
-                    确认
-                  </Button>
-                  <Scanner onScan={handleCameraScanTracking} buttonLabel="摄像头" />
+              {showManualInput && (
+                <div className="flex flex-col gap-3 sm:flex-row sm:items-center">
+                  <Input
+                    ref={trackingInputRef}
+                    placeholder="手动输入物流跟踪号..."
+                    value={trackingInput}
+                    onChange={(e) => setTrackingInput(e.target.value)}
+                    onKeyDown={(e) => e.key === "Enter" && handleScanTracking()}
+                    className="h-10"
+                  />
+                  <div className="flex gap-2">
+                    <Button onClick={handleScanTracking} variant="secondary" className="h-10 px-4">
+                      <ScanLine className="mr-2 h-4 w-4" />
+                      确认
+                    </Button>
+                    <Scanner onScan={handleCameraScanTracking} buttonLabel="扫码" />
+                  </div>
                 </div>
-              </div>
-            </div>
-          </CardContent>
-        </Card>
+              )}
+            </CardContent>
+          </Card>
+        </div>
       )}
 
       {/* 步骤2：扫描 LPN */}

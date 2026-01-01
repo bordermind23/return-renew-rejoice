@@ -541,9 +541,36 @@ export default function Orders() {
   };
 
   const validateRow = (row: string[], rowIndex: number): { valid: boolean; error?: string } => {
-    if (!row[0]?.trim()) return { valid: false, error: `第${rowIndex}行：LPN编号不能为空` };
-    if (!row[5]?.trim()) return { valid: false, error: `第${rowIndex}行：店铺不能为空` };
-    if (!row[8]?.trim()) return { valid: false, error: `第${rowIndex}行：订单号不能为空` };
+    // Basic required field checks
+    const lpn = row[0]?.trim();
+    const storeName = row[5]?.trim();
+    const orderNumber = row[8]?.trim();
+    
+    if (!lpn) return { valid: false, error: `第${rowIndex}行：LPN编号不能为空` };
+    if (!storeName) return { valid: false, error: `第${rowIndex}行：店铺不能为空` };
+    if (!orderNumber) return { valid: false, error: `第${rowIndex}行：订单号不能为空` };
+    
+    // Length validation
+    if (lpn.length > 255) return { valid: false, error: `第${rowIndex}行：LPN编号不能超过255个字符` };
+    if (storeName.length > 255) return { valid: false, error: `第${rowIndex}行：店铺名称不能超过255个字符` };
+    if (orderNumber.length > 255) return { valid: false, error: `第${rowIndex}行：订单号不能超过255个字符` };
+    
+    // Validate optional field lengths
+    const productName = row[1]?.trim();
+    if (productName && productName.length > 500) return { valid: false, error: `第${rowIndex}行：产品名称不能超过500个字符` };
+    
+    const buyerNote = row[2]?.trim();
+    if (buyerNote && buyerNote.length > 1000) return { valid: false, error: `第${rowIndex}行：买家备注不能超过1000个字符` };
+    
+    // Validate quantity
+    const quantityStr = row[12]?.trim();
+    if (quantityStr) {
+      const quantity = parseInt(quantityStr);
+      if (isNaN(quantity) || quantity < 1 || quantity > 10000) {
+        return { valid: false, error: `第${rowIndex}行：退货数量必须是1-10000之间的整数` };
+      }
+    }
+    
     return { valid: true };
   };
 
@@ -577,6 +604,15 @@ export default function Orders() {
           }
 
           const dataRows = jsonData.slice(1).filter(row => row.length > 0 && row.some(cell => cell));
+          
+          // Check row count limit to prevent abuse
+          const MAX_IMPORT_ROWS = 10000;
+          if (dataRows.length > MAX_IMPORT_ROWS) {
+            toast.error(`导入文件过大，最多支持${MAX_IMPORT_ROWS}行数据`);
+            setImportProgress(prev => ({ ...prev, isImporting: false }));
+            return;
+          }
+          
           setImportProgress(prev => ({ ...prev, total: dataRows.length }));
 
           const errors: ImportError[] = [];

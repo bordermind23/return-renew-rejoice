@@ -1,6 +1,7 @@
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { supabase } from "@/integrations/supabase/client";
 import { toast } from "sonner";
+import { mapDatabaseError } from "@/lib/errorHandler";
 
 export interface RemovalShipment {
   id: string;
@@ -61,7 +62,7 @@ export const useCreateRemovalShipment = () => {
       toast.success("货件创建成功");
     },
     onError: (error) => {
-      toast.error("创建失败: " + error.message);
+      toast.error("创建失败: " + mapDatabaseError(error));
     },
   });
 };
@@ -84,7 +85,7 @@ export const useBulkCreateRemovalShipments = () => {
       toast.success(`成功导入 ${data.length} 条货件记录`);
     },
     onError: (error) => {
-      toast.error("批量导入失败: " + error.message);
+      toast.error("批量导入失败: " + mapDatabaseError(error));
     },
   });
 };
@@ -109,7 +110,7 @@ export const useUpdateRemovalShipment = () => {
       toast.success("货件更新成功");
     },
     onError: (error) => {
-      toast.error("更新失败: " + error.message);
+      toast.error("更新失败: " + mapDatabaseError(error));
     },
   });
 };
@@ -131,7 +132,7 @@ export const useDeleteRemovalShipment = () => {
       toast.success("货件删除成功");
     },
     onError: (error) => {
-      toast.error("删除失败: " + error.message);
+      toast.error("删除失败: " + mapDatabaseError(error));
     },
   });
 };
@@ -163,7 +164,7 @@ export const useBulkDeleteRemovalShipments = () => {
       toast.success(`成功删除 ${ids.length} 条货件记录`);
     },
     onError: (error) => {
-      toast.error("批量删除失败: " + error.message);
+      toast.error("批量删除失败: " + mapDatabaseError(error));
     },
   });
 };
@@ -185,7 +186,7 @@ export const useBulkUpdateRemovalShipments = () => {
       toast.success(`成功更新 ${ids.length} 条货件记录`);
     },
     onError: (error) => {
-      toast.error("批量更新失败: " + error.message);
+      toast.error("批量更新失败: " + mapDatabaseError(error));
     },
   });
 };

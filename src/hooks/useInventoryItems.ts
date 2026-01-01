@@ -1,6 +1,7 @@
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { supabase } from "@/integrations/supabase/client";
 import { toast } from "sonner";
+import { mapDatabaseError } from "@/lib/errorHandler";
 
 export interface InventoryItem {
   id: string;
@@ -54,7 +55,7 @@ export const useCreateInventoryItem = () => {
       toast.success("库存创建成功");
     },
     onError: (error) => {
-      toast.error("创建失败: " + error.message);
+      toast.error("创建失败: " + mapDatabaseError(error));
     },
   });
 };
@@ -79,7 +80,7 @@ export const useUpdateInventoryItem = () => {
       toast.success("库存更新成功");
     },
     onError: (error) => {
-      toast.error("更新失败: " + error.message);
+      toast.error("更新失败: " + mapDatabaseError(error));
     },
   });
 };
@@ -101,7 +102,7 @@ export const useDeleteInventoryItem = () => {
       toast.success("库存删除成功");
     },
     onError: (error) => {
-      toast.error("删除失败: " + error.message);
+      toast.error("删除失败: " + mapDatabaseError(error));
     },
   });
 };

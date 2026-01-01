@@ -1,6 +1,7 @@
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { supabase } from "@/integrations/supabase/client";
 import { toast } from "sonner";
+import { mapDatabaseError } from "@/lib/errorHandler";
 
 export interface InboundItem {
   id: string;
@@ -92,7 +93,7 @@ export const useCreateInboundItem = () => {
       toast.success("入库记录创建成功");
     },
     onError: (error) => {
-      toast.error("创建失败: " + error.message);
+      toast.error("创建失败: " + mapDatabaseError(error));
     },
   });
 };
@@ -117,7 +118,7 @@ export const useUpdateInboundItem = () => {
       toast.success("入库记录更新成功");
     },
     onError: (error) => {
-      toast.error("更新失败: " + error.message);
+      toast.error("更新失败: " + mapDatabaseError(error));
     },
   });
 };
@@ -229,7 +230,7 @@ export const useDeleteInboundItem = () => {
       toast.success(`入库记录已删除，订单状态已更新${fileMsg}`);
     },
     onError: (error) => {
-      toast.error("删除失败: " + error.message);
+      toast.error("删除失败: " + mapDatabaseError(error));
     },
   });
 };
@@ -326,7 +327,7 @@ export const useClearRefurbishment = () => {
       toast.success(`翻新记录已删除${fileMsg}`);
     },
     onError: (error) => {
-      toast.error("删除翻新记录失败: " + error.message);
+      toast.error("删除翻新记录失败: " + mapDatabaseError(error));
     },
   });
 };
@@ -397,7 +398,7 @@ export const useBulkClearRefurbishment = () => {
       toast.success(`已删除 ${data.count} 条翻新记录${fileMsg}`);
     },
     onError: (error) => {
-      toast.error("批量删除失败: " + error.message);
+      toast.error("批量删除失败: " + mapDatabaseError(error));
     },
   });
 };

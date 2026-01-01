@@ -112,37 +112,6 @@ const formatFileSize = (bytes: number | null): string => {
   return `${(bytes / (1024 * 1024)).toFixed(2)} MB`;
 };
 
-// 下载单张照片
-const downloadPhoto = async (url: string, filename: string) => {
-  try {
-    const response = await fetch(url);
-    const blob = await response.blob();
-    const blobUrl = URL.createObjectURL(blob);
-    const link = document.createElement('a');
-    link.href = blobUrl;
-    link.download = filename;
-    document.body.appendChild(link);
-    link.click();
-    document.body.removeChild(link);
-    URL.revokeObjectURL(blobUrl);
-  } catch (error) {
-    toast.error("下载失败");
-  }
-};
-
-// 一键下载所有照片
-const downloadAllPhotos = async (photos: { url: string; label: string }[], lpn: string) => {
-  toast.info(`开始下载 ${photos.length} 张照片...`);
-  for (let i = 0; i < photos.length; i++) {
-    const photo = photos[i];
-    const ext = photo.url.split('.').pop()?.split('?')[0] || 'jpg';
-    await downloadPhoto(photo.url, `${lpn}_${photo.label}_${i + 1}.${ext}`);
-    // 添加小延迟避免浏览器阻止多次下载
-    await new Promise(resolve => setTimeout(resolve, 300));
-  }
-  toast.success(`已下载 ${photos.length} 张照片`);
-};
-
 export default function Orders() {
   // 筛选状态
   const [searchTerm, setSearchTerm] = useState("");
@@ -1293,18 +1262,7 @@ export default function Orders() {
                       {/* 入库照片 */}
                       {inboundPhotos.length > 0 && (
                         <div className="space-y-3 border-t pt-4">
-                          <div className="flex items-center justify-between">
-                            <p className="text-sm font-medium">入库照片 ({inboundPhotos.length})</p>
-                            <Button 
-                              variant="outline" 
-                              size="sm" 
-                              className="h-7 text-xs"
-                              onClick={() => downloadAllPhotos(inboundPhotos, inboundItem.lpn)}
-                            >
-                              <Download className="h-3 w-3 mr-1" />
-                              全部下载
-                            </Button>
-                          </div>
+                          <p className="text-sm font-medium">入库照片</p>
                           <div className="grid grid-cols-3 sm:grid-cols-4 gap-3">
                             {inboundPhotos.map((photo, idx) => {
                               // 获取图片大小
@@ -1312,35 +1270,24 @@ export default function Orders() {
                                 fetchPhotoSize(photo.url);
                               }
                               const size = photoSizes[photo.url];
-                              const ext = photo.url.split('.').pop()?.split('?')[0] || 'jpg';
                               
                               return (
                                 <div key={idx} className="space-y-1.5 group">
-                                  <div className="relative aspect-square rounded-lg border overflow-hidden">
+                                  <div 
+                                    className="relative aspect-square rounded-lg border overflow-hidden cursor-pointer hover:ring-2 hover:ring-primary transition-all"
+                                    onClick={() => window.open(photo.url, '_blank')}
+                                  >
                                     <img 
                                       src={photo.url} 
                                       alt={photo.label} 
-                                      className="w-full h-full object-cover cursor-pointer group-hover:scale-105 transition-transform"
-                                      onClick={() => window.open(photo.url, '_blank')}
+                                      className="w-full h-full object-cover group-hover:scale-105 transition-transform" 
                                     />
                                     {/* 文件大小标签 */}
                                     {size !== undefined && size !== null && (
-                                      <div className="absolute bottom-1 left-1 bg-black/60 text-white text-[10px] px-1.5 py-0.5 rounded">
+                                      <div className="absolute bottom-1 right-1 bg-black/60 text-white text-[10px] px-1.5 py-0.5 rounded">
                                         {formatFileSize(size)}
                                       </div>
                                     )}
-                                    {/* 下载按钮 */}
-                                    <Button
-                                      variant="secondary"
-                                      size="icon"
-                                      className="absolute bottom-1 right-1 h-6 w-6 opacity-0 group-hover:opacity-100 transition-opacity"
-                                      onClick={(e) => {
-                                        e.stopPropagation();
-                                        downloadPhoto(photo.url, `${inboundItem.lpn}_${photo.label}.${ext}`);
-                                      }}
-                                    >
-                                      <Download className="h-3 w-3" />
-                                    </Button>
                                   </div>
                                   <p className="text-xs text-muted-foreground text-center truncate">{photo.label}</p>
                                 </div>

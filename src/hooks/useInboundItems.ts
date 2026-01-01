@@ -252,3 +252,152 @@ export const useInboundItemByLpn = (lpn: string | null) => {
     enabled: !!lpn,
   });
 };
+
+// 清除翻新信息（保留入库记录，只删除翻新相关字段）
+export const useClearRefurbishment = () => {
+  const queryClient = useQueryClient();
+
+  return useMutation({
+    mutationFn: async (id: string) => {
+      // 先获取入库记录的翻新信息
+      const { data: inboundItem, error: fetchError } = await supabase
+        .from("inbound_items")
+        .select("lpn, refurbishment_photos, refurbishment_videos")
+        .eq("id", id)
+        .single();
+
+      if (fetchError) throw fetchError;
+
+      const lpn = inboundItem?.lpn;
+
+      // 收集翻新相关的存储文件路径
+      const filesToDelete: string[] = [];
+      
+      // 处理翻新照片数组
+      if (inboundItem?.refurbishment_photos && Array.isArray(inboundItem.refurbishment_photos)) {
+        for (const url of inboundItem.refurbishment_photos) {
+          const path = extractStoragePath(url);
+          if (path) filesToDelete.push(path);
+        }
+      }
+      
+      // 处理翻新视频数组
+      if (inboundItem?.refurbishment_videos && Array.isArray(inboundItem.refurbishment_videos)) {
+        for (const url of inboundItem.refurbishment_videos) {
+          const path = extractStoragePath(url);
+          if (path) filesToDelete.push(path);
+        }
+      }
+
+      // 清除翻新相关字段
+      const { error: updateError } = await supabase
+        .from("inbound_items")
+        .update({
+          refurbished_at: null,
+          refurbished_by: null,
+          refurbishment_grade: null,
+          refurbishment_photos: null,
+          refurbishment_videos: null,
+          refurbishment_notes: null,
+        })
+        .eq("id", id);
+
+      if (updateError) throw updateError;
+
+      // 删除存储中的翻新文件
+      if (filesToDelete.length > 0) {
+        const { error: storageError } = await supabase.storage
+          .from("product-images")
+          .remove(filesToDelete);
+        
+        if (storageError) {
+          console.error("删除翻新存储文件失败:", storageError);
+        } else {
+          console.log(`成功删除 ${filesToDelete.length} 个翻新存储文件`);
+        }
+      }
+
+      return { lpn, deletedFiles: filesToDelete.length };
+    },
+    onSuccess: (data) => {
+      queryClient.invalidateQueries({ queryKey: ["inbound_items"] });
+      queryClient.invalidateQueries({ queryKey: ["orders"] });
+      const fileMsg = data.deletedFiles > 0 ? `，已清理 ${data.deletedFiles} 个文件` : '';
+      toast.success(`翻新记录已删除${fileMsg}`);
+    },
+    onError: (error) => {
+      toast.error("删除翻新记录失败: " + error.message);
+    },
+  });
+};
+
+// 批量清除翻新信息
+export const useBulkClearRefurbishment = () => {
+  const queryClient = useQueryClient();
+
+  return useMutation({
+    mutationFn: async (ids: string[]) => {
+      let totalDeletedFiles = 0;
+
+      for (const id of ids) {
+        // 获取翻新信息
+        const { data: inboundItem, error: fetchError } = await supabase
+          .from("inbound_items")
+          .select("refurbishment_photos, refurbishment_videos")
+          .eq("id", id)
+          .single();
+
+        if (fetchError) continue;
+
+        // 收集翻新相关的存储文件路径
+        const filesToDelete: string[] = [];
+        
+        if (inboundItem?.refurbishment_photos && Array.isArray(inboundItem.refurbishment_photos)) {
+          for (const url of inboundItem.refurbishment_photos) {
+            const path = extractStoragePath(url);
+            if (path) filesToDelete.push(path);
+          }
+        }
+        
+        if (inboundItem?.refurbishment_videos && Array.isArray(inboundItem.refurbishment_videos)) {
+          for (const url of inboundItem.refurbishment_videos) {
+            const path = extractStoragePath(url);
+            if (path) filesToDelete.push(path);
+          }
+        }
+
+        // 清除翻新相关字段
+        await supabase
+          .from("inbound_items")
+          .update({
+            refurbished_at: null,
+            refurbished_by: null,
+            refurbishment_grade: null,
+            refurbishment_photos: null,
+            refurbishment_videos: null,
+            refurbishment_notes: null,
+          })
+          .eq("id", id);
+
+        // 删除存储中的翻新文件
+        if (filesToDelete.length > 0) {
+          await supabase.storage
+            .from("product-images")
+            .remove(filesToDelete);
+          totalDeletedFiles += filesToDelete.length;
+        }
+      }
+
+      return { count: ids.length, deletedFiles: totalDeletedFiles };
+    },
+    onSuccess: (data) => {
+      queryClient.invalidateQueries({ queryKey: ["inbound_items"] });
+      queryClient.invalidateQueries({ queryKey: ["orders"] });
+      const fileMsg = data.deletedFiles > 0 ? `，已清理 ${data.deletedFiles} 个文件` : '';
+      toast.success(`已删除 ${data.count} 条翻新记录${fileMsg}`);
+    },
+    onError: (error) => {
+      toast.error("批量删除失败: " + error.message);
+    },
+  });
+};

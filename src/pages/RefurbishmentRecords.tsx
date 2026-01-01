@@ -29,9 +29,19 @@ import {
 } from "@/components/ui/select";
 import { Checkbox } from "@/components/ui/checkbox";
 import { ScrollArea } from "@/components/ui/scroll-area";
-import { useInboundItems, useDeleteInboundItem, type InboundItem } from "@/hooks/useInboundItems";
+import { useInboundItems, useClearRefurbishment, useBulkClearRefurbishment, type InboundItem } from "@/hooks/useInboundItems";
 import { Skeleton } from "@/components/ui/skeleton";
 import { toast } from "sonner";
+import {
+  AlertDialog,
+  AlertDialogAction,
+  AlertDialogCancel,
+  AlertDialogContent,
+  AlertDialogDescription,
+  AlertDialogFooter,
+  AlertDialogHeader,
+  AlertDialogTitle,
+} from "@/components/ui/alert-dialog";
 import { useLanguage } from "@/i18n/LanguageContext";
 import { format } from "date-fns";
 
@@ -42,9 +52,12 @@ export default function RefurbishmentRecords() {
   const [selectedItems, setSelectedItems] = useState<string[]>([]);
   const [viewItem, setViewItem] = useState<InboundItem | null>(null);
   const [isViewDialogOpen, setIsViewDialogOpen] = useState(false);
+  const [deleteId, setDeleteId] = useState<string | null>(null);
+  const [isBulkDeleteOpen, setIsBulkDeleteOpen] = useState(false);
 
   const { data: inboundItems, isLoading } = useInboundItems();
-  const deleteMutation = useDeleteInboundItem();
+  const clearRefurbishmentMutation = useClearRefurbishment();
+  const bulkClearMutation = useBulkClearRefurbishment();
 
   // 只显示已翻新的记录
   const refurbishedItems = inboundItems?.filter(item => item.refurbishment_grade) || [];
@@ -82,18 +95,30 @@ export default function RefurbishmentRecords() {
       toast.error("请选择要删除的记录");
       return;
     }
+    setIsBulkDeleteOpen(true);
+  };
 
-    if (!confirm(`确定要删除 ${selectedItems.length} 条记录吗？`)) {
-      return;
-    }
-
-    // 逐个删除
-    selectedItems.forEach(id => {
-      deleteMutation.mutate(id);
+  const confirmBatchDelete = () => {
+    bulkClearMutation.mutate(selectedItems, {
+      onSuccess: () => {
+        setSelectedItems([]);
+        setIsBulkDeleteOpen(false);
+      }
     });
+  };
 
-    setSelectedItems([]);
-    toast.success(`已删除 ${selectedItems.length} 条记录`);
+  const handleDeleteSingle = (id: string) => {
+    setDeleteId(id);
+  };
+
+  const confirmDeleteSingle = () => {
+    if (deleteId) {
+      clearRefurbishmentMutation.mutate(deleteId, {
+        onSuccess: () => {
+          setDeleteId(null);
+        }
+      });
+    }
   };
 
   const handleViewItem = (item: InboundItem) => {
@@ -229,13 +254,23 @@ export default function RefurbishmentRecords() {
                       </TableCell>
                       <TableCell>{item.refurbished_by || "-"}</TableCell>
                       <TableCell className="text-right">
-                        <Button
-                          variant="ghost"
-                          size="sm"
-                          onClick={() => handleViewItem(item)}
-                        >
-                          <Eye className="h-4 w-4" />
-                        </Button>
+                        <div className="flex justify-end gap-1">
+                          <Button
+                            variant="ghost"
+                            size="sm"
+                            onClick={() => handleViewItem(item)}
+                          >
+                            <Eye className="h-4 w-4" />
+                          </Button>
+                          <Button
+                            variant="ghost"
+                            size="sm"
+                            className="text-destructive hover:text-destructive hover:bg-destructive/10"
+                            onClick={() => handleDeleteSingle(item.id)}
+                          >
+                            <Trash2 className="h-4 w-4" />
+                          </Button>
+                        </div>
                       </TableCell>
                     </TableRow>
                   ))}
@@ -340,6 +375,48 @@ export default function RefurbishmentRecords() {
           </ScrollArea>
         </DialogContent>
       </Dialog>
+
+      {/* 单条删除确认对话框 */}
+      <AlertDialog open={!!deleteId} onOpenChange={() => setDeleteId(null)}>
+        <AlertDialogContent>
+          <AlertDialogHeader>
+            <AlertDialogTitle>确认删除翻新记录</AlertDialogTitle>
+            <AlertDialogDescription>
+              此操作将清除该条目的翻新信息（包括翻新等级、照片、视频等），入库记录将保留。确定要继续吗？
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+          <AlertDialogFooter>
+            <AlertDialogCancel>取消</AlertDialogCancel>
+            <AlertDialogAction 
+              onClick={confirmDeleteSingle}
+              className="bg-destructive text-destructive-foreground hover:bg-destructive/90"
+            >
+              删除
+            </AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
+
+      {/* 批量删除确认对话框 */}
+      <AlertDialog open={isBulkDeleteOpen} onOpenChange={setIsBulkDeleteOpen}>
+        <AlertDialogContent>
+          <AlertDialogHeader>
+            <AlertDialogTitle>确认批量删除</AlertDialogTitle>
+            <AlertDialogDescription>
+              您确定要删除选中的 {selectedItems.length} 条翻新记录吗？翻新信息将被清除，但入库记录会保留。
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+          <AlertDialogFooter>
+            <AlertDialogCancel>取消</AlertDialogCancel>
+            <AlertDialogAction 
+              onClick={confirmBatchDelete}
+              className="bg-destructive text-destructive-foreground hover:bg-destructive/90"
+            >
+              删除
+            </AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
     </div>
   );
 }

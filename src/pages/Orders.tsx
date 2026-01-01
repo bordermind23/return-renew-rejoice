@@ -1087,21 +1087,49 @@ export default function Orders() {
       {selectedIds.length > 0 && (
         <Card className="bg-primary/5 border-primary/20 sticky top-0 z-10">
           <CardContent className="py-3 flex flex-col sm:flex-row items-start sm:items-center justify-between gap-2">
-            <span className="text-sm font-medium">已选择 {selectedIds.length} 条记录</span>
+            <span className="text-sm font-medium">
+              已选择 {selectedIds.length} 条记录
+              {bulkUpdateMutation.isPending && (
+                <span className="ml-2 text-muted-foreground">
+                  <Loader2 className="inline h-3 w-3 animate-spin mr-1" />
+                  处理中...
+                </span>
+              )}
+            </span>
             <div className="flex gap-2 flex-wrap">
-              <Button variant="outline" size="sm" onClick={() => setIsBulkStatusOpen(true)}>
+              <Button 
+                variant="outline" 
+                size="sm" 
+                onClick={() => setIsBulkStatusOpen(true)}
+                disabled={bulkUpdateMutation.isPending || bulkDeleteMutation.isPending}
+              >
                 <RefreshCw className="h-4 w-4 sm:mr-2" />
                 <span className="hidden sm:inline">批量改状态</span>
               </Button>
-              <Button variant="outline" size="sm" onClick={() => setIsBulkGradeOpen(true)}>
+              <Button 
+                variant="outline" 
+                size="sm" 
+                onClick={() => setIsBulkGradeOpen(true)}
+                disabled={bulkUpdateMutation.isPending || bulkDeleteMutation.isPending}
+              >
                 <Settings2 className="h-4 w-4 sm:mr-2" />
                 <span className="hidden sm:inline">批量改等级</span>
               </Button>
-              <Button variant="outline" size="sm" onClick={() => setIsBulkEditOpen(true)}>
+              <Button 
+                variant="outline" 
+                size="sm" 
+                onClick={() => setIsBulkEditOpen(true)}
+                disabled={bulkUpdateMutation.isPending || bulkDeleteMutation.isPending}
+              >
                 <Edit className="h-4 w-4 sm:mr-2" />
                 <span className="hidden sm:inline">批量编辑</span>
               </Button>
-              <Button variant="destructive" size="sm" onClick={() => setIsBulkDeleteOpen(true)}>
+              <Button 
+                variant="destructive" 
+                size="sm" 
+                onClick={() => setIsBulkDeleteOpen(true)}
+                disabled={bulkUpdateMutation.isPending || bulkDeleteMutation.isPending}
+              >
                 <Trash2 className="h-4 w-4 sm:mr-2" />
                 <span className="hidden sm:inline">批量删除</span>
               </Button>
@@ -1495,8 +1523,13 @@ export default function Orders() {
             </div>
           </div>
           <div className="flex justify-end gap-3">
-            <Button variant="outline" onClick={() => { setIsBulkEditOpen(false); setBulkEditData({}); }}>取消</Button>
-            <Button onClick={handleBulkEdit} disabled={bulkUpdateMutation.isPending}>确认更新</Button>
+            <Button variant="outline" onClick={() => { setIsBulkEditOpen(false); setBulkEditData({}); }} disabled={bulkUpdateMutation.isPending}>
+              取消
+            </Button>
+            <Button onClick={handleBulkEdit} disabled={bulkUpdateMutation.isPending}>
+              {bulkUpdateMutation.isPending && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
+              确认更新
+            </Button>
           </div>
         </DialogContent>
       </Dialog>
@@ -1509,8 +1542,15 @@ export default function Orders() {
             <AlertDialogDescription>此操作无法撤销，确定要删除此订单吗？</AlertDialogDescription>
           </AlertDialogHeader>
           <AlertDialogFooter>
-            <AlertDialogCancel>取消</AlertDialogCancel>
-            <AlertDialogAction onClick={handleDelete} className="bg-destructive text-destructive-foreground hover:bg-destructive/90">删除</AlertDialogAction>
+            <AlertDialogCancel disabled={deleteMutation.isPending}>取消</AlertDialogCancel>
+            <AlertDialogAction 
+              onClick={handleDelete} 
+              className="bg-destructive text-destructive-foreground hover:bg-destructive/90"
+              disabled={deleteMutation.isPending}
+            >
+              {deleteMutation.isPending && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
+              删除
+            </AlertDialogAction>
           </AlertDialogFooter>
         </AlertDialogContent>
       </AlertDialog>
@@ -1523,8 +1563,15 @@ export default function Orders() {
             <AlertDialogDescription>您确定要删除选中的 {selectedIds.length} 条记录吗？此操作无法撤销。</AlertDialogDescription>
           </AlertDialogHeader>
           <AlertDialogFooter>
-            <AlertDialogCancel>取消</AlertDialogCancel>
-            <AlertDialogAction onClick={handleBulkDelete} className="bg-destructive text-destructive-foreground hover:bg-destructive/90">删除</AlertDialogAction>
+            <AlertDialogCancel disabled={bulkDeleteMutation.isPending}>取消</AlertDialogCancel>
+            <AlertDialogAction 
+              onClick={handleBulkDelete} 
+              className="bg-destructive text-destructive-foreground hover:bg-destructive/90"
+              disabled={bulkDeleteMutation.isPending}
+            >
+              {bulkDeleteMutation.isPending && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
+              删除
+            </AlertDialogAction>
           </AlertDialogFooter>
         </AlertDialogContent>
       </AlertDialog>

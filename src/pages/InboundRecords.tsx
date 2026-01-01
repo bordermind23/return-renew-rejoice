@@ -41,7 +41,6 @@ export default function InboundRecords() {
   const [searchTerm, setSearchTerm] = useState("");
   const [gradeFilter, setGradeFilter] = useState<string>("all");
   const [dateFilter, setDateFilter] = useState<string>("all");
-  const [syncFilter, setSyncFilter] = useState<string>("all");
 
   const { data: inboundItems, isLoading } = useInboundItems();
   const { data: shipments } = useRemovalShipments();
@@ -70,13 +69,6 @@ export default function InboundRecords() {
         return false;
       }
       
-      // 同步状态过滤
-      if (syncFilter !== "all") {
-        const isPending = item.product_sku === "待同步";
-        if (syncFilter === "pending" && !isPending) return false;
-        if (syncFilter === "synced" && isPending) return false;
-      }
-      
       // 日期过滤
       if (dateFilter !== "all") {
         const itemDate = new Date(item.processed_at);
@@ -100,12 +92,7 @@ export default function InboundRecords() {
       
       return true;
     });
-  }, [inboundItems, searchTerm, gradeFilter, dateFilter, syncFilter]);
-  
-  // 统计待同步数量
-  const pendingSyncCount = useMemo(() => {
-    return (inboundItems || []).filter(item => item.product_sku === "待同步").length;
-  }, [inboundItems]);
+  }, [inboundItems, searchTerm, gradeFilter, dateFilter]);
 
   // 获取某物流号下的已入库数量（不包含当前正在删除的项目）
   const getInboundedCountExcluding = (trackingNumber: string, excludeIds: string[]) => {
@@ -229,10 +216,9 @@ export default function InboundRecords() {
     setSearchTerm("");
     setGradeFilter("all");
     setDateFilter("all");
-    setSyncFilter("all");
   };
 
-  const hasActiveFilters = searchTerm || gradeFilter !== "all" || dateFilter !== "all" || syncFilter !== "all";
+  const hasActiveFilters = searchTerm || gradeFilter !== "all" || dateFilter !== "all";
 
   if (isLoading) {
     return (
@@ -287,20 +273,6 @@ export default function InboundRecords() {
               <SelectItem value="today">今天</SelectItem>
               <SelectItem value="week">最近7天</SelectItem>
               <SelectItem value="month">最近30天</SelectItem>
-            </SelectContent>
-          </Select>
-          
-          {/* 同步状态筛选 */}
-          <Select value={syncFilter} onValueChange={setSyncFilter}>
-            <SelectTrigger className="w-[130px]">
-              <SelectValue placeholder="同步状态" />
-            </SelectTrigger>
-            <SelectContent>
-              <SelectItem value="all">全部状态</SelectItem>
-              <SelectItem value="pending">
-                待同步 {pendingSyncCount > 0 && `(${pendingSyncCount})`}
-              </SelectItem>
-              <SelectItem value="synced">已同步</SelectItem>
             </SelectContent>
           </Select>
           

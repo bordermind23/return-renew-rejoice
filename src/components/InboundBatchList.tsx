@@ -1,5 +1,5 @@
 import { useState, useMemo } from "react";
-import { ChevronDown, ChevronRight, Package, Trash2, Image, CheckSquare, Square, Minus, AlertCircle } from "lucide-react";
+import { ChevronDown, ChevronRight, Package, Trash2, Image, CheckSquare, Square, Minus } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Card } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
@@ -242,12 +242,6 @@ export function InboundBatchList({ items, onDelete, onBatchDelete, enableBatchSe
                         <Badge variant="secondary" className="flex-shrink-0">
                           {batch.totalCount} 件
                         </Badge>
-                        {batch.items.some(item => item.product_sku === "待同步") && (
-                          <Badge variant="outline" className="flex-shrink-0 border-amber-500 text-amber-600 bg-amber-50">
-                            <AlertCircle className="h-3 w-3 mr-1" />
-                            待同步
-                          </Badge>
-                        )}
                       </div>
                       <p className="text-sm text-muted-foreground truncate mt-0.5">
                         {batch.productName} · {batch.productSku}
@@ -299,16 +293,9 @@ export function InboundBatchList({ items, onDelete, onBatchDelete, enableBatchSe
                                 </TableCell>
                               )}
                               <TableCell>
-                                <div className="flex items-center gap-2">
-                                  <code className="text-xs bg-muted px-1.5 py-0.5 rounded font-medium">
-                                    {item.lpn}
-                                  </code>
-                                  {item.product_sku === "待同步" && (
-                                    <Badge variant="outline" className="text-[10px] px-1 py-0 border-amber-500 text-amber-600 bg-amber-50">
-                                      待同步
-                                    </Badge>
-                                  )}
-                                </div>
+                                <code className="text-xs bg-muted px-1.5 py-0.5 rounded font-medium">
+                                  {item.lpn}
+                                </code>
                               </TableCell>
                               <TableCell>
                                 <GradeBadge grade={item.grade as "A" | "B" | "C"} />

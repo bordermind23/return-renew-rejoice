@@ -455,52 +455,88 @@ export default function Removals() {
   const validateRow = (row: string[], rowIndex: number): { valid: boolean; error?: string; data?: RemovalShipmentInsert } => {
     const errors: string[] = [];
     
-    if (!row[0]?.trim()) {
+    // Required field validation
+    const orderId = row[0]?.trim();
+    if (!orderId) {
       errors.push("移除订单号不能为空");
+    } else if (orderId.length > 255) {
+      errors.push("移除订单号不能超过255个字符");
     }
-    // 产品SKU和产品名称允许为空
-    if (!row[7]?.trim()) {
+    
+    const fnsku = row[7]?.trim();
+    if (!fnsku) {
       errors.push("FNSKU不能为空");
+    } else if (fnsku.length > 255) {
+      errors.push("FNSKU不能超过255个字符");
     }
-    if (!row[9]?.trim()) {
+    
+    const carrier = row[9]?.trim();
+    if (!carrier) {
       errors.push("物流承运商不能为空");
+    } else if (carrier.length > 255) {
+      errors.push("物流承运商不能超过255个字符");
     }
-    if (!row[10]?.trim()) {
+    
+    const trackingNumber = row[10]?.trim();
+    if (!trackingNumber) {
       errors.push("物流跟踪号不能为空");
+    } else if (trackingNumber.length > 255) {
+      errors.push("物流跟踪号不能超过255个字符");
     }
 
+    // Quantity validation
     const quantity = parseInt(String(row[8])) || 0;
     if (quantity <= 0) {
       errors.push("退件数量必须大于0");
+    } else if (quantity > 10000) {
+      errors.push("退件数量不能超过10000");
     }
 
+    // Status validation
     const validStatuses = ["shipping", "arrived", "inbound", "shelved"];
     const status = String(row[12] || "shipping").toLowerCase();
     if (!validStatuses.includes(status)) {
       errors.push(`状态值无效，应为: ${validStatuses.join(", ")}`);
     }
+    
+    // Optional field length validation
+    const productName = row[5]?.trim();
+    if (productName && productName.length > 500) {
+      errors.push("产品名称不能超过500个字符");
+    }
+    
+    const note = row[13]?.trim();
+    if (note && note.length > 1000) {
+      errors.push("备注不能超过1000个字符");
+    }
 
     if (errors.length > 0) {
-      return { valid: false, error: errors.join("; ") };
+      return { valid: false, error: `第${rowIndex}行：${errors.join("; ")}` };
     }
+
+    // Sanitize string helper
+    const sanitize = (str: string | undefined, maxLen: number): string | null => {
+      if (!str) return null;
+      return str.trim().replace(/[<>]/g, '').slice(0, maxLen);
+    };
 
     return {
       valid: true,
       data: {
-        order_id: String(row[0]).trim(),
-        store_name: row[1] ? String(row[1]).trim() : null,
-        country: row[2] ? String(row[2]).trim() : null,
-        product_sku: row[3] ? String(row[3]).trim() : null,
-        msku: row[4] ? String(row[4]).trim() : null,
-        product_name: row[5] ? String(row[5]).trim() : null,
-        product_type: row[6] ? String(row[6]).trim() : null,
-        fnsku: String(row[7]).trim(),
-        quantity: parseInt(String(row[8])) || 1,
-        carrier: String(row[9]).trim(),
-        tracking_number: String(row[10]).trim(),
+        order_id: sanitize(row[0], 255)!,
+        store_name: sanitize(row[1], 255),
+        country: sanitize(row[2], 100),
+        product_sku: sanitize(row[3], 255),
+        msku: sanitize(row[4], 255),
+        product_name: sanitize(row[5], 500),
+        product_type: sanitize(row[6], 255),
+        fnsku: sanitize(row[7], 255)!,
+        quantity: Math.min(10000, Math.max(1, parseInt(String(row[8])) || 1)),
+        carrier: sanitize(row[9], 255)!,
+        tracking_number: sanitize(row[10], 255)!,
         ship_date: row[11] ? String(row[11]).trim() : null,
         status: status as "shipping" | "arrived" | "inbound" | "shelved",
-        note: row[13] ? String(row[13]).trim() : null,
+        note: sanitize(row[13], 1000),
       }
     };
   };
@@ -539,6 +575,19 @@ export default function Removals() {
         }
 
         const dataRows = jsonData.slice(1).filter(row => row.length > 0 && row.some(cell => cell));
+        
+        // Check row count limit to prevent abuse
+        const MAX_IMPORT_ROWS = 10000;
+        if (dataRows.length > MAX_IMPORT_ROWS) {
+          setImportProgress(prev => ({
+            ...prev,
+            isImporting: false,
+            showResult: true,
+            errors: [{ row: 0, message: `导入文件过大，最多支持${MAX_IMPORT_ROWS}行数据` }]
+          }));
+          return;
+        }
+        
         const total = dataRows.length;
         const importErrors: ImportError[] = [];
         const validShipments: RemovalShipmentInsert[] = [];

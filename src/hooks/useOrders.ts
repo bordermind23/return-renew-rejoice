@@ -1,6 +1,7 @@
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { supabase } from "@/integrations/supabase/client";
 import { toast } from "sonner";
+import { mapDatabaseError } from "@/lib/errorHandler";
 
 export type OrderStatus = '未到货' | '到货' | '出库' | '待同步';
 
@@ -238,7 +239,7 @@ export const useCreateOrder = () => {
       toast.success("订单创建成功");
     },
     onError: (error) => {
-      toast.error("创建失败: " + error.message);
+      toast.error("创建失败: " + mapDatabaseError(error));
     },
   });
 };
@@ -263,7 +264,7 @@ export const useUpdateOrder = () => {
       toast.success("订单更新成功");
     },
     onError: (error) => {
-      toast.error("更新失败: " + error.message);
+      toast.error("更新失败: " + mapDatabaseError(error));
     },
   });
 };
@@ -382,7 +383,7 @@ export const useDeleteOrder = () => {
       }
     },
     onError: (error) => {
-      toast.error("删除失败: " + error.message);
+      toast.error("删除失败: " + mapDatabaseError(error));
     },
   });
 };
@@ -425,7 +426,7 @@ export const useBulkDeleteOrders = () => {
       }
     },
     onError: (error) => {
-      toast.error("批量删除失败: " + error.message);
+      toast.error("批量删除失败: " + mapDatabaseError(error));
     },
   });
 };
@@ -447,7 +448,7 @@ export const useBulkUpdateOrders = () => {
       toast.success(`成功更新 ${ids.length} 条订单`);
     },
     onError: (error) => {
-      toast.error("批量更新失败: " + error.message);
+      toast.error("批量更新失败: " + mapDatabaseError(error));
     },
   });
 };
@@ -470,7 +471,7 @@ export const useBulkCreateOrders = () => {
       toast.success(`成功导入 ${data.length} 条订单`);
     },
     onError: (error) => {
-      toast.error("批量导入失败: " + error.message);
+      toast.error("批量导入失败: " + mapDatabaseError(error));
     },
   });
 };

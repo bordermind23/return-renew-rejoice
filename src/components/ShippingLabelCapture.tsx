@@ -108,10 +108,14 @@ export function ShippingLabelCapture({ onTrackingRecognized, onCancel }: Shippin
       }
 
       if (data.trackingNumbers && data.trackingNumbers.length > 0) {
-        setRecognizedNumbers(data.trackingNumbers);
-        toast.success(`识别到 ${data.trackingNumbers.length} 个物流号`);
+        const trackingNumbers = data.trackingNumbers;
+        setRecognizedNumbers(trackingNumbers);
+        toast.success(`识别到物流号: ${trackingNumbers[0]}`);
+        
+        // 自动选择第一个识别到的物流号并上传照片
+        await uploadPhotoAndConfirm(trackingNumbers[0]);
       } else {
-        toast.warning("未能识别到物流跟踪号，请确保照片清晰");
+        toast.warning("未能识别到物流跟踪号，请确保照片清晰或手动输入");
       }
     } catch (error) {
       console.error("Recognition error:", error);

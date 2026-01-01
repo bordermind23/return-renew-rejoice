@@ -4,7 +4,7 @@ import { Button } from "@/components/ui/button";
 import { Card } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { Checkbox } from "@/components/ui/checkbox";
-import { GradeBadge } from "@/components/ui/grade-badge";
+
 import {
   Table,
   TableBody,
@@ -260,7 +260,6 @@ export function InboundBatchList({ items, onDelete, onBatchDelete, enableBatchSe
                             <TableHead className="w-[50px]"></TableHead>
                           )}
                           <TableHead className="font-semibold min-w-[100px]">LPN号</TableHead>
-                          <TableHead className="font-semibold min-w-[80px]">级别</TableHead>
                           <TableHead className="font-semibold min-w-[120px]">缺少配件</TableHead>
                           <TableHead className="font-semibold min-w-[60px] text-center">照片</TableHead>
                           <TableHead className="font-semibold min-w-[130px]">处理时间</TableHead>
@@ -291,9 +290,6 @@ export function InboundBatchList({ items, onDelete, onBatchDelete, enableBatchSe
                                 <code className="text-xs bg-muted px-1.5 py-0.5 rounded font-medium">
                                   {item.lpn}
                                 </code>
-                              </TableCell>
-                              <TableCell>
-                                <GradeBadge grade={item.grade as "A" | "B" | "C"} />
                               </TableCell>
                               <TableCell className="text-muted-foreground text-sm">
                                 {item.missing_parts && item.missing_parts.length > 0

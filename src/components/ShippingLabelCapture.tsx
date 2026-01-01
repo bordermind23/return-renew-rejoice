@@ -10,6 +10,7 @@ import {
 } from "@/components/ui/dialog";
 import { supabase } from "@/integrations/supabase/client";
 import { toast } from "sonner";
+import { Badge } from "@/components/ui/badge";
 
 interface ShippingLabelCaptureProps {
   onTrackingRecognized: (trackingNumbers: string[], photoUrl: string) => void;
@@ -21,6 +22,8 @@ export function ShippingLabelCapture({ onTrackingRecognized, onCancel }: Shippin
   const [capturedImage, setCapturedImage] = useState<string | null>(null);
   const [isRecognizing, setIsRecognizing] = useState(false);
   const [recognizedNumbers, setRecognizedNumbers] = useState<string[]>([]);
+  const [matchedNumbers, setMatchedNumbers] = useState<string[]>([]);
+  const [showSelection, setShowSelection] = useState(false);
   const [isUploading, setIsUploading] = useState(false);
   const [cameraError, setCameraError] = useState<string | null>(null);
   const videoRef = useRef<HTMLVideoElement>(null);
@@ -95,6 +98,8 @@ export function ShippingLabelCapture({ onTrackingRecognized, onCancel }: Shippin
   const recognizeTracking = async (imageData: string) => {
     setIsRecognizing(true);
     setRecognizedNumbers([]);
+    setMatchedNumbers([]);
+    setShowSelection(false);
 
     try {
       const { data, error } = await supabase.functions.invoke("recognize-tracking", {
@@ -122,23 +127,24 @@ export function ShippingLabelCapture({ onTrackingRecognized, onCancel }: Shippin
           console.error("Query error:", queryError);
         }
         
-        // 找到匹配的跟踪号
-        const matchedTrackingNumbers = shipments?.map(s => s.tracking_number) || [];
+        // 找到匹配的跟踪号（去重）
+        const matchedTrackingNumbers = [...new Set(shipments?.map(s => s.tracking_number) || [])];
+        setMatchedNumbers(matchedTrackingNumbers);
         
-        let selectedTrackingNumber: string;
-        
-        if (matchedTrackingNumbers.length > 0) {
-          // 使用匹配到的第一个跟踪号
-          selectedTrackingNumber = matchedTrackingNumbers[0];
-          toast.success(`自动匹配到移除货件物流号: ${selectedTrackingNumber}`);
+        if (matchedTrackingNumbers.length > 1) {
+          // 多个匹配，让用户选择
+          setShowSelection(true);
+          setIsRecognizing(false);
+          toast.info(`识别到 ${matchedTrackingNumbers.length} 个匹配的物流号，请选择`);
+        } else if (matchedTrackingNumbers.length === 1) {
+          // 只有一个匹配，自动使用
+          toast.success(`自动匹配到移除货件物流号: ${matchedTrackingNumbers[0]}`);
+          await uploadPhotoAndConfirm(matchedTrackingNumbers[0], imageData);
         } else {
           // 没有匹配，使用第一个识别到的跟踪号
-          selectedTrackingNumber = trackingNumbers[0];
-          toast.info(`识别到物流号: ${selectedTrackingNumber}（未找到匹配的移除货件）`);
+          toast.info(`识别到物流号: ${trackingNumbers[0]}（未找到匹配的移除货件）`);
+          await uploadPhotoAndConfirm(trackingNumbers[0], imageData);
         }
-        
-        // 自动上传照片并确认
-        await uploadPhotoAndConfirm(selectedTrackingNumber, imageData);
       } else {
         toast.warning("未能识别到物流跟踪号，请确保照片清晰或手动输入");
         setIsRecognizing(false);
@@ -148,6 +154,12 @@ export function ShippingLabelCapture({ onTrackingRecognized, onCancel }: Shippin
       toast.error("识别失败，请重试");
       setIsRecognizing(false);
     }
+  };
+
+  const handleSelectTracking = async (trackingNumber: string) => {
+    setShowSelection(false);
+    toast.success(`已选择物流号: ${trackingNumber}`);
+    await uploadPhotoAndConfirm(trackingNumber, capturedImage || undefined);
   };
 
   const uploadPhotoAndConfirm = async (trackingNumber: string, imageData?: string) => {
@@ -195,12 +207,16 @@ export function ShippingLabelCapture({ onTrackingRecognized, onCancel }: Shippin
   const retakePhoto = () => {
     setCapturedImage(null);
     setRecognizedNumbers([]);
+    setMatchedNumbers([]);
+    setShowSelection(false);
   };
 
   const handleCancel = () => {
     stopCamera();
     setCapturedImage(null);
     setRecognizedNumbers([]);
+    setMatchedNumbers([]);
+    setShowSelection(false);
     onCancel?.();
   };
 
@@ -315,8 +331,40 @@ export function ShippingLabelCapture({ onTrackingRecognized, onCancel }: Shippin
                 )}
               </div>
 
+              {/* 多个匹配时显示选择界面 */}
+              {showSelection && matchedNumbers.length > 1 && (
+                <div className="space-y-3 max-w-md mx-auto">
+                  <p className="text-sm font-medium text-foreground">
+                    识别到多个匹配的物流号，请选择:
+                  </p>
+                  <div className="grid gap-2">
+                    {matchedNumbers.map((num) => (
+                      <Button
+                        key={num}
+                        variant="outline"
+                        className="h-12 justify-start text-left font-mono hover:bg-primary/10 hover:border-primary"
+                        onClick={() => handleSelectTracking(num)}
+                      >
+                        <CheckCircle className="mr-3 h-5 w-5 text-primary" />
+                        <span className="flex-1">{num}</span>
+                        <Badge variant="secondary" className="ml-2">已匹配</Badge>
+                      </Button>
+                    ))}
+                  </div>
+                  <div className="flex gap-3 justify-center pt-2">
+                    <Button variant="outline" onClick={retakePhoto} className="h-10">
+                      <RefreshCw className="mr-2 h-4 w-4" />
+                      重拍
+                    </Button>
+                    <Button variant="ghost" onClick={handleCancel} className="h-10">
+                      取消
+                    </Button>
+                  </div>
+                </div>
+              )}
+
               {/* 识别失败时显示重试选项 */}
-              {recognizedNumbers.length === 0 && !isRecognizing && !isUploading && (
+              {recognizedNumbers.length === 0 && !isRecognizing && !isUploading && !showSelection && (
                 <div className="flex gap-3 justify-center">
                   <Button variant="outline" onClick={retakePhoto} className="h-10">
                     <RefreshCw className="mr-2 h-4 w-4" />

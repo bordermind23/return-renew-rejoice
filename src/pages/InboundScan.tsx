@@ -622,57 +622,85 @@ export default function InboundScan() {
 
   return (
     <div className="space-y-6 animate-fade-in pb-6">
-      <PageHeader
-        title="入库扫码"
-        description="扫描物流跟踪号匹配货件，逐个扫描LPN进行入库"
-      />
-
-      {/* 步骤指示器 */}
-      <div className="flex items-center gap-2 text-sm">
-        <div className={`flex items-center gap-2 ${currentStep === "scan_tracking" ? "text-primary font-medium" : "text-muted-foreground"}`}>
-          <div className={`h-6 w-6 rounded-full flex items-center justify-center text-xs ${currentStep === "scan_tracking" ? "bg-primary text-primary-foreground" : "bg-muted"}`}>
-            1
-          </div>
-          <span>扫描物流号</span>
+      {/* 页面标题 - 简化 */}
+      <div className="flex items-center justify-between">
+        <div>
+          <h1 className="text-2xl font-bold tracking-tight">入库扫码</h1>
+          <p className="text-sm text-muted-foreground mt-1">
+            {currentStep === "scan_tracking" ? "请扫描物流跟踪号开始入库" : "请逐个扫描LPN完成入库"}
+          </p>
         </div>
-        <ChevronRight className="h-4 w-4 text-muted-foreground" />
-        <div className={`flex items-center gap-2 ${currentStep === "scan_lpn" ? "text-primary font-medium" : "text-muted-foreground"}`}>
-          <div className={`h-6 w-6 rounded-full flex items-center justify-center text-xs ${currentStep === "scan_lpn" ? "bg-primary text-primary-foreground" : "bg-muted"}`}>
+        {currentStep === "scan_lpn" && (
+          <Button variant="outline" onClick={handleReset}>
+            返回重新扫描
+          </Button>
+        )}
+      </div>
+
+      {/* 步骤指示器 - 更大更清晰 */}
+      <div className="flex items-center gap-4">
+        <div className={cn(
+          "flex items-center gap-3 px-4 py-2.5 rounded-full transition-all",
+          currentStep === "scan_tracking" 
+            ? "bg-primary text-primary-foreground shadow-lg" 
+            : "bg-muted/50 text-muted-foreground"
+        )}>
+          <div className={cn(
+            "h-8 w-8 rounded-full flex items-center justify-center text-sm font-bold",
+            currentStep === "scan_tracking" ? "bg-primary-foreground/20" : "bg-muted"
+          )}>
+            {currentStep !== "scan_tracking" ? <CheckCircle className="h-5 w-5" /> : "1"}
+          </div>
+          <span className="font-medium">扫描物流号</span>
+        </div>
+        <div className="h-0.5 w-8 bg-muted" />
+        <div className={cn(
+          "flex items-center gap-3 px-4 py-2.5 rounded-full transition-all",
+          currentStep === "scan_lpn" 
+            ? "bg-primary text-primary-foreground shadow-lg" 
+            : "bg-muted/50 text-muted-foreground"
+        )}>
+          <div className={cn(
+            "h-8 w-8 rounded-full flex items-center justify-center text-sm font-bold",
+            currentStep === "scan_lpn" ? "bg-primary-foreground/20" : "bg-muted"
+          )}>
             2
           </div>
-          <span>扫描LPN入库</span>
+          <span className="font-medium">扫描LPN入库</span>
         </div>
       </div>
 
-      {/* 步骤1：扫描物流跟踪号 */}
+      {/* 步骤1：扫描物流跟踪号 - 更突出的设计 */}
       {currentStep === "scan_tracking" && (
-        <Card className="border-2 border-dashed border-primary/30 bg-primary/5">
-          <CardHeader>
-            <CardTitle className="flex items-center gap-2 text-lg">
-              <Search className="h-5 w-5 text-primary" />
-              第一步：扫描物流跟踪号
-            </CardTitle>
-            <CardDescription>
-              扫描包裹上的物流跟踪号，系统将自动匹配移除货件记录
-            </CardDescription>
-          </CardHeader>
-          <CardContent>
-            <div className="flex flex-col gap-4 sm:flex-row">
-              <div className="relative flex-1">
+        <Card className="border-2 border-primary/40 bg-gradient-to-br from-primary/5 to-primary/10 shadow-lg">
+          <CardContent className="pt-8 pb-8">
+            <div className="max-w-2xl mx-auto text-center space-y-6">
+              <div className="inline-flex items-center justify-center h-16 w-16 rounded-full bg-primary/10 mb-2">
+                <Search className="h-8 w-8 text-primary" />
+              </div>
+              <div>
+                <h2 className="text-xl font-semibold mb-2">扫描物流跟踪号</h2>
+                <p className="text-muted-foreground">
+                  使用扫码枪扫描包裹上的物流跟踪号，或手动输入
+                </p>
+              </div>
+              <div className="flex flex-col gap-3 sm:flex-row sm:items-center max-w-lg mx-auto">
                 <Input
                   ref={trackingInputRef}
                   placeholder="扫描或输入物流跟踪号..."
                   value={trackingInput}
                   onChange={(e) => setTrackingInput(e.target.value)}
                   onKeyDown={(e) => e.key === "Enter" && handleScanTracking()}
-                  className="text-lg"
+                  className="text-lg h-12 text-center sm:text-left"
                 />
+                <div className="flex gap-2">
+                  <Button onClick={handleScanTracking} className="gradient-primary h-12 px-6">
+                    <ScanLine className="mr-2 h-5 w-5" />
+                    确认
+                  </Button>
+                  <Scanner onScan={handleCameraScanTracking} buttonLabel="摄像头" />
+                </div>
               </div>
-              <Button onClick={handleScanTracking} className="gradient-primary">
-                <ScanLine className="mr-2 h-4 w-4" />
-                确认扫描
-              </Button>
-              <Scanner onScan={handleCameraScanTracking} buttonLabel="摄像头" />
             </div>
           </CardContent>
         </Card>
@@ -680,245 +708,216 @@ export default function InboundScan() {
 
       {/* 步骤2：扫描 LPN */}
       {currentStep === "scan_lpn" && matchedShipment && (
-        <>
-          {/* 匹配到的货件信息 */}
-          <Card>
-            <CardHeader className="pb-3">
-              <div className="flex items-center justify-between">
-                <CardTitle className="flex items-center gap-2 text-lg">
-                  <PackageCheck className="h-5 w-5 text-green-500" />
-                  已匹配货件 {matchedShipments.length > 1 && `(${matchedShipments.length} 种产品)`}
-                </CardTitle>
-                <Button variant="outline" size="sm" onClick={handleReset}>
-                  重新扫描
-                </Button>
-              </div>
-            </CardHeader>
-            <CardContent>
-              <div className="grid grid-cols-2 md:grid-cols-4 gap-4 text-sm">
-                <div>
-                  <p className="text-muted-foreground">物流跟踪号</p>
-                  <p className="font-medium">{matchedShipment.tracking_number}</p>
-                </div>
-                <div>
-                  <p className="text-muted-foreground">移除订单号</p>
-                  <p className="font-medium">
-                    {matchedShipments.length > 1 
-                      ? `${[...new Set(matchedShipments.map(s => s.order_id))].length} 个订单`
-                      : matchedShipment.order_id
-                    }
-                  </p>
-                </div>
-                <div>
-                  <p className="text-muted-foreground">承运商</p>
-                  <p className="font-medium">{matchedShipment.carrier}</p>
-                </div>
-                <div>
-                  <p className="text-muted-foreground">总件数</p>
-                  <p className="font-medium">{matchedShipments.reduce((sum, s) => sum + s.quantity, 0)} 件</p>
-                </div>
-              </div>
-
-              {/* 产品列表 */}
-              {matchedShipments.length > 0 && (
-                <div className="mt-4 pt-4 border-t">
-                  <p className="text-sm text-muted-foreground mb-2">包含产品：</p>
-                  <div className="space-y-2">
-                    {matchedShipments.map((shipment, idx) => {
-                      const inboundedForSku = getInboundedCountBySku(matchedShipment.tracking_number, shipment.product_sku);
-                      const isComplete = inboundedForSku >= shipment.quantity;
-                      return (
-                        <div key={idx} className={cn(
-                          "flex items-center justify-between text-sm rounded-md px-3 py-2",
-                          isComplete ? "bg-green-50 dark:bg-green-950/30" : "bg-muted/30"
-                        )}>
-                          <div className="flex items-center gap-3">
-                            <code className="text-xs bg-muted px-1.5 py-0.5 rounded">{shipment.product_sku}</code>
-                            <span className="text-muted-foreground">{shipment.product_name}</span>
-                          </div>
-                          <div className="flex items-center gap-2">
-                            {isComplete && <CheckCircle className="h-4 w-4 text-green-500" />}
-                            <Badge variant={isComplete ? "secondary" : "outline"}>
-                              已扫 {inboundedForSku} / 总 {shipment.quantity} 件
-                            </Badge>
-                          </div>
-                        </div>
-                      );
-                    })}
+        <div className="grid gap-6 lg:grid-cols-3">
+          {/* 左侧：LPN扫描区域 - 主操作区 */}
+          <div className="lg:col-span-2 space-y-6">
+            {/* LPN扫描卡片 - 突出显示 */}
+            <Card className="border-2 border-primary/40 bg-gradient-to-br from-primary/5 to-primary/10 shadow-lg">
+              <CardContent className="pt-6 pb-6">
+                <div className="text-center space-y-4">
+                  <div className="inline-flex items-center justify-center h-14 w-14 rounded-full bg-primary/10">
+                    <ScanLine className="h-7 w-7 text-primary" />
                   </div>
-                </div>
-              )}
-
-              {/* 入库进度 */}
-              <div className="mt-4 pt-4 border-t">
-                <div className="flex items-center justify-between mb-2">
-                  <span className="text-sm text-muted-foreground">入库进度</span>
-                  <span className="text-sm font-medium">
-                    {getInboundedCount(matchedShipment.tracking_number)} / {matchedShipments.reduce((sum, s) => sum + s.quantity, 0)}
-                  </span>
-                </div>
-                <Progress 
-                  value={(getInboundedCount(matchedShipment.tracking_number) / matchedShipments.reduce((sum, s) => sum + s.quantity, 0)) * 100} 
-                />
-                
-                {/* 强制完成按钮 */}
-                {getInboundedCount(matchedShipment.tracking_number) > 0 && 
-                 getInboundedCount(matchedShipment.tracking_number) < matchedShipments.reduce((sum, s) => sum + s.quantity, 0) && (
-                  <div className="mt-3 p-3 rounded-lg bg-amber-50 dark:bg-amber-950/30 border border-amber-200 dark:border-amber-700">
-                    <div className="flex items-center justify-between gap-4">
-                      <div className="flex items-start gap-2">
-                        <AlertCircle className="h-4 w-4 text-amber-600 dark:text-amber-400 flex-shrink-0 mt-0.5" />
-                        <div className="text-sm">
-                          <p className="font-medium text-amber-800 dark:text-amber-200">入库数量少于申报数量</p>
-                          <p className="text-xs text-amber-600 dark:text-amber-400">
-                            差异: {matchedShipments.reduce((sum, s) => sum + s.quantity, 0) - getInboundedCount(matchedShipment.tracking_number)} 件
-                          </p>
-                        </div>
-                      </div>
-                      <Button 
-                        variant="outline" 
-                        size="sm"
-                        className="border-amber-300 text-amber-700 hover:bg-amber-100 dark:border-amber-600 dark:text-amber-300 dark:hover:bg-amber-900/50"
-                        onClick={() => setIsForceCompleteDialogOpen(true)}
-                      >
-                        强制完成
+                  <div>
+                    <h2 className="text-lg font-semibold">扫描LPN号</h2>
+                    <p className="text-sm text-muted-foreground">
+                      逐个扫描产品的LPN号进行入库
+                    </p>
+                  </div>
+                  <div className="flex flex-col gap-3 sm:flex-row sm:items-center max-w-lg mx-auto">
+                    <Input
+                      ref={lpnInputRef}
+                      placeholder="扫描或输入LPN号..."
+                      value={lpnInput}
+                      onChange={(e) => setLpnInput(e.target.value)}
+                      onKeyDown={(e) => e.key === "Enter" && handleScanLpn()}
+                      className="text-lg h-12 text-center sm:text-left"
+                    />
+                    <div className="flex gap-2">
+                      <Button onClick={() => handleScanLpn()} className="gradient-primary h-12 px-6">
+                        <ScanLine className="mr-2 h-5 w-5" />
+                        确认
                       </Button>
+                      <Scanner onScan={handleCameraScanLpn} buttonLabel="摄像头" />
                     </div>
                   </div>
-                )}
-              </div>
-            </CardContent>
-          </Card>
-
-          {/* 扫描 LPN */}
-          <Card className="border-2 border-dashed border-primary/30 bg-primary/5">
-            <CardHeader>
-              <CardTitle className="flex items-center gap-2 text-lg">
-                <ScanLine className="h-5 w-5 text-primary" />
-                第二步：扫描LPN号
-              </CardTitle>
-              <CardDescription>
-                逐个扫描产品的LPN号进行入库处理
-              </CardDescription>
-            </CardHeader>
-            <CardContent>
-              <div className="flex flex-col gap-4 sm:flex-row">
-                <div className="relative flex-1">
-                  <Input
-                    ref={lpnInputRef}
-                    placeholder="扫描或输入LPN号..."
-                    value={lpnInput}
-                    onChange={(e) => setLpnInput(e.target.value)}
-                    onKeyDown={(e) => e.key === "Enter" && handleScanLpn()}
-                    className="text-lg"
-                  />
-                </div>
-                <Button onClick={() => handleScanLpn()} className="gradient-primary">
-                  <ScanLine className="mr-2 h-4 w-4" />
-                  确认扫描
-                </Button>
-                <Scanner onScan={handleCameraScanLpn} buttonLabel="摄像头" />
-              </div>
-
-              {/* 本次已扫描的 LPN 列表 */}
-              {scannedLpns.length > 0 && (
-                <div className="mt-4 pt-4 border-t">
-                  <p className="text-sm text-muted-foreground mb-2">本次已扫描 LPN：</p>
-                  <div className="flex flex-wrap gap-2">
-                    {scannedLpns.map((lpn) => (
-                      <Badge key={lpn} variant="secondary">
-                        {lpn}
-                      </Badge>
-                    ))}
-                  </div>
-                </div>
-              )}
-
-              {/* 完成包裹按钮 */}
-              {matchedShipment && getInboundedCount(matchedShipment.tracking_number) >= matchedShipments.reduce((sum, s) => sum + s.quantity, 0) && (
-                <div className="mt-4 pt-4 border-t">
-                  <div className="p-4 rounded-lg bg-green-50 dark:bg-green-950/30 border border-green-200 dark:border-green-700">
-                    <div className="flex items-center justify-between gap-4">
-                      <div className="flex items-start gap-3">
-                        <CheckCircle className="h-5 w-5 text-green-600 dark:text-green-400 flex-shrink-0" />
-                        <div>
-                          <p className="font-semibold text-green-800 dark:text-green-200">全部LPN已扫描完成</p>
-                          <p className="text-sm text-green-600 dark:text-green-400">
-                            共 {getInboundedCount(matchedShipment.tracking_number)} 件货物，点击确认完成入库
-                          </p>
-                        </div>
-                      </div>
-                      <Button 
-                        onClick={handleCompletePackage}
-                        className="bg-green-600 hover:bg-green-700 text-white"
-                        size="lg"
-                      >
-                        <PackageCheck className="mr-2 h-5 w-5" />
-                        完成包裹
-                      </Button>
-                    </div>
-                  </div>
-                </div>
-              )}
-            </CardContent>
-          </Card>
-
-          {/* 当前物流号已入库产品列表 */}
-          {currentTrackingInboundItems.length > 0 && (
-            <Card>
-              <CardHeader className="pb-3">
-                <CardTitle className="flex items-center gap-2 text-lg">
-                  <Package className="h-5 w-5 text-primary" />
-                  已入库产品列表 ({currentTrackingInboundItems.length} 件)
-                </CardTitle>
-                <CardDescription>
-                  当前物流跟踪号下已完成入库的产品
-                </CardDescription>
-              </CardHeader>
-              <CardContent>
-                <div className="space-y-2 max-h-[300px] overflow-y-auto">
-                  {currentTrackingInboundItems.map((item, index) => (
-                    <div 
-                      key={item.id} 
-                      className="flex items-center justify-between p-3 rounded-lg bg-muted/30 border"
-                    >
-                      <div className="flex items-center gap-3">
-                        <div className="h-8 w-8 rounded-full bg-green-100 dark:bg-green-900/30 flex items-center justify-center">
-                          <span className="text-sm font-medium text-green-600 dark:text-green-400">{index + 1}</span>
-                        </div>
-                        <div>
-                          <p className="text-sm font-medium">{item.product_name}</p>
-                          <div className="flex items-center gap-2 text-xs text-muted-foreground">
-                            <code className="bg-muted px-1 rounded">{item.lpn}</code>
-                            <span>•</span>
-                            <span>{item.product_sku}</span>
-                          </div>
-                        </div>
-                      </div>
-                      <div className="flex items-center gap-2">
-                        <Badge variant={
-                          item.grade === "A" ? "default" : 
-                          item.grade === "B" ? "secondary" : 
-                          "outline"
-                        }>
-                          {item.grade}级
-                        </Badge>
-                        {item.missing_parts && item.missing_parts.length > 0 && (
-                          <Badge variant="destructive" className="text-xs">
-                            缺配件
-                          </Badge>
-                        )}
-                        <span className="text-xs text-muted-foreground">
-                          {new Date(item.processed_at).toLocaleTimeString("zh-CN", { hour: "2-digit", minute: "2-digit" })}
-                        </span>
-                      </div>
-                    </div>
-                  ))}
                 </div>
               </CardContent>
             </Card>
-          )}
-        </>
+
+            {/* 完成包裹提示 */}
+            {matchedShipment && getInboundedCount(matchedShipment.tracking_number) >= matchedShipments.reduce((sum, s) => sum + s.quantity, 0) && (
+              <Card className="border-2 border-green-500/50 bg-green-50 dark:bg-green-950/30 shadow-lg">
+                <CardContent className="py-6">
+                  <div className="flex items-center justify-between gap-4">
+                    <div className="flex items-center gap-4">
+                      <div className="h-12 w-12 rounded-full bg-green-100 dark:bg-green-900/50 flex items-center justify-center">
+                        <CheckCircle className="h-6 w-6 text-green-600 dark:text-green-400" />
+                      </div>
+                      <div>
+                        <p className="font-semibold text-green-800 dark:text-green-200 text-lg">全部LPN已扫描完成</p>
+                        <p className="text-sm text-green-600 dark:text-green-400">
+                          共 {getInboundedCount(matchedShipment.tracking_number)} 件货物
+                        </p>
+                      </div>
+                    </div>
+                    <Button 
+                      onClick={handleCompletePackage}
+                      className="bg-green-600 hover:bg-green-700 text-white h-12 px-6"
+                      size="lg"
+                    >
+                      <PackageCheck className="mr-2 h-5 w-5" />
+                      完成包裹
+                    </Button>
+                  </div>
+                </CardContent>
+              </Card>
+            )}
+
+            {/* 已入库产品列表 */}
+            {currentTrackingInboundItems.length > 0 && (
+              <Card>
+                <CardHeader className="pb-3">
+                  <CardTitle className="flex items-center gap-2 text-base">
+                    <Package className="h-5 w-5 text-primary" />
+                    已入库 ({currentTrackingInboundItems.length} 件)
+                  </CardTitle>
+                </CardHeader>
+                <CardContent className="pt-0">
+                  <div className="space-y-2 max-h-[280px] overflow-y-auto">
+                    {currentTrackingInboundItems.map((item, index) => (
+                      <div 
+                        key={item.id} 
+                        className="flex items-center justify-between p-3 rounded-lg bg-muted/30 border"
+                      >
+                        <div className="flex items-center gap-3">
+                          <div className="h-7 w-7 rounded-full bg-green-100 dark:bg-green-900/30 flex items-center justify-center">
+                            <span className="text-xs font-medium text-green-600 dark:text-green-400">{index + 1}</span>
+                          </div>
+                          <div>
+                            <p className="text-sm font-medium">{item.product_name}</p>
+                            <code className="text-xs bg-muted px-1 rounded">{item.lpn}</code>
+                          </div>
+                        </div>
+                        <div className="flex items-center gap-2">
+                          <Badge variant={item.grade === "A" ? "default" : item.grade === "B" ? "secondary" : "outline"}>
+                            {item.grade}级
+                          </Badge>
+                          {item.missing_parts && item.missing_parts.length > 0 && (
+                            <Badge variant="destructive" className="text-xs">缺配件</Badge>
+                          )}
+                        </div>
+                      </div>
+                    ))}
+                  </div>
+                </CardContent>
+              </Card>
+            )}
+          </div>
+
+          {/* 右侧：货件信息面板 */}
+          <div className="space-y-4">
+            {/* 进度卡片 */}
+            <Card className="bg-muted/30">
+              <CardContent className="pt-4 pb-4">
+                <div className="text-center space-y-3">
+                  <div className="text-3xl font-bold text-primary">
+                    {getInboundedCount(matchedShipment.tracking_number)} / {matchedShipments.reduce((sum, s) => sum + s.quantity, 0)}
+                  </div>
+                  <p className="text-sm text-muted-foreground">入库进度</p>
+                  <Progress 
+                    value={(getInboundedCount(matchedShipment.tracking_number) / matchedShipments.reduce((sum, s) => sum + s.quantity, 0)) * 100} 
+                    className="h-2"
+                  />
+                </div>
+              </CardContent>
+            </Card>
+
+            {/* 货件信息 */}
+            <Card>
+              <CardHeader className="pb-2">
+                <CardTitle className="flex items-center gap-2 text-base">
+                  <PackageCheck className="h-4 w-4 text-green-500" />
+                  货件信息
+                </CardTitle>
+              </CardHeader>
+              <CardContent className="space-y-3 text-sm">
+                <div className="flex justify-between">
+                  <span className="text-muted-foreground">物流号</span>
+                  <code className="font-medium bg-muted px-1.5 py-0.5 rounded text-xs">{matchedShipment.tracking_number}</code>
+                </div>
+                <div className="flex justify-between">
+                  <span className="text-muted-foreground">承运商</span>
+                  <span className="font-medium">{matchedShipment.carrier}</span>
+                </div>
+                <div className="flex justify-between">
+                  <span className="text-muted-foreground">产品种类</span>
+                  <span className="font-medium">{matchedShipments.length} 种</span>
+                </div>
+                <div className="flex justify-between">
+                  <span className="text-muted-foreground">总件数</span>
+                  <span className="font-medium">{matchedShipments.reduce((sum, s) => sum + s.quantity, 0)} 件</span>
+                </div>
+              </CardContent>
+            </Card>
+
+            {/* 产品列表 */}
+            <Card>
+              <CardHeader className="pb-2">
+                <CardTitle className="text-base">待入库产品</CardTitle>
+              </CardHeader>
+              <CardContent className="space-y-2">
+                {matchedShipments.map((shipment, idx) => {
+                  const inboundedForSku = getInboundedCountBySku(matchedShipment.tracking_number, shipment.product_sku);
+                  const isComplete = inboundedForSku >= shipment.quantity;
+                  return (
+                    <div key={idx} className={cn(
+                      "flex items-center justify-between text-sm rounded-lg px-3 py-2.5",
+                      isComplete ? "bg-green-50 dark:bg-green-950/30 border border-green-200 dark:border-green-800" : "bg-muted/50"
+                    )}>
+                      <div className="flex-1 min-w-0">
+                        <p className="font-medium truncate">{shipment.product_name}</p>
+                        <code className="text-xs text-muted-foreground">{shipment.product_sku}</code>
+                      </div>
+                      <div className="flex items-center gap-2 ml-2">
+                        {isComplete && <CheckCircle className="h-4 w-4 text-green-500" />}
+                        <Badge variant={isComplete ? "secondary" : "outline"} className="text-xs">
+                          {inboundedForSku}/{shipment.quantity}
+                        </Badge>
+                      </div>
+                    </div>
+                  );
+                })}
+              </CardContent>
+            </Card>
+
+            {/* 强制完成按钮 */}
+            {getInboundedCount(matchedShipment.tracking_number) > 0 && 
+             getInboundedCount(matchedShipment.tracking_number) < matchedShipments.reduce((sum, s) => sum + s.quantity, 0) && (
+              <Card className="border-amber-200 dark:border-amber-700 bg-amber-50/50 dark:bg-amber-950/20">
+                <CardContent className="pt-4 pb-4">
+                  <div className="flex items-start gap-3">
+                    <AlertCircle className="h-5 w-5 text-amber-600 dark:text-amber-400 flex-shrink-0" />
+                    <div className="flex-1">
+                      <p className="text-sm font-medium text-amber-800 dark:text-amber-200">数量不足</p>
+                      <p className="text-xs text-amber-600 dark:text-amber-400 mb-2">
+                        差 {matchedShipments.reduce((sum, s) => sum + s.quantity, 0) - getInboundedCount(matchedShipment.tracking_number)} 件
+                      </p>
+                      <Button 
+                        variant="outline" 
+                        size="sm"
+                        className="w-full border-amber-300 text-amber-700 hover:bg-amber-100 dark:border-amber-600 dark:text-amber-300"
+                        onClick={() => setIsForceCompleteDialogOpen(true)}
+                      >
+                        强制完成入库
+                      </Button>
+                    </div>
+                  </div>
+                </CardContent>
+              </Card>
+            )}
+          </div>
+        </div>
       )}
 
       {/* 处理对话框 */}

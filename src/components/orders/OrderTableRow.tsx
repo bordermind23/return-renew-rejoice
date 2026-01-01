@@ -1,4 +1,4 @@
-import { Eye, Trash2, Camera, Pencil } from "lucide-react";
+import { Eye, Trash2, Pencil } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Checkbox } from "@/components/ui/checkbox";
 import { TableCell, TableRow } from "@/components/ui/table";
@@ -13,8 +13,6 @@ interface OrderTableRowProps {
   onView: () => void;
   onDelete: () => void;
   onEditGrade: () => void;
-  onViewPhotos: () => void;
-  hasPhotos: boolean;
   displayGrade?: string | null;
   hasInboundItem: boolean;
   isGroupChild?: boolean;
@@ -27,8 +25,6 @@ export function OrderTableRow({
   onView,
   onDelete,
   onEditGrade,
-  onViewPhotos,
-  hasPhotos,
   displayGrade,
   hasInboundItem,
   isGroupChild = false,
@@ -83,20 +79,6 @@ export function OrderTableRow({
             )}
             <Pencil className="h-3 w-3 text-muted-foreground" />
           </button>
-        ) : (
-          <span className="text-muted-foreground text-xs">-</span>
-        )}
-      </TableCell>
-      <TableCell className="text-center">
-        {hasPhotos ? (
-          <Button
-            size="icon"
-            variant="ghost"
-            className="h-8 w-8 text-primary hover:text-primary"
-            onClick={onViewPhotos}
-          >
-            <Camera className="h-4 w-4" />
-          </Button>
         ) : (
           <span className="text-muted-foreground text-xs">-</span>
         )}

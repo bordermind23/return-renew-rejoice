@@ -21,7 +21,6 @@ import {
   useCreateInboundItem,
   type InboundItem,
 } from "@/hooks/useInboundItems";
-import { useOrders } from "@/hooks/useOrders";
 import { Skeleton } from "@/components/ui/skeleton";
 import { toast } from "sonner";
 import { Scanner } from "@/components/Scanner";
@@ -30,7 +29,6 @@ import { useSound } from "@/hooks/useSound";
 import { useLanguage } from "@/i18n/LanguageContext";
 import { useIsMobile } from "@/hooks/use-mobile";
 import { RefurbishmentMediaCapture } from "@/components/RefurbishmentMediaCapture";
-import { useMemo } from "react";
 
 export default function Refurbishment() {
   const { t } = useLanguage();
@@ -52,23 +50,9 @@ export default function Refurbishment() {
   const videoInputRef = useRef<HTMLInputElement>(null);
 
   const { data: inboundItems, isLoading } = useInboundItems();
-  const { data: orders, isLoading: isLoadingOrders } = useOrders();
   const updateMutation = useUpdateInboundItem();
   const createMutation = useCreateInboundItem();
   const { playSuccess, playError, playWarning } = useSound();
-
-  // 创建订单LPN集合，用于检查入库记录是否有对应订单
-  const orderLpnSet = useMemo(() => {
-    if (!orders) return new Set<string>();
-    return new Set(orders.map(o => o.lpn.toLowerCase()));
-  }, [orders]);
-
-  // 检查入库记录是否需要同步（没有对应订单，或者product_sku为"待同步"）
-  const needsSync = (item: InboundItem): boolean => {
-    const hasOrder = orderLpnSet.has(item.lpn.toLowerCase());
-    const isPendingSync = item.product_sku === "待同步" || item.removal_order_id === "无入库信息";
-    return !hasOrder || isPendingSync;
-  };
 
   useEffect(() => {
     lpnInputRef.current?.focus();
@@ -400,11 +384,6 @@ export default function Refurbishment() {
                   <div className="flex items-center gap-3">
                     <Badge variant="outline">{item.lpn}</Badge>
                     <span className="text-sm text-muted-foreground">{item.product_name}</span>
-                    {needsSync(item) && (
-                      <Badge variant="secondary" className="bg-warning/20 text-warning border-warning/30">
-                        待同步
-                      </Badge>
-                    )}
                   </div>
                   <div className="flex items-center gap-2">
                     <GradeBadge grade={item.refurbishment_grade as "A" | "B" | "C"} />

@@ -649,7 +649,7 @@ export function MobileInboundScanner({ initialTracking }: MobileInboundScannerPr
   // 拍摄物流面单步骤 - 使用原生相机
   if (step === "scan_tracking") {
     return (
-      <div className="fixed inset-0 z-50 bg-background flex flex-col">
+      <div className="fixed inset-0 z-[100] bg-background flex flex-col">
         {/* 隐藏的原生相机input */}
         <input
           ref={nativeCameraRef}
@@ -844,7 +844,7 @@ export function MobileInboundScanner({ initialTracking }: MobileInboundScannerPr
     });
 
     return (
-      <div className="fixed inset-0 z-50 bg-gradient-to-b from-info/5 to-background flex flex-col">
+      <div className="fixed inset-0 z-[100] bg-gradient-to-b from-info/5 to-background flex flex-col">
         {/* 顶部栏 - 安全区域内边距 */}
         <div className="flex items-center justify-center px-4 py-2 shrink-0 pt-[calc(env(safe-area-inset-top,0px)+8px)]">
           <p className="text-sm text-info font-medium">步骤 2/2 · 扫描LPN</p>

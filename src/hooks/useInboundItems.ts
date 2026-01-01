@@ -159,7 +159,7 @@ export const useDeleteInboundItem = () => {
         'package_photo', 'product_photo', 'lpn_label_photo',
         'packaging_photo_1', 'packaging_photo_2', 'packaging_photo_3',
         'packaging_photo_4', 'packaging_photo_5', 'packaging_photo_6',
-        'accessories_photo', 'detail_photo'
+        'accessories_photo', 'detail_photo', 'shipping_label_photo'
       ];
       
       const filesToDelete: string[] = [];

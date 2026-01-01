@@ -33,9 +33,10 @@ export interface Order {
   status: OrderStatus;
 }
 
-// internal_order_no 由数据库触发器自动生成，status 由流程自动更新，所以在 Insert 类型中排除
+// internal_order_no 由数据库触发器自动生成，所以在 Insert 类型中排除
 export type OrderInsert = Omit<Order, "id" | "created_at" | "internal_order_no" | "status">;
-export type OrderUpdate = Partial<Omit<OrderInsert, "status">>;
+// OrderUpdate 允许更新 status 字段（用于待同步订单同步）
+export type OrderUpdate = Partial<Omit<Order, "id" | "created_at" | "internal_order_no">>;
 
 export const useOrders = () => {
   return useQuery({

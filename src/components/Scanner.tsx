@@ -37,28 +37,33 @@ export function Scanner({
   useEffect(() => {
     // Get available cameras when dialog opens
     if (isOpen) {
-      Html5Qrcode.getCameras()
-        .then((devices) => {
-          if (devices && devices.length > 0) {
-            setCameras(devices);
-            // 优先选择后置摄像头
-            const backCameraIndex = devices.findIndex(
-              (device) => device.label.toLowerCase().includes("back") || 
-                          device.label.toLowerCase().includes("rear") ||
-                          device.label.toLowerCase().includes("environment") ||
-                          device.label.includes("后置")
-            );
-            const preferredIndex = backCameraIndex >= 0 ? backCameraIndex : 0;
-            setCurrentCameraIndex(preferredIndex);
-            startScanner(devices[preferredIndex].id);
-          } else {
-            setError("未找到摄像头设备");
-          }
-        })
-        .catch((err) => {
-          console.error("获取摄像头失败:", err);
-          setError("无法访问摄像头，请确保已授权摄像头权限");
-        });
+      // 延迟启动以确保对话框完全渲染
+      const timer = setTimeout(() => {
+        Html5Qrcode.getCameras()
+          .then((devices) => {
+            if (devices && devices.length > 0) {
+              setCameras(devices);
+              // 优先选择后置摄像头
+              const backCameraIndex = devices.findIndex(
+                (device) => device.label.toLowerCase().includes("back") || 
+                            device.label.toLowerCase().includes("rear") ||
+                            device.label.toLowerCase().includes("environment") ||
+                            device.label.includes("后置")
+              );
+              const preferredIndex = backCameraIndex >= 0 ? backCameraIndex : 0;
+              setCurrentCameraIndex(preferredIndex);
+              startScanner(devices[preferredIndex].id);
+            } else {
+              setError("未找到摄像头设备");
+            }
+          })
+          .catch((err) => {
+            console.error("获取摄像头失败:", err);
+            setError("无法访问摄像头，请确保已授权摄像头权限");
+          });
+      }, 100);
+
+      return () => clearTimeout(timer);
     }
 
     return () => {
@@ -76,14 +81,20 @@ export function Scanner({
         await scannerRef.current.stop();
       }
 
-      scannerRef.current = new Html5Qrcode(scannerContainerId);
+      scannerRef.current = new Html5Qrcode(scannerContainerId, {
+        verbose: false,
+        experimentalFeatures: {
+          useBarCodeDetectorIfSupported: true
+        }
+      });
 
       await scannerRef.current.start(
         cameraId,
         {
-          fps: 10,
-          qrbox: { width: 250, height: 250 },
+          fps: 15,
+          qrbox: { width: 200, height: 200 },
           aspectRatio: 1,
+          disableFlip: false,
         },
         (decodedText) => {
           // Success callback
@@ -176,7 +187,7 @@ export function Scanner({
       </Button>
 
       <Dialog open={isOpen} onOpenChange={handleClose}>
-        <DialogContent className="sm:max-w-md z-[110]">
+        <DialogContent className="max-w-[90vw] sm:max-w-md w-full mx-auto z-[110]">
           <DialogHeader>
             <DialogTitle className="flex items-center gap-2">
               <Scan className="h-5 w-5" />
@@ -210,8 +221,8 @@ export function Scanner({
               <>
                 <div
                   id={scannerContainerId}
-                  className="relative w-full overflow-hidden rounded-lg bg-muted"
-                  style={{ minHeight: "300px" }}
+                  className="relative w-full overflow-hidden rounded-lg bg-muted flex items-center justify-center"
+                  style={{ minHeight: "250px", maxHeight: "60vh" }}
                 />
 
                 {isScanning && (

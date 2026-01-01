@@ -476,13 +476,22 @@ export const useBulkCreateOrders = () => {
 
   return useMutation({
     mutationFn: async (orders: OrderInsert[]) => {
-      const { data, error } = await supabase
-        .from("orders")
-        .insert(orders)
-        .select();
+      // 分批插入，每批500条，避免Supabase请求大小限制
+      const BATCH_SIZE = 500;
+      const allData: Order[] = [];
+      
+      for (let i = 0; i < orders.length; i += BATCH_SIZE) {
+        const batch = orders.slice(i, i + BATCH_SIZE);
+        const { data, error } = await supabase
+          .from("orders")
+          .insert(batch)
+          .select();
 
-      if (error) throw error;
-      return data;
+        if (error) throw error;
+        if (data) allData.push(...(data as Order[]));
+      }
+      
+      return allData;
     },
     onSuccess: (data) => {
       queryClient.invalidateQueries({ queryKey: ["orders"] });

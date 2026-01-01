@@ -615,23 +615,23 @@ export default function Orders() {
             // 检查该LPN是否已存在于数据库中
             const existingOrder = existingOrdersMap.get(lpnLower);
             if (existingOrder) {
-              // 允许重复LPN，但必须所有参数一致
-              if (!isConsistentWithExisting(row, existingOrder)) {
-                errors.push({ row: rowIndex, message: `第${rowIndex}行：LPN号 "${lpn}" 已存在于系统中，且参数不一致，无法导入` });
+              // 允许重复LPN，但必须参数不一致才能导入
+              if (isConsistentWithExisting(row, existingOrder)) {
+                errors.push({ row: rowIndex, message: `第${rowIndex}行：LPN号 "${lpn}" 已存在于系统中，且参数完全一致，无需重复导入` });
+                continue;
               }
-              // 参数一致则跳过（不重复插入）
-              continue;
+              // 参数不一致则允许导入
             }
 
             // 检查该LPN是否已在本次导入中处理过
             const existingImport = importedLpnDataMap.get(lpnLower);
             if (existingImport) {
-              // 允许重复LPN，但必须所有参数一致
-              if (!areRowsConsistent(row, existingImport.row)) {
-                errors.push({ row: rowIndex, message: `第${rowIndex}行：LPN号 "${lpn}" 在导入文件中重复，且与第${existingImport.rowIndex}行参数不一致` });
+              // 允许重复LPN，但必须参数不一致才能导入
+              if (areRowsConsistent(row, existingImport.row)) {
+                errors.push({ row: rowIndex, message: `第${rowIndex}行：LPN号 "${lpn}" 在导入文件中重复，且与第${existingImport.rowIndex}行参数完全一致，无需重复导入` });
+                continue;
               }
-              // 参数一致则跳过（不重复插入）
-              continue;
+              // 参数不一致则允许导入
             }
 
             // 标记该LPN为已处理

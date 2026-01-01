@@ -1,5 +1,6 @@
 import React, { useState, useRef, useMemo } from "react";
-import { Eye, Plus, Trash2, Upload, Download, FileSpreadsheet, ChevronDown, AlertCircle, CheckCircle2, Loader2, Edit, ChevronUp } from "lucide-react";
+import { Eye, Plus, Trash2, Upload, Download, FileSpreadsheet, ChevronDown, AlertCircle, CheckCircle2, Loader2, Edit, ChevronUp, Package, Wrench } from "lucide-react";
+import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { PageHeader } from "@/components/ui/page-header";
@@ -1191,28 +1192,145 @@ export default function Orders() {
 
       {/* 订单详情对话框 */}
       <Dialog open={!!selectedOrder} onOpenChange={() => setSelectedOrder(null)}>
-        <DialogContent className="max-w-2xl">
+        <DialogContent className="max-w-3xl max-h-[85vh] overflow-hidden flex flex-col">
           <DialogHeader>
-            <DialogTitle>订单详情</DialogTitle>
+            <DialogTitle>订单信息</DialogTitle>
           </DialogHeader>
           {selectedOrder && (
-            <div className="grid grid-cols-2 gap-4 rounded-lg bg-muted/50 p-4 text-sm">
-              <div><p className="text-muted-foreground">内部订单号</p><p className="font-mono font-medium text-primary">{selectedOrder.internal_order_no || "-"}</p></div>
-              <div><p className="text-muted-foreground">LPN编号</p><p className="font-mono font-medium">{selectedOrder.lpn}</p></div>
-              <div><p className="text-muted-foreground">订单号</p><p className="font-medium">{selectedOrder.order_number}</p></div>
-              <div><p className="text-muted-foreground">产品名称</p><p className="font-medium">{selectedOrder.product_name || "-"}</p></div>
-              <div><p className="text-muted-foreground">产品SKU</p><p className="font-medium">{selectedOrder.product_sku || "-"}</p></div>
-              <div><p className="text-muted-foreground">店铺</p><p className="font-medium">{selectedOrder.store_name}</p></div>
-              <div><p className="text-muted-foreground">国家</p><p className="font-medium">{selectedOrder.country || "-"}</p></div>
-              <div><p className="text-muted-foreground">退货原因</p><p className="font-medium">{selectedOrder.return_reason || "-"}</p></div>
-              <div><p className="text-muted-foreground">买家备注</p><p className="font-medium">{selectedOrder.buyer_note || "-"}</p></div>
-              <div><p className="text-muted-foreground">退货数量</p><p className="font-medium">{selectedOrder.return_quantity}</p></div>
-              <div><p className="text-muted-foreground">发货仓库编号</p><p className="font-medium">{selectedOrder.warehouse_location || "-"}</p></div>
-              <div><p className="text-muted-foreground">FNSKU</p><p className="font-medium">{selectedOrder.fnsku || "-"}</p></div>
-              <div><p className="text-muted-foreground">ASIN</p><p className="font-medium">{selectedOrder.asin || "-"}</p></div>
-              <div><p className="text-muted-foreground">MSKU</p><p className="font-medium">{selectedOrder.msku || "-"}</p></div>
-              <div><p className="text-muted-foreground">库存属性</p><p className="font-medium">{selectedOrder.inventory_attribute || "-"}</p></div>
-            </div>
+            <Tabs defaultValue="order" className="flex-1 overflow-hidden flex flex-col">
+              <TabsList className="grid w-full grid-cols-3">
+                <TabsTrigger value="order">订单详情</TabsTrigger>
+                <TabsTrigger value="inbound">入库信息</TabsTrigger>
+                <TabsTrigger value="refurbishment">翻新信息</TabsTrigger>
+              </TabsList>
+              
+              {/* 订单详情标签 */}
+              <TabsContent value="order" className="flex-1 overflow-y-auto mt-4">
+                <div className="grid grid-cols-2 gap-4 rounded-lg bg-muted/50 p-4 text-sm">
+                  <div><p className="text-muted-foreground">内部订单号</p><p className="font-mono font-medium text-primary">{selectedOrder.internal_order_no || "-"}</p></div>
+                  <div><p className="text-muted-foreground">LPN编号</p><p className="font-mono font-medium">{selectedOrder.lpn}</p></div>
+                  <div><p className="text-muted-foreground">订单号</p><p className="font-medium">{selectedOrder.order_number}</p></div>
+                  <div><p className="text-muted-foreground">产品名称</p><p className="font-medium">{selectedOrder.product_name || "-"}</p></div>
+                  <div><p className="text-muted-foreground">产品SKU</p><p className="font-medium">{selectedOrder.product_sku || "-"}</p></div>
+                  <div><p className="text-muted-foreground">店铺</p><p className="font-medium">{selectedOrder.store_name}</p></div>
+                  <div><p className="text-muted-foreground">国家</p><p className="font-medium">{selectedOrder.country || "-"}</p></div>
+                  <div><p className="text-muted-foreground">退货原因</p><p className="font-medium">{selectedOrder.return_reason || "-"}</p></div>
+                  <div><p className="text-muted-foreground">买家备注</p><p className="font-medium">{selectedOrder.buyer_note || "-"}</p></div>
+                  <div><p className="text-muted-foreground">退货数量</p><p className="font-medium">{selectedOrder.return_quantity}</p></div>
+                  <div><p className="text-muted-foreground">发货仓库编号</p><p className="font-medium">{selectedOrder.warehouse_location || "-"}</p></div>
+                  <div><p className="text-muted-foreground">FNSKU</p><p className="font-medium">{selectedOrder.fnsku || "-"}</p></div>
+                  <div><p className="text-muted-foreground">ASIN</p><p className="font-medium">{selectedOrder.asin || "-"}</p></div>
+                  <div><p className="text-muted-foreground">MSKU</p><p className="font-medium">{selectedOrder.msku || "-"}</p></div>
+                  <div><p className="text-muted-foreground">库存属性</p><p className="font-medium">{selectedOrder.inventory_attribute || "-"}</p></div>
+                </div>
+              </TabsContent>
+              
+              {/* 入库信息标签 */}
+              <TabsContent value="inbound" className="flex-1 overflow-y-auto mt-4">
+                {(() => {
+                  const inboundItem = inboundByLpn[selectedOrder.lpn];
+                  if (!inboundItem) {
+                    return (
+                      <div className="flex flex-col items-center justify-center py-12 text-muted-foreground">
+                        <Package className="h-12 w-12 mb-4 opacity-50" />
+                        <p>暂无入库信息</p>
+                      </div>
+                    );
+                  }
+                  return (
+                    <div className="space-y-4">
+                      <div className="grid grid-cols-2 gap-4 rounded-lg bg-muted/50 p-4 text-sm">
+                        <div><p className="text-muted-foreground">LPN编号</p><p className="font-mono font-medium">{inboundItem.lpn}</p></div>
+                        <div><p className="text-muted-foreground">入库等级</p><p className="font-medium"><GradeBadge grade={inboundItem.grade as "A" | "B" | "C"} /></p></div>
+                        <div><p className="text-muted-foreground">产品名称</p><p className="font-medium">{inboundItem.product_name}</p></div>
+                        <div><p className="text-muted-foreground">产品SKU</p><p className="font-medium">{inboundItem.product_sku}</p></div>
+                        <div><p className="text-muted-foreground">移除订单号</p><p className="font-medium">{inboundItem.removal_order_id}</p></div>
+                        <div><p className="text-muted-foreground">快递单号</p><p className="font-medium">{inboundItem.tracking_number || "-"}</p></div>
+                        <div><p className="text-muted-foreground">退货原因</p><p className="font-medium">{inboundItem.return_reason || "-"}</p></div>
+                        <div><p className="text-muted-foreground">入库时间</p><p className="font-medium">{inboundItem.processed_at ? new Date(inboundItem.processed_at).toLocaleString("zh-CN") : "-"}</p></div>
+                        <div><p className="text-muted-foreground">操作人员</p><p className="font-medium">{inboundItem.processed_by}</p></div>
+                      </div>
+                      
+                      {/* 入库照片 */}
+                      {(inboundItem.product_photo || inboundItem.package_photo || inboundItem.lpn_label_photo) && (
+                        <div className="space-y-2">
+                          <p className="text-sm font-medium">入库照片</p>
+                          <div className="grid grid-cols-3 gap-2">
+                            {inboundItem.lpn_label_photo && (
+                              <div className="space-y-1">
+                                <img src={inboundItem.lpn_label_photo} alt="LPN标签" className="w-full h-24 object-cover rounded-lg border" />
+                                <p className="text-xs text-muted-foreground text-center">LPN标签</p>
+                              </div>
+                            )}
+                            {inboundItem.product_photo && (
+                              <div className="space-y-1">
+                                <img src={inboundItem.product_photo} alt="产品照片" className="w-full h-24 object-cover rounded-lg border" />
+                                <p className="text-xs text-muted-foreground text-center">产品照片</p>
+                              </div>
+                            )}
+                            {inboundItem.package_photo && (
+                              <div className="space-y-1">
+                                <img src={inboundItem.package_photo} alt="包装照片" className="w-full h-24 object-cover rounded-lg border" />
+                                <p className="text-xs text-muted-foreground text-center">包装照片</p>
+                              </div>
+                            )}
+                          </div>
+                        </div>
+                      )}
+                    </div>
+                  );
+                })()}
+              </TabsContent>
+              
+              {/* 翻新信息标签 */}
+              <TabsContent value="refurbishment" className="flex-1 overflow-y-auto mt-4">
+                {(() => {
+                  const inboundItem = inboundByLpn[selectedOrder.lpn];
+                  if (!inboundItem?.refurbished_at) {
+                    return (
+                      <div className="flex flex-col items-center justify-center py-12 text-muted-foreground">
+                        <Wrench className="h-12 w-12 mb-4 opacity-50" />
+                        <p>暂无翻新信息</p>
+                      </div>
+                    );
+                  }
+                  return (
+                    <div className="space-y-4">
+                      <div className="grid grid-cols-2 gap-4 rounded-lg bg-muted/50 p-4 text-sm">
+                        <div><p className="text-muted-foreground">翻新等级</p><p className="font-medium">{inboundItem.refurbishment_grade ? <GradeBadge grade={inboundItem.refurbishment_grade as "A" | "B" | "C"} /> : "-"}</p></div>
+                        <div><p className="text-muted-foreground">翻新时间</p><p className="font-medium">{inboundItem.refurbished_at ? new Date(inboundItem.refurbished_at).toLocaleString("zh-CN") : "-"}</p></div>
+                        <div><p className="text-muted-foreground">翻新人员</p><p className="font-medium">{inboundItem.refurbished_by || "-"}</p></div>
+                        <div className="col-span-2"><p className="text-muted-foreground">翻新备注</p><p className="font-medium">{inboundItem.refurbishment_notes || "-"}</p></div>
+                      </div>
+                      
+                      {/* 翻新照片 */}
+                      {inboundItem.refurbishment_photos && inboundItem.refurbishment_photos.length > 0 && (
+                        <div className="space-y-2">
+                          <p className="text-sm font-medium">翻新照片</p>
+                          <div className="grid grid-cols-4 gap-2">
+                            {inboundItem.refurbishment_photos.map((photo, idx) => (
+                              <img key={idx} src={photo} alt={`翻新照片 ${idx + 1}`} className="w-full h-20 object-cover rounded-lg border" />
+                            ))}
+                          </div>
+                        </div>
+                      )}
+                      
+                      {/* 翻新视频 */}
+                      {inboundItem.refurbishment_videos && inboundItem.refurbishment_videos.length > 0 && (
+                        <div className="space-y-2">
+                          <p className="text-sm font-medium">翻新视频</p>
+                          <div className="grid grid-cols-2 gap-2">
+                            {inboundItem.refurbishment_videos.map((video, idx) => (
+                              <video key={idx} src={video} controls className="w-full h-32 rounded-lg border" />
+                            ))}
+                          </div>
+                        </div>
+                      )}
+                    </div>
+                  );
+                })()}
+              </TabsContent>
+            </Tabs>
           )}
         </DialogContent>
       </Dialog>

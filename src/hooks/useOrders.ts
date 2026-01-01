@@ -120,41 +120,58 @@ export const useOrdersPaginated = (page: number, pageSize: number = 50, filters:
   });
 };
 
-// 获取订单状态统计（全量数据）
+// 获取订单状态统计（按唯一LPN计算，相同LPN算作一个订单）
 export const useOrderStats = () => {
   return useQuery({
     queryKey: ["orders", "stats"],
     queryFn: async () => {
-      // 获取总数
-      const { count: totalCount, error: totalError } = await supabase
+      // 获取所有订单的LPN和状态
+      const { data, error } = await supabase
         .from("orders")
-        .select("*", { count: "exact", head: true });
-      if (totalError) throw totalError;
-
-      // 获取各状态数量
-      const { count: pendingCount, error: pendingError } = await supabase
-        .from("orders")
-        .select("*", { count: "exact", head: true })
-        .eq("status", "未到货");
-      if (pendingError) throw pendingError;
-
-      const { count: arrivedCount, error: arrivedError } = await supabase
-        .from("orders")
-        .select("*", { count: "exact", head: true })
-        .eq("status", "到货");
-      if (arrivedError) throw arrivedError;
-
-      const { count: shippedCount, error: shippedError } = await supabase
-        .from("orders")
-        .select("*", { count: "exact", head: true })
-        .eq("status", "出库");
-      if (shippedError) throw shippedError;
-
+        .select("lpn, status");
+      
+      if (error) throw error;
+      
+      // 按LPN去重，保留每个LPN的最新状态（按优先级：出库 > 到货 > 未到货）
+      const lpnStatusMap = new Map<string, OrderStatus>();
+      const statusPriority: Record<OrderStatus, number> = {
+        '出库': 3,
+        '到货': 2,
+        '未到货': 1,
+        '待同步': 0,
+      };
+      
+      for (const order of data || []) {
+        const existingStatus = lpnStatusMap.get(order.lpn);
+        if (!existingStatus || statusPriority[order.status] > statusPriority[existingStatus]) {
+          lpnStatusMap.set(order.lpn, order.status);
+        }
+      }
+      
+      // 统计各状态的唯一LPN数量
+      let pending = 0;
+      let arrived = 0;
+      let shipped = 0;
+      
+      lpnStatusMap.forEach((status) => {
+        switch (status) {
+          case '未到货':
+            pending++;
+            break;
+          case '到货':
+            arrived++;
+            break;
+          case '出库':
+            shipped++;
+            break;
+        }
+      });
+      
       return {
-        total: totalCount || 0,
-        pending: pendingCount || 0,
-        arrived: arrivedCount || 0,
-        shipped: shippedCount || 0,
+        total: lpnStatusMap.size,
+        pending,
+        arrived,
+        shipped,
       };
     },
   });

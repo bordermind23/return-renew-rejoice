@@ -58,6 +58,8 @@
     --gradient-success: linear-gradient(135deg, hsl(142 76% 36%), hsl(152 76% 42%));
     --gradient-warning: linear-gradient(135deg, hsl(38 92% 50%), hsl(45 92% 55%));
     --gradient-info: linear-gradient(135deg, hsl(199 89% 48%), hsl(209 89% 55%));
+    --gradient-lpn: linear-gradient(135deg, hsl(210 90% 50%), hsl(220 90% 60%));
+    --gradient-tracking: linear-gradient(135deg, hsl(25 95% 53%), hsl(35 95% 60%));
   }
 
   .dark {
@@ -126,6 +128,14 @@
   
   .gradient-info {
     background: var(--gradient-info);
+  }
+  
+  .gradient-lpn {
+    background: var(--gradient-lpn);
+  }
+  
+  .gradient-tracking {
+    background: var(--gradient-tracking);
   }
 
   .animate-fade-in {

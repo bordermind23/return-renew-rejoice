@@ -700,7 +700,7 @@ export type Database = {
         | "accessory_missing"
         | "product_damaged"
         | "other"
-      order_status: "未到货" | "到货" | "出库"
+      order_status: "未到货" | "到货" | "出库" | "待同步"
     }
     CompositeTypes: {
       [_ in never]: never
@@ -844,7 +844,7 @@ export const Constants = {
         "product_damaged",
         "other",
       ],
-      order_status: ["未到货", "到货", "出库"],
+      order_status: ["未到货", "到货", "出库", "待同步"],
     },
   },
 } as const

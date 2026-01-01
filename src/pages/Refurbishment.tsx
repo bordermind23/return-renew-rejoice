@@ -226,16 +226,15 @@ export default function Refurbishment() {
           onSuccess: async () => {
             // 同时在订单表中创建记录
             try {
-              await supabase.from("orders").insert({
-                lpn: newLpnInput,
-                removal_order_id: "无入库信息",
-                order_number: "待同步",
-                store_name: "待同步",
-                station: "待同步",
-                status: "到货" as const,
-                inbound_at: new Date().toISOString(),
-                grade: selectedGrade,
-              });
+                            await supabase.from("orders").insert({
+                                lpn: newLpnInput,
+                                removal_order_id: "无入库信息",
+                                order_number: "待同步",
+                                store_name: "待同步",
+                                station: "待同步",
+                                status: "待同步" as const,
+                                grade: selectedGrade,
+                              });
             } catch (error) {
               console.error("创建订单记录失败:", error);
             }

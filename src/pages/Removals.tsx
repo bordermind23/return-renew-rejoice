@@ -1,5 +1,5 @@
 import { useState, useRef, useMemo, useCallback } from "react";
-import { Plus, Search, Filter, Trash2, Edit, Upload, Download, FileSpreadsheet, ChevronDown, ChevronRight, AlertCircle, CheckCircle2, Loader2, Package, Copy, LayoutGrid, List, Check } from "lucide-react";
+import { Plus, Search, Filter, Trash2, Edit, Eye, Upload, Download, FileSpreadsheet, ChevronDown, ChevronRight, AlertCircle, CheckCircle2, Loader2, Package, Copy, LayoutGrid, List, Check } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { PageHeader } from "@/components/ui/page-header";
@@ -83,6 +83,8 @@ export default function Removals() {
   const [searchTerm, setSearchTerm] = useState("");
   const [statusFilter, setStatusFilter] = useState<string>("all");
   const [isDialogOpen, setIsDialogOpen] = useState(false);
+  const [isViewMode, setIsViewMode] = useState(false); // 查看模式
+  const [viewingItem, setViewingItem] = useState<RemovalShipment | null>(null);
   const [editingItem, setEditingItem] = useState<RemovalShipment | null>(null);
   const [deleteId, setDeleteId] = useState<string | null>(null);
   const [selectedIds, setSelectedIds] = useState<string[]>([]);
@@ -312,6 +314,12 @@ export default function Removals() {
       product_type: "",
     });
     setEditingItem(null);
+  };
+
+  // 查看详情（只读）
+  const handleView = (item: RemovalShipment) => {
+    setViewingItem(item);
+    setIsViewMode(true);
   };
 
   const handleEdit = (item: RemovalShipment) => {
@@ -1006,6 +1014,7 @@ export default function Removals() {
                 <TableHead className="font-semibold min-w-[120px]">产品SKU</TableHead>
                 <TableHead className="font-semibold min-w-[150px]">产品名称</TableHead>
                 <TableHead className="font-semibold min-w-[80px] text-center">数量</TableHead>
+                <TableHead className="font-semibold min-w-[100px]">发货日期</TableHead>
                 <TableHead className="font-semibold min-w-[100px]">状态</TableHead>
                 
                 <TableHead className="font-semibold min-w-[100px] text-center">操作</TableHead>
@@ -1044,6 +1053,9 @@ export default function Removals() {
                         <TableCell className="text-center">
                           <span className="font-semibold">{item.quantity}</span>
                         </TableCell>
+                        <TableCell className="text-muted-foreground text-sm">
+                          {item.ship_date || "-"}
+                        </TableCell>
                         <TableCell>
                           <StatusBadge status={item.status} />
                         </TableCell>
@@ -1063,9 +1075,10 @@ export default function Removals() {
                               size="icon"
                               variant="ghost"
                               className="h-8 w-8"
-                              onClick={() => handleEdit(item)}
+                              onClick={() => handleView(item)}
+                              title="查看详情"
                             >
-                              <Edit className="h-4 w-4" />
+                              <Eye className="h-4 w-4" />
                             </Button>
                             <Button
                               size="icon"
@@ -1118,6 +1131,9 @@ export default function Removals() {
                           <TableCell className="text-center">
                             <span className="font-semibold">{item.quantity}</span>
                           </TableCell>
+                          <TableCell className="text-muted-foreground text-sm">
+                            {item.ship_date || "-"}
+                          </TableCell>
                           <TableCell>
                             <StatusBadge status={item.status} />
                           </TableCell>
@@ -1137,9 +1153,10 @@ export default function Removals() {
                                 size="icon"
                                 variant="ghost"
                                 className="h-8 w-8"
-                                onClick={() => handleEdit(item)}
+                                onClick={() => handleView(item)}
+                                title="查看详情"
                               >
-                                <Edit className="h-4 w-4" />
+                                <Eye className="h-4 w-4" />
                               </Button>
                               <Button
                                 size="icon"
@@ -1260,6 +1277,9 @@ export default function Removals() {
                                     <TableCell className="text-center">
                                       <span className="font-semibold">{item.quantity}</span>
                                     </TableCell>
+                                    <TableCell className="text-muted-foreground text-sm">
+                                      {item.ship_date || "-"}
+                                    </TableCell>
                                     <TableCell>
                                       <StatusBadge status={item.status} />
                                     </TableCell>
@@ -1279,9 +1299,10 @@ export default function Removals() {
                                           size="icon"
                                           variant="ghost"
                                           className="h-7 w-7"
-                                          onClick={() => handleEdit(item)}
+                                          onClick={() => handleView(item)}
+                                          title="查看详情"
                                         >
-                                          <Edit className="h-3.5 w-3.5" />
+                                          <Eye className="h-3.5 w-3.5" />
                                         </Button>
                                         <Button
                                           size="icon"
@@ -1363,6 +1384,92 @@ export default function Removals() {
           <div className="flex justify-end gap-3">
             <Button variant="outline" onClick={() => { setIsBulkEditOpen(false); setBulkEditData({}); }}>取消</Button>
             <Button onClick={handleBulkEdit} disabled={bulkUpdateMutation.isPending}>确认更新</Button>
+          </div>
+        </DialogContent>
+      </Dialog>
+
+      {/* 查看详情对话框（只读） */}
+      <Dialog open={isViewMode} onOpenChange={(open) => { if (!open) { setIsViewMode(false); setViewingItem(null); } }}>
+        <DialogContent className="sm:max-w-lg">
+          <DialogHeader>
+            <DialogTitle className="flex items-center gap-2">
+              <Eye className="h-5 w-5" />
+              货件详情
+            </DialogTitle>
+          </DialogHeader>
+          {viewingItem && (
+            <div className="grid gap-4 py-4">
+              <div className="grid grid-cols-2 gap-4">
+                <div>
+                  <Label className="text-muted-foreground text-xs">移除订单号</Label>
+                  <p className="font-medium">{viewingItem.order_id}</p>
+                </div>
+                <div>
+                  <Label className="text-muted-foreground text-xs">跟踪号</Label>
+                  <p className="font-medium">{viewingItem.tracking_number}</p>
+                </div>
+              </div>
+              <div className="grid grid-cols-2 gap-4">
+                <div>
+                  <Label className="text-muted-foreground text-xs">承运商</Label>
+                  <p className="font-medium">{viewingItem.carrier}</p>
+                </div>
+                <div>
+                  <Label className="text-muted-foreground text-xs">发货日期</Label>
+                  <p className="font-medium">{viewingItem.ship_date || "-"}</p>
+                </div>
+              </div>
+              <div className="grid grid-cols-2 gap-4">
+                <div>
+                  <Label className="text-muted-foreground text-xs">店铺</Label>
+                  <p className="font-medium">{viewingItem.store_name || "-"}</p>
+                </div>
+                <div>
+                  <Label className="text-muted-foreground text-xs">国家</Label>
+                  <p className="font-medium">{viewingItem.country || "-"}</p>
+                </div>
+              </div>
+              <div className="grid grid-cols-2 gap-4">
+                <div>
+                  <Label className="text-muted-foreground text-xs">产品SKU</Label>
+                  <p className="font-medium">{viewingItem.product_sku || "-"}</p>
+                </div>
+                <div>
+                  <Label className="text-muted-foreground text-xs">MSKU</Label>
+                  <p className="font-medium">{viewingItem.msku || "-"}</p>
+                </div>
+              </div>
+              <div>
+                <Label className="text-muted-foreground text-xs">产品名称</Label>
+                <p className="font-medium">{viewingItem.product_name || "-"}</p>
+              </div>
+              <div className="grid grid-cols-3 gap-4">
+                <div>
+                  <Label className="text-muted-foreground text-xs">FNSKU</Label>
+                  <p className="font-medium">{viewingItem.fnsku}</p>
+                </div>
+                <div>
+                  <Label className="text-muted-foreground text-xs">数量</Label>
+                  <p className="font-medium">{viewingItem.quantity}</p>
+                </div>
+                <div>
+                  <Label className="text-muted-foreground text-xs">状态</Label>
+                  <div className="mt-0.5"><StatusBadge status={viewingItem.status} /></div>
+                </div>
+              </div>
+              {viewingItem.note && (
+                <div>
+                  <Label className="text-muted-foreground text-xs">备注</Label>
+                  <p className="font-medium">{viewingItem.note}</p>
+                </div>
+              )}
+              <div className="text-xs text-muted-foreground pt-2 border-t">
+                创建时间: {new Date(viewingItem.created_at).toLocaleString("zh-CN")}
+              </div>
+            </div>
+          )}
+          <div className="flex justify-end">
+            <Button variant="outline" onClick={() => { setIsViewMode(false); setViewingItem(null); }}>关闭</Button>
           </div>
         </DialogContent>
       </Dialog>

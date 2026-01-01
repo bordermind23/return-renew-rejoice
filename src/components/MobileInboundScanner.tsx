@@ -846,14 +846,8 @@ export function MobileInboundScanner({ initialTracking }: MobileInboundScannerPr
     return (
       <div className="fixed inset-0 z-50 bg-gradient-to-b from-info/5 to-background flex flex-col">
         {/* 顶部栏 - 安全区域内边距 */}
-        <div className="flex items-center justify-between px-4 py-3 shrink-0 pt-[calc(env(safe-area-inset-top,0px)+12px)]">
-          <Button variant="ghost" size="icon" onClick={handleClose} className="rounded-full h-10 w-10 bg-info/10 shrink-0">
-            <X className="h-5 w-5" />
-          </Button>
-          <div className="text-center flex-1">
-            <p className="text-sm text-info font-medium">步骤 2/2 · 扫描LPN</p>
-          </div>
-          <div className="w-10 shrink-0" />
+        <div className="flex items-center justify-center px-4 py-3 shrink-0 pt-[calc(env(safe-area-inset-top,0px)+12px)]">
+          <p className="text-sm text-info font-medium">步骤 2/2 · 扫描LPN</p>
         </div>
 
         {/* 进度概览 - 固定在顶部 */}
@@ -967,7 +961,7 @@ export function MobileInboundScanner({ initialTracking }: MobileInboundScannerPr
         </div>
 
         {/* 底部操作栏 */}
-        <div className="shrink-0 bg-background border-t p-4 pb-[calc(env(safe-area-inset-bottom,12px)+12px)]">
+        <div className="shrink-0 bg-background border-t p-4 pb-[calc(env(safe-area-inset-bottom,12px)+12px)] space-y-3">
           {inboundedCount >= totalQuantity ? (
             <Button onClick={handleCompletePackage} className="w-full h-14 bg-green-600 hover:bg-green-700 text-lg rounded-xl">
               <PackageCheck className="mr-2 h-6 w-6" />
@@ -983,6 +977,9 @@ export function MobileInboundScanner({ initialTracking }: MobileInboundScannerPr
               扫描第一个LPN开始入库
             </p>
           )}
+          <Button variant="ghost" onClick={handleClose} className="w-full h-12 text-muted-foreground hover:text-foreground">
+            返回重新扫描
+          </Button>
         </div>
 
         {/* 强制完成确认抽屉 */}

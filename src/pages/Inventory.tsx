@@ -1,12 +1,10 @@
 import { useState, useMemo } from "react";
-import { Search, Download, Package, Warehouse } from "lucide-react";
+import { Search, Download } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { PageHeader } from "@/components/ui/page-header";
 import { DataTable } from "@/components/ui/data-table";
 import { GradeBadge } from "@/components/ui/grade-badge";
-import { StatCard } from "@/components/ui/stat-card";
-import { Badge } from "@/components/ui/badge";
 import {
   HoverCard,
   HoverCardContent,
@@ -106,10 +104,10 @@ export default function Inventory() {
               <img
                 src={item.product_image}
                 alt={item.product_name}
-                className="h-12 w-12 rounded-xl object-cover cursor-pointer border-2 border-transparent hover:border-primary/30 transition-all shadow-sm"
+                className="h-10 w-10 rounded-lg object-cover cursor-pointer border"
               />
             </HoverCardTrigger>
-            <HoverCardContent className="w-72 p-3" side="right">
+            <HoverCardContent className="w-64 p-2">
               <img
                 src={item.product_image}
                 alt={item.product_name}
@@ -118,8 +116,8 @@ export default function Inventory() {
             </HoverCardContent>
           </HoverCard>
         ) : (
-          <div className="h-12 w-12 rounded-xl bg-muted flex items-center justify-center text-muted-foreground">
-            <Package className="h-5 w-5" />
+          <div className="h-10 w-10 rounded-lg bg-muted flex items-center justify-center text-muted-foreground text-xs">
+            无图
           </div>
         )
       ),
@@ -128,37 +126,17 @@ export default function Inventory() {
       key: "sku",
       header: "SKU",
       render: (item: MergedInventoryItem) => (
-        <span className="font-mono text-sm font-medium text-primary bg-primary/5 px-2 py-1 rounded">
-          {item.sku}
-        </span>
+        <span className="font-mono font-medium text-primary">{item.sku}</span>
       ),
     },
-    { 
-      key: "product_name", 
-      header: "产品名称",
-      render: (item: MergedInventoryItem) => (
-        <span className="font-medium line-clamp-2 max-w-[200px]">{item.product_name}</span>
-      ),
-    },
-    { 
-      key: "product_category", 
-      header: "分类",
-      render: (item: MergedInventoryItem) => (
-        item.product_category ? (
-          <Badge variant="secondary" className="font-normal">
-            {item.product_category}
-          </Badge>
-        ) : (
-          <span className="text-muted-foreground text-sm">-</span>
-        )
-      ),
-    },
+    { key: "product_name", header: "产品名称" },
+    { key: "product_category", header: "产品分类" },
     {
       key: "total_stock",
       header: "总库存",
       render: (item: MergedInventoryItem) => (
-        <span className={`text-xl font-bold tabular-nums ${item.total_stock === 0 ? 'text-muted-foreground' : 'text-foreground'}`}>
-          {item.total_stock.toLocaleString()}
+        <span className={`text-lg font-bold ${item.total_stock === 0 ? 'text-muted-foreground' : ''}`}>
+          {item.total_stock}
         </span>
       ),
     },
@@ -168,8 +146,8 @@ export default function Inventory() {
       render: (item: MergedInventoryItem) => (
         <div className="flex items-center gap-2">
           <GradeBadge grade="A" />
-          <span className={`font-semibold tabular-nums ${item.grade_a_stock === 0 ? 'text-muted-foreground' : ''}`}>
-            {item.grade_a_stock.toLocaleString()}
+          <span className={`font-medium ${item.grade_a_stock === 0 ? 'text-muted-foreground' : ''}`}>
+            {item.grade_a_stock}
           </span>
         </div>
       ),
@@ -180,8 +158,8 @@ export default function Inventory() {
       render: (item: MergedInventoryItem) => (
         <div className="flex items-center gap-2">
           <GradeBadge grade="B" />
-          <span className={`font-semibold tabular-nums ${item.grade_b_stock === 0 ? 'text-muted-foreground' : ''}`}>
-            {item.grade_b_stock.toLocaleString()}
+          <span className={`font-medium ${item.grade_b_stock === 0 ? 'text-muted-foreground' : ''}`}>
+            {item.grade_b_stock}
           </span>
         </div>
       ),
@@ -192,8 +170,8 @@ export default function Inventory() {
       render: (item: MergedInventoryItem) => (
         <div className="flex items-center gap-2">
           <GradeBadge grade="C" />
-          <span className={`font-semibold tabular-nums ${item.grade_c_stock === 0 ? 'text-muted-foreground' : ''}`}>
-            {item.grade_c_stock.toLocaleString()}
+          <span className={`font-medium ${item.grade_c_stock === 0 ? 'text-muted-foreground' : ''}`}>
+            {item.grade_c_stock}
           </span>
         </div>
       ),
@@ -223,26 +201,21 @@ export default function Inventory() {
         <Skeleton className="h-10 w-48" />
         <div className="grid gap-4 sm:grid-cols-4">
           {[...Array(4)].map((_, i) => (
-            <Skeleton key={i} className="h-28 w-full rounded-2xl" />
+            <Skeleton key={i} className="h-20 w-full" />
           ))}
         </div>
-        <Skeleton className="h-[400px] w-full rounded-2xl" />
+        <Skeleton className="h-64 w-full" />
       </div>
     );
   }
 
   return (
-    <div className="space-y-6 animate-fade-in pb-6">
+    <div className="space-y-6 animate-fade-in">
       <PageHeader
         title="库存管理"
-        description={`展示所有产品SKU及其库存情况`}
-        badge={
-          <Badge variant="outline" className="font-normal">
-            共 {mergedData.length} 个SKU
-          </Badge>
-        }
+        description={`展示所有产品SKU及其库存情况（共 ${mergedData.length} 个SKU）`}
         actions={
-          <Button variant="outline" onClick={handleExport} className="shadow-sm">
+          <Button variant="outline" onClick={handleExport}>
             <Download className="mr-2 h-4 w-4" />
             导出数据
           </Button>
@@ -250,50 +223,35 @@ export default function Inventory() {
       />
 
       {/* Summary Cards */}
-      <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-4">
-        <StatCard
-          title="总库存"
-          value={totals.total}
-          icon={Warehouse}
-          variant="primary"
-        />
-        <StatCard
-          title="A级库存"
-          value={totals.gradeA}
-          icon={Package}
-          variant="info"
-        />
-        <StatCard
-          title="B级库存"
-          value={totals.gradeB}
-          icon={Package}
-          variant="warning"
-        />
-        <StatCard
-          title="C级库存"
-          value={totals.gradeC}
-          icon={Package}
-          variant="destructive"
-        />
+      <div className="grid gap-4 sm:grid-cols-4">
+        <div className="rounded-xl border bg-card p-4 text-center">
+          <p className="text-sm text-muted-foreground">总库存</p>
+          <p className="mt-1 text-2xl font-bold">{totals.total}</p>
+        </div>
+        <div className="rounded-xl border bg-info/10 p-4 text-center">
+          <p className="text-sm text-info">A级</p>
+          <p className="mt-1 text-2xl font-bold text-info">{totals.gradeA}</p>
+        </div>
+        <div className="rounded-xl border bg-warning/10 p-4 text-center">
+          <p className="text-sm text-warning">B级</p>
+          <p className="mt-1 text-2xl font-bold text-warning">{totals.gradeB}</p>
+        </div>
+        <div className="rounded-xl border bg-destructive/10 p-4 text-center">
+          <p className="text-sm text-destructive">C级</p>
+          <p className="mt-1 text-2xl font-bold text-destructive">{totals.gradeC}</p>
+        </div>
       </div>
 
       {/* Filters */}
-      <div className="rounded-xl border bg-card/50 backdrop-blur-sm p-4 shadow-sm">
-        <div className="flex flex-col gap-4 sm:flex-row sm:items-center">
-          <div className="relative flex-1 max-w-md">
-            <Search className="absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-muted-foreground" />
-            <Input
-              placeholder="搜索SKU或产品名称..."
-              value={searchTerm}
-              onChange={(e) => setSearchTerm(e.target.value)}
-              className="pl-10 bg-background/50"
-            />
-          </div>
-          {searchTerm && (
-            <Badge variant="secondary" className="font-normal">
-              筛选结果: {filteredData.length} 条
-            </Badge>
-          )}
+      <div className="flex flex-col gap-4 sm:flex-row">
+        <div className="relative flex-1">
+          <Search className="absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-muted-foreground" />
+          <Input
+            placeholder="搜索SKU或产品名称..."
+            value={searchTerm}
+            onChange={(e) => setSearchTerm(e.target.value)}
+            className="pl-10"
+          />
         </div>
       </div>
 
@@ -302,7 +260,6 @@ export default function Inventory() {
         columns={columns}
         data={filteredData}
         emptyMessage="暂无产品SKU记录"
-        emptyIcon={<Warehouse className="h-12 w-12 opacity-30" />}
       />
     </div>
   );

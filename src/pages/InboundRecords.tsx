@@ -1,10 +1,9 @@
 import { useState, useMemo } from "react";
-import { Search, X, Package, ClipboardList } from "lucide-react";
+import { Search, Filter, X } from "lucide-react";
 import { PageHeader } from "@/components/ui/page-header";
 import { Input } from "@/components/ui/input";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
-import { StatCard } from "@/components/ui/stat-card";
 import {
   Select,
   SelectContent,
@@ -95,21 +94,6 @@ export default function InboundRecords() {
     });
   }, [inboundItems, searchTerm, gradeFilter, dateFilter]);
 
-  // 统计数据
-  const stats = useMemo(() => {
-    const items = inboundItems || [];
-    const today = new Date();
-    today.setHours(0, 0, 0, 0);
-    
-    return {
-      total: items.length,
-      gradeA: items.filter(i => i.grade === 'A').length,
-      gradeB: items.filter(i => i.grade === 'B').length,
-      gradeC: items.filter(i => i.grade === 'C').length,
-      today: items.filter(i => new Date(i.processed_at) >= today).length,
-    };
-  }, [inboundItems]);
-
   // 获取某物流号下的已入库数量（不包含当前正在删除的项目）
   const getInboundedCountExcluding = (trackingNumber: string, excludeIds: string[]) => {
     return (inboundItems || []).filter(
@@ -117,16 +101,18 @@ export default function InboundRecords() {
     ).length;
   };
 
-  // 更新货件状态
+  // 更新货件状态（如果入库数量小于申报数量，将状态从 inbound 改回 arrived）
   const updateShipmentStatusAfterDelete = (trackingNumber: string, excludeIds: string[]) => {
     if (!trackingNumber || !shipments) return;
     
+    // 找到该物流号的所有货件
     const matchedShipments = shipments.filter(s => s.tracking_number === trackingNumber);
     if (matchedShipments.length === 0) return;
     
     const totalQuantity = matchedShipments.reduce((sum, s) => sum + s.quantity, 0);
     const remainingInbounded = getInboundedCountExcluding(trackingNumber, excludeIds);
     
+    // 如果删除后入库数量小于申报数量，更新货件状态
     if (remainingInbounded < totalQuantity) {
       matchedShipments.forEach(shipment => {
         if (shipment.status === "inbound") {
@@ -161,6 +147,7 @@ export default function InboundRecords() {
           });
         }
         
+        // 更新货件差异数据
         if (itemToDelete.tracking_number) {
           updateShipmentStatusAfterDelete(itemToDelete.tracking_number, [deleteId]);
         }
@@ -176,6 +163,8 @@ export default function InboundRecords() {
     if (deleteIds.length === 0 || !inboundItems) return;
     
     let successCount = 0;
+    
+    // 收集需要更新状态的物流号
     const trackingNumbersToUpdate = new Set<string>();
     
     for (const id of deleteIds) {
@@ -198,6 +187,7 @@ export default function InboundRecords() {
           });
         }
         
+        // 记录物流号
         if (itemToDelete.tracking_number) {
           trackingNumbersToUpdate.add(itemToDelete.tracking_number);
         }
@@ -207,6 +197,7 @@ export default function InboundRecords() {
       }
     }
     
+    // 更新所有相关货件的状态
     trackingNumbersToUpdate.forEach(trackingNumber => {
       updateShipmentStatusAfterDelete(trackingNumber, deleteIds);
     });
@@ -233,12 +224,7 @@ export default function InboundRecords() {
     return (
       <div className="space-y-6">
         <Skeleton className="h-10 w-48" />
-        <div className="grid gap-4 sm:grid-cols-4">
-          {[...Array(4)].map((_, i) => (
-            <Skeleton key={i} className="h-24 w-full rounded-2xl" />
-          ))}
-        </div>
-        <Skeleton className="h-[400px] w-full rounded-2xl" />
+        <Skeleton className="h-64 w-full" />
       </div>
     );
   }
@@ -248,98 +234,65 @@ export default function InboundRecords() {
       <PageHeader
         title="入库记录"
         description="查看所有已入库的产品记录"
-        badge={
-          <Badge variant="outline" className="font-normal">
-            共 {inboundItems?.length || 0} 条
-          </Badge>
-        }
       />
 
-      {/* 统计卡片 */}
-      <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-4">
-        <StatCard
-          title="总入库"
-          value={stats.total}
-          subtitle={`今日入库 ${stats.today} 件`}
-          icon={ClipboardList}
-          variant="primary"
-        />
-        <StatCard
-          title="A级"
-          value={stats.gradeA}
-          icon={Package}
-          variant="info"
-        />
-        <StatCard
-          title="B级"
-          value={stats.gradeB}
-          icon={Package}
-          variant="warning"
-        />
-        <StatCard
-          title="C级"
-          value={stats.gradeC}
-          icon={Package}
-          variant="destructive"
-        />
-      </div>
-
       {/* 筛选区域 */}
-      <div className="rounded-xl border bg-card/50 backdrop-blur-sm p-4 shadow-sm">
-        <div className="flex flex-col gap-4 lg:flex-row lg:items-center lg:justify-between">
-          <div className="flex flex-col gap-3 sm:flex-row sm:items-center flex-1">
-            {/* 搜索框 */}
-            <div className="relative flex-1 max-w-md">
-              <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
-              <Input
-                placeholder="搜索LPN、SKU、产品名称、物流号..."
-                value={searchTerm}
-                onChange={(e) => setSearchTerm(e.target.value)}
-                className="pl-9 bg-background/50"
-              />
-            </div>
-            
-            {/* 级别筛选 */}
-            <Select value={gradeFilter} onValueChange={setGradeFilter}>
-              <SelectTrigger className="w-[130px]">
-                <SelectValue placeholder="全部级别" />
-              </SelectTrigger>
-              <SelectContent>
-                <SelectItem value="all">全部级别</SelectItem>
-                <SelectItem value="A">A级</SelectItem>
-                <SelectItem value="B">B级</SelectItem>
-                <SelectItem value="C">C级</SelectItem>
-              </SelectContent>
-            </Select>
-            
-            {/* 日期筛选 */}
-            <Select value={dateFilter} onValueChange={setDateFilter}>
-              <SelectTrigger className="w-[130px]">
-                <SelectValue placeholder="全部时间" />
-              </SelectTrigger>
-              <SelectContent>
-                <SelectItem value="all">全部时间</SelectItem>
-                <SelectItem value="today">今天</SelectItem>
-                <SelectItem value="week">最近7天</SelectItem>
-                <SelectItem value="month">最近30天</SelectItem>
-              </SelectContent>
-            </Select>
-            
-            {/* 清除筛选 */}
-            {hasActiveFilters && (
-              <Button variant="ghost" size="sm" onClick={clearFilters} className="shrink-0">
-                <X className="h-4 w-4 mr-1" />
-                清除筛选
-              </Button>
-            )}
+      <div className="flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
+        <div className="flex flex-col gap-3 sm:flex-row sm:items-center flex-1">
+          {/* 搜索框 */}
+          <div className="relative flex-1 max-w-sm">
+            <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
+            <Input
+              placeholder="搜索LPN、SKU、产品名称、物流号..."
+              value={searchTerm}
+              onChange={(e) => setSearchTerm(e.target.value)}
+              className="pl-9"
+            />
           </div>
           
-          <div className="flex items-center gap-3 shrink-0">
-            {hasActiveFilters && (
-              <Badge variant="secondary" className="font-normal">
-                筛选结果: {filteredItems.length} 条
-              </Badge>
-            )}
+          {/* 级别筛选 */}
+          <Select value={gradeFilter} onValueChange={setGradeFilter}>
+            <SelectTrigger className="w-[120px]">
+              <SelectValue placeholder="全部级别" />
+            </SelectTrigger>
+            <SelectContent>
+              <SelectItem value="all">全部级别</SelectItem>
+              <SelectItem value="A">A级</SelectItem>
+              <SelectItem value="B">B级</SelectItem>
+              <SelectItem value="C">C级</SelectItem>
+            </SelectContent>
+          </Select>
+          
+          {/* 日期筛选 */}
+          <Select value={dateFilter} onValueChange={setDateFilter}>
+            <SelectTrigger className="w-[120px]">
+              <SelectValue placeholder="全部时间" />
+            </SelectTrigger>
+            <SelectContent>
+              <SelectItem value="all">全部时间</SelectItem>
+              <SelectItem value="today">今天</SelectItem>
+              <SelectItem value="week">最近7天</SelectItem>
+              <SelectItem value="month">最近30天</SelectItem>
+            </SelectContent>
+          </Select>
+          
+          {/* 清除筛选 */}
+          {hasActiveFilters && (
+            <Button variant="ghost" size="sm" onClick={clearFilters}>
+              <X className="h-4 w-4 mr-1" />
+              清除筛选
+            </Button>
+          )}
+        </div>
+        
+        <div className="flex items-center gap-2">
+          {hasActiveFilters && (
+            <Badge variant="secondary">
+              筛选结果: {filteredItems.length} 条
+            </Badge>
+          )}
+          <div className="text-sm text-muted-foreground">
+            共 {inboundItems?.length || 0} 条记录
           </div>
         </div>
       </div>
@@ -364,7 +317,7 @@ export default function InboundRecords() {
             <AlertDialogCancel>取消</AlertDialogCancel>
             <AlertDialogAction
               onClick={handleDelete}
-              className="bg-destructive text-destructive-foreground hover:bg-destructive/90"
+              className="bg-destructive text-destructive-foreground"
             >
               删除
             </AlertDialogAction>
@@ -386,7 +339,7 @@ export default function InboundRecords() {
             <AlertDialogCancel>取消</AlertDialogCancel>
             <AlertDialogAction
               onClick={handleBatchDelete}
-              className="bg-destructive text-destructive-foreground hover:bg-destructive/90"
+              className="bg-destructive text-destructive-foreground"
             >
               确认删除 {deleteIds.length} 条
             </AlertDialogAction>

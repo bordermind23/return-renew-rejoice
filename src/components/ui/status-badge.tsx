@@ -1,65 +1,50 @@
 import { cn } from "@/lib/utils";
-import { Truck, PackageCheck, Package, CheckCircle, Clock, Archive } from "lucide-react";
 
 type StatusType = "shipping" | "arrived" | "inbound" | "shelved" | "pending" | "completed";
 
 interface StatusBadgeProps {
   status: StatusType;
   className?: string;
-  showIcon?: boolean;
 }
 
-const statusConfig: Record<StatusType, { 
-  label: string; 
-  className: string;
-  icon: React.ComponentType<{ className?: string }>;
-}> = {
+const statusConfig: Record<StatusType, { label: string; className: string }> = {
   shipping: {
     label: "发货中",
-    className: "bg-blue-500/10 text-blue-600 dark:text-blue-400 border-blue-500/30",
-    icon: Truck,
+    className: "bg-info/10 text-info border-info/20",
   },
   arrived: {
     label: "到货",
-    className: "bg-yellow-500/10 text-yellow-600 dark:text-yellow-400 border-yellow-500/30",
-    icon: Package,
+    className: "bg-warning/10 text-warning border-warning/20",
   },
   inbound: {
     label: "入库",
-    className: "bg-purple-500/10 text-purple-600 dark:text-purple-400 border-purple-500/30",
-    icon: PackageCheck,
+    className: "bg-primary/10 text-primary border-primary/20",
   },
   shelved: {
     label: "上架",
-    className: "bg-green-500/10 text-green-600 dark:text-green-400 border-green-500/30",
-    icon: Archive,
+    className: "bg-success/10 text-success border-success/20",
   },
   pending: {
     label: "待处理",
     className: "bg-muted text-muted-foreground border-border",
-    icon: Clock,
   },
   completed: {
     label: "已完成",
-    className: "bg-green-500/10 text-green-600 dark:text-green-400 border-green-500/30",
-    icon: CheckCircle,
+    className: "bg-success/10 text-success border-success/20",
   },
 };
 
-export function StatusBadge({ status, className, showIcon = true }: StatusBadgeProps) {
+export function StatusBadge({ status, className }: StatusBadgeProps) {
   const config = statusConfig[status];
-  const Icon = config.icon;
 
   return (
     <span
       className={cn(
-        "inline-flex items-center gap-1.5 rounded-lg border px-2 py-1 text-xs font-medium",
-        "transition-colors",
+        "inline-flex items-center rounded-full border px-2.5 py-0.5 text-xs font-medium",
         config.className,
         className
       )}
     >
-      {showIcon && <Icon className="h-3 w-3" />}
       {config.label}
     </span>
   );

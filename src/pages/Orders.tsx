@@ -1,5 +1,5 @@
 import React, { useState, useRef, useMemo } from "react";
-import { Eye, Plus, Trash2, Upload, Download, FileSpreadsheet, ChevronDown, AlertCircle, CheckCircle2, Loader2, Edit, ChevronUp, Package, Wrench, X, ChevronLeft, ChevronRight } from "lucide-react";
+import { Eye, Plus, Trash2, Upload, Download, FileSpreadsheet, ChevronDown, AlertCircle, CheckCircle2, Loader2, Edit, ChevronUp, Package, Wrench, X, ChevronLeft, ChevronRight, RefreshCw, Settings2 } from "lucide-react";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -44,11 +44,15 @@ import { Checkbox } from "@/components/ui/checkbox";
 import { GradeBadge } from "@/components/ui/grade-badge";
 import { OrderStatusBadge } from "@/components/ui/order-status-badge";
 import { GradeEditDialog } from "@/components/GradeEditDialog";
+import { ImageLightbox } from "@/components/ui/image-lightbox";
 
 import { OrderFilters } from "@/components/orders/OrderFilters";
 import { OrderStatsCards } from "@/components/orders/OrderStatsCards";
 import { OrderPagination } from "@/components/orders/OrderPagination";
 import { OrderTableRow } from "@/components/orders/OrderTableRow";
+import { QuickFilters, type QuickFilterPreset } from "@/components/orders/QuickFilters";
+import { BulkStatusDialog } from "@/components/orders/BulkStatusDialog";
+import { BulkGradeDialog } from "@/components/orders/BulkGradeDialog";
 import {
   useOrdersPaginated,
   useOrderStores,
@@ -129,7 +133,17 @@ export default function Orders() {
   const [deleteId, setDeleteId] = useState<string | null>(null);
   const [isBulkDeleteOpen, setIsBulkDeleteOpen] = useState(false);
   const [isBulkEditOpen, setIsBulkEditOpen] = useState(false);
+  const [isBulkStatusOpen, setIsBulkStatusOpen] = useState(false);
+  const [isBulkGradeOpen, setIsBulkGradeOpen] = useState(false);
   const [gradeEditOrder, setGradeEditOrder] = useState<Order | null>(null);
+  
+  // 图片查看器状态
+  const [lightboxImages, setLightboxImages] = useState<string[]>([]);
+  const [lightboxOpen, setLightboxOpen] = useState(false);
+  const [lightboxIndex, setLightboxIndex] = useState(0);
+  
+  // 快速筛选
+  const [activeQuickFilter, setActiveQuickFilter] = useState<string | null>(null);
   
   // 选择状态
   const [selectedIds, setSelectedIds] = useState<string[]>([]);
@@ -281,7 +295,79 @@ export default function Orders() {
     setStoreFilter("all");
     setStatusFilters([]);
     setGradeFilter("all");
+    setActiveQuickFilter(null);
     setCurrentPage(1);
+  };
+
+  // 统计卡片点击筛选
+  const handleStatsCardClick = (status: "未到货" | "到货" | "出库" | null) => {
+    if (status === null) {
+      clearAllFilters();
+    } else {
+      setStatusFilters([status]);
+      setActiveQuickFilter(null);
+      setCurrentPage(1);
+    }
+  };
+
+  // 快速筛选预设
+  const handleQuickFilterChange = (preset: QuickFilterPreset | null) => {
+    if (preset === null) {
+      setActiveQuickFilter(null);
+      setStatusFilters([]);
+      setGradeFilter("all");
+    } else {
+      setActiveQuickFilter(preset.id);
+      if (preset.filter.statusFilters) {
+        setStatusFilters(preset.filter.statusFilters);
+      } else {
+        setStatusFilters([]);
+      }
+      if (preset.filter.gradeFilter) {
+        setGradeFilter(preset.filter.gradeFilter);
+      } else {
+        setGradeFilter("all");
+      }
+    }
+    setCurrentPage(1);
+  };
+
+  // 打开图片查看器
+  const openLightbox = (images: string[], index = 0) => {
+    setLightboxImages(images);
+    setLightboxIndex(index);
+    setLightboxOpen(true);
+  };
+
+  // 批量更新状态
+  const handleBulkStatusUpdate = (status: "未到货" | "到货" | "出库") => {
+    const now = new Date().toISOString();
+    const updates: OrderUpdate = { status };
+    
+    if (status === "到货") {
+      updates.inbound_at = now;
+    } else if (status === "出库") {
+      updates.removed_at = now;
+    }
+    
+    bulkUpdateMutation.mutate({ ids: selectedIds, updates }, {
+      onSuccess: () => {
+        toast.success(`已更新 ${selectedIds.length} 条订单状态`);
+        setIsBulkStatusOpen(false);
+        setSelectedIds([]);
+      }
+    });
+  };
+
+  // 批量更新等级
+  const handleBulkGradeUpdate = (grade: "A" | "B" | "C") => {
+    bulkUpdateMutation.mutate({ ids: selectedIds, updates: { grade } }, {
+      onSuccess: () => {
+        toast.success(`已更新 ${selectedIds.length} 条订单等级`);
+        setIsBulkGradeOpen(false);
+        setSelectedIds([]);
+      }
+    });
   };
 
   const toggleGroup = (groupKey: string) => {
@@ -928,8 +1014,18 @@ export default function Orders() {
         }
       />
 
-      {/* 统计卡片 */}
-      <OrderStatsCards stats={stats} />
+      {/* 统计卡片 - 可点击筛选 */}
+      <OrderStatsCards 
+        stats={stats} 
+        activeFilter={statusFilters.length === 1 ? statusFilters[0] : null}
+        onFilterClick={handleStatsCardClick}
+      />
+
+      {/* 快速筛选预设 */}
+      <QuickFilters 
+        activePreset={activeQuickFilter} 
+        onPresetChange={handleQuickFilterChange}
+      />
 
       {/* 导入进度 */}
       {(importProgress.isImporting || importProgress.showResult) && (
@@ -993,6 +1089,14 @@ export default function Orders() {
           <CardContent className="py-3 flex flex-col sm:flex-row items-start sm:items-center justify-between gap-2">
             <span className="text-sm font-medium">已选择 {selectedIds.length} 条记录</span>
             <div className="flex gap-2 flex-wrap">
+              <Button variant="outline" size="sm" onClick={() => setIsBulkStatusOpen(true)}>
+                <RefreshCw className="h-4 w-4 sm:mr-2" />
+                <span className="hidden sm:inline">批量改状态</span>
+              </Button>
+              <Button variant="outline" size="sm" onClick={() => setIsBulkGradeOpen(true)}>
+                <Settings2 className="h-4 w-4 sm:mr-2" />
+                <span className="hidden sm:inline">批量改等级</span>
+              </Button>
               <Button variant="outline" size="sm" onClick={() => setIsBulkEditOpen(true)}>
                 <Edit className="h-4 w-4 sm:mr-2" />
                 <span className="hidden sm:inline">批量编辑</span>
@@ -1415,6 +1519,32 @@ export default function Orders() {
         onSave={handleGradeSave}
         lpn={gradeEditOrder?.lpn || ""}
         currentGrade={gradeEditOrder?.grade || inboundByLpn[gradeEditOrder?.lpn || ""]?.grade || null}
+      />
+
+      {/* 批量状态更新对话框 */}
+      <BulkStatusDialog
+        open={isBulkStatusOpen}
+        onOpenChange={setIsBulkStatusOpen}
+        selectedCount={selectedIds.length}
+        onConfirm={handleBulkStatusUpdate}
+        isLoading={bulkUpdateMutation.isPending}
+      />
+
+      {/* 批量等级更新对话框 */}
+      <BulkGradeDialog
+        open={isBulkGradeOpen}
+        onOpenChange={setIsBulkGradeOpen}
+        selectedCount={selectedIds.length}
+        onConfirm={handleBulkGradeUpdate}
+        isLoading={bulkUpdateMutation.isPending}
+      />
+
+      {/* 图片查看器 */}
+      <ImageLightbox
+        images={lightboxImages}
+        initialIndex={lightboxIndex}
+        open={lightboxOpen}
+        onOpenChange={setLightboxOpen}
       />
     </div>
   );

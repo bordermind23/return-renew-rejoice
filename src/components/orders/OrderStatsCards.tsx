@@ -1,4 +1,5 @@
 import { Package, PackageCheck, Truck, BarChart3 } from "lucide-react";
+import { cn } from "@/lib/utils";
 
 interface OrderStats {
   total: number;
@@ -7,18 +8,30 @@ interface OrderStats {
   shipped: number;
 }
 
+type StatusFilter = "未到货" | "到货" | "出库" | null;
+
 interface OrderStatsCardsProps {
   stats: OrderStats;
+  activeFilter?: StatusFilter;
+  onFilterClick?: (filter: StatusFilter) => void;
 }
 
-export function OrderStatsCards({ stats }: OrderStatsCardsProps) {
-  const cards = [
+export function OrderStatsCards({ stats, activeFilter, onFilterClick }: OrderStatsCardsProps) {
+  const cards: {
+    label: string;
+    value: number;
+    icon: typeof Package;
+    color: string;
+    bgColor: string;
+    filter: StatusFilter;
+  }[] = [
     {
       label: "总订单",
       value: stats.total,
       icon: BarChart3,
       color: "text-primary",
       bgColor: "bg-primary/10",
+      filter: null,
     },
     {
       label: "未到货",
@@ -26,6 +39,7 @@ export function OrderStatsCards({ stats }: OrderStatsCardsProps) {
       icon: Package,
       color: "text-warning",
       bgColor: "bg-warning/10",
+      filter: "未到货",
     },
     {
       label: "已到货",
@@ -33,6 +47,7 @@ export function OrderStatsCards({ stats }: OrderStatsCardsProps) {
       icon: PackageCheck,
       color: "text-success",
       bgColor: "bg-success/10",
+      filter: "到货",
     },
     {
       label: "已出库",
@@ -40,25 +55,38 @@ export function OrderStatsCards({ stats }: OrderStatsCardsProps) {
       icon: Truck,
       color: "text-info",
       bgColor: "bg-info/10",
+      filter: "出库",
     },
   ];
 
   return (
     <div className="grid grid-cols-2 lg:grid-cols-4 gap-3">
-      {cards.map((card) => (
-        <div
-          key={card.label}
-          className="flex items-center gap-3 p-4 bg-card rounded-xl border transition-shadow hover:shadow-sm"
-        >
-          <div className={`p-2.5 rounded-lg ${card.bgColor}`}>
-            <card.icon className={`h-5 w-5 ${card.color}`} />
-          </div>
-          <div>
-            <p className="text-2xl font-bold tabular-nums">{card.value.toLocaleString()}</p>
-            <p className="text-xs text-muted-foreground">{card.label}</p>
-          </div>
-        </div>
-      ))}
+      {cards.map((card) => {
+        const isActive = activeFilter === card.filter || (activeFilter === null && card.filter === null);
+        const isClickable = onFilterClick && card.filter !== null;
+        
+        return (
+          <button
+            key={card.label}
+            onClick={() => isClickable && onFilterClick(card.filter === activeFilter ? null : card.filter)}
+            disabled={!isClickable}
+            className={cn(
+              "flex items-center gap-3 p-4 bg-card rounded-xl border transition-all text-left",
+              isClickable && "cursor-pointer hover:shadow-md hover:border-primary/30 active:scale-[0.98]",
+              isActive && card.filter !== null && "ring-2 ring-primary/30 border-primary/50",
+              !isClickable && "cursor-default"
+            )}
+          >
+            <div className={cn("p-2.5 rounded-lg transition-colors", card.bgColor)}>
+              <card.icon className={cn("h-5 w-5", card.color)} />
+            </div>
+            <div>
+              <p className="text-2xl font-bold tabular-nums">{card.value.toLocaleString()}</p>
+              <p className="text-xs text-muted-foreground">{card.label}</p>
+            </div>
+          </button>
+        );
+      })}
     </div>
   );
 }

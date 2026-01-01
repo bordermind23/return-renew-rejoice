@@ -676,6 +676,7 @@ export type Database = {
       [_ in never]: never
     }
     Functions: {
+      get_order_stats_by_unique_lpn: { Args: never; Returns: Json }
       has_role: {
         Args: {
           _role: Database["public"]["Enums"]["app_role"]

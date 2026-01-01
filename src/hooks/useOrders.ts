@@ -120,60 +120,22 @@ export const useOrdersPaginated = (page: number, pageSize: number = 50, filters:
   });
 };
 
-// 获取订单状态统计（按唯一LPN计算，相同LPN算作一个订单）
+// 获取订单状态统计（按唯一LPN计算，使用数据库函数）
 export const useOrderStats = () => {
   return useQuery({
     queryKey: ["orders", "stats"],
     queryFn: async () => {
-      // 分别获取各状态的唯一LPN数量
-      // 使用 RPC 或分页获取所有数据会更准确，但这里用 count 方式近似
+      const { data, error } = await supabase.rpc('get_order_stats_by_unique_lpn');
       
-      // 获取所有唯一的 LPN 总数
-      const { data: allLpns, error: allError } = await supabase
-        .from("orders")
-        .select("lpn")
-        .limit(10000);
+      if (error) throw error;
       
-      if (allError) throw allError;
-      
-      // 获取未到货状态的订单
-      const { data: pendingData, error: pendingError } = await supabase
-        .from("orders")
-        .select("lpn")
-        .eq("status", "未到货")
-        .limit(10000);
-      
-      if (pendingError) throw pendingError;
-      
-      // 获取到货状态的订单
-      const { data: arrivedData, error: arrivedError } = await supabase
-        .from("orders")
-        .select("lpn")
-        .eq("status", "到货")
-        .limit(10000);
-      
-      if (arrivedError) throw arrivedError;
-      
-      // 获取出库状态的订单
-      const { data: shippedData, error: shippedError } = await supabase
-        .from("orders")
-        .select("lpn")
-        .eq("status", "出库")
-        .limit(10000);
-      
-      if (shippedError) throw shippedError;
-      
-      // 按唯一 LPN 计算
-      const uniqueTotal = new Set(allLpns?.map(o => o.lpn) || []).size;
-      const uniquePending = new Set(pendingData?.map(o => o.lpn) || []).size;
-      const uniqueArrived = new Set(arrivedData?.map(o => o.lpn) || []).size;
-      const uniqueShipped = new Set(shippedData?.map(o => o.lpn) || []).size;
+      const stats = data as { total: number; pending: number; arrived: number; shipped: number } | null;
       
       return {
-        total: uniqueTotal,
-        pending: uniquePending,
-        arrived: uniqueArrived,
-        shipped: uniqueShipped,
+        total: stats?.total || 0,
+        pending: stats?.pending || 0,
+        arrived: stats?.arrived || 0,
+        shipped: stats?.shipped || 0,
       };
     },
   });

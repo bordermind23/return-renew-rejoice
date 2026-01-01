@@ -16,7 +16,7 @@ import { useCreateInboundItem, useInboundItems } from "@/hooks/useInboundItems";
 import { useUpdateInventoryStock } from "@/hooks/useInventoryItems";
 import { useProducts, useProductParts } from "@/hooks/useProducts";
 import { fetchOrdersByLpn } from "@/hooks/useOrdersByLpn";
-import { type Order } from "@/hooks/useOrders";
+import { type Order, useUpdateOrder } from "@/hooks/useOrders";
 import { useSound } from "@/hooks/useSound";
 import { toast } from "sonner";
 import { cn } from "@/lib/utils";
@@ -43,6 +43,7 @@ export default function InboundProcess() {
   const createMutation = useCreateInboundItem();
   const updateShipmentMutation = useUpdateRemovalShipment();
   const updateInventoryMutation = useUpdateInventoryStock();
+  const updateOrderMutation = useUpdateOrder();
 
   // 使用退货订单的SKU来匹配产品
   const orderSku = matchedOrders.length > 0 && matchedOrders[0].product_sku
@@ -153,6 +154,16 @@ export default function InboundProcess() {
             grade: "A" as "A" | "B" | "C",
             quantity: returnQty,
           });
+
+          // 更新对应订单的入库时间（触发器会自动更新状态为"到货"）
+          if (matchedOrders.length > 0) {
+            for (const order of matchedOrders) {
+              updateOrderMutation.mutate({
+                id: order.id,
+                inbound_at: new Date().toISOString(),
+              }, { onSuccess: () => {}, onError: () => {} }); // 静默处理
+            }
+          }
 
           const totalInbounded = getInboundedCount(matchedShipment.tracking_number) + 1;
           

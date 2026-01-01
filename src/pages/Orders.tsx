@@ -465,29 +465,25 @@ export default function Orders() {
           const validItems: OrderInsert[] = [];
           const updateItems: { id: string; lpn: string; data: OrderUpdate }[] = [];
           
-          // 从数据库获取所有"待同步"状态的订单
-          const { data: pendingOrdersData } = await supabase
-            .from("orders")
-            .select("*")
-            .eq("status", "待同步");
-          
-          // 构建"无入库信息"临时订单映射：LPN -> order
-          const pendingOrdersMap = new Map<string, Order>();
-          (pendingOrdersData || []).forEach(o => {
-            const lpnLower = o.lpn.toLowerCase();
-            pendingOrdersMap.set(lpnLower, o as Order);
-          });
-          
-          // 构建现有订单映射：LPN -> 是否存在（LPN唯一性检查）
-          // 需要获取所有现有订单来检查重复
+          // 从数据库获取所有订单（需要检查待同步和重复）
           const { data: allOrdersData } = await supabase
             .from("orders")
-            .select("id, lpn, order_number");
+            .select("*");
           
-          // LPN唯一性检查：已存在的LPN集合
+          // 构建待同步订单映射：LPN -> order（status为"待同步"或order_number为"待同步"）
+          const pendingOrdersMap = new Map<string, Order>();
+          // LPN唯一性检查：已存在的非待同步订单LPN集合
           const existingLpnSet = new Set<string>();
+          
           (allOrdersData || []).forEach(o => {
-            existingLpnSet.add(o.lpn.toLowerCase());
+            const lpnLower = o.lpn.toLowerCase();
+            // 判断是否是待同步订单（通过status或order_number判断）
+            const isPending = o.status === "待同步" || o.order_number === "待同步" || o.removal_order_id === "无入库信息";
+            if (isPending) {
+              pendingOrdersMap.set(lpnLower, o as Order);
+            } else {
+              existingLpnSet.add(lpnLower);
+            }
           });
           
           // 本次导入中已处理的LPN集合

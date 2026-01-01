@@ -76,35 +76,29 @@ Deno.serve(async (req) => {
     const body = await req.json();
     console.log("Request body:", JSON.stringify({ ...body, password: "***" }));
     
-    const { email, username, password, role } = body;
+    const { username, password, role } = body;
 
-    // Support both email and username - if username provided without @, treat as username
-    let finalEmail = email || username;
-    
-    // If it looks like a username (no @), create a fake email for it
-    if (finalEmail && !finalEmail.includes("@")) {
-      // Store the username in user metadata
-      finalEmail = `${finalEmail}@placeholder.local`;
-    }
-
-    if (!finalEmail || !password || !role) {
-      console.error("Missing required params:", { email: !!finalEmail, password: !!password, role: !!role });
+    if (!username || !password || !role) {
+      console.error("Missing required params:", { username: !!username, password: !!password, role: !!role });
       return new Response(
-        JSON.stringify({ error: "缺少必要参数（邮箱/用户名、密码、角色）" }),
+        JSON.stringify({ error: "缺少必要参数（用户名、密码、角色）" }),
         { status: 400, headers: { ...corsHeaders, "Content-Type": "application/json" } }
       );
     }
 
+    // Create a placeholder email for Supabase Auth (required)
+    const placeholderEmail = `${username}@placeholder.local`;
+
     // Create the user using service role
-    console.log("Creating user with email:", finalEmail);
+    console.log("Creating user with username:", username);
     
     const { data: newUser, error: createError } = await supabaseClient.auth.admin.createUser({
-      email: finalEmail,
+      email: placeholderEmail,
       password,
       email_confirm: true, // Auto-confirm the email
       user_metadata: {
-        username: email || username,
-        display_name: email || username,
+        username: username,
+        display_name: username,
       }
     });
 
@@ -117,6 +111,22 @@ Deno.serve(async (req) => {
     }
 
     console.log("User created successfully:", newUser?.user?.id);
+
+    // Update the profiles table to show the actual username instead of placeholder email
+    if (newUser.user) {
+      const { error: profileUpdateError } = await supabaseClient
+        .from("profiles")
+        .update({ email: username })
+        .eq("id", newUser.user.id);
+      
+      if (profileUpdateError) {
+        console.error("Error updating profile:", profileUpdateError.message);
+      } else {
+        console.log("Profile updated with username:", username);
+      }
+    }
+
+    // The user_roles entry should be created by the trigger, but let's update it with the correct role
 
     // The user_roles entry should be created by the trigger, but let's update it with the correct role
     if (newUser.user) {

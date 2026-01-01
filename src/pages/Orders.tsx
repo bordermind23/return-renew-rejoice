@@ -1051,7 +1051,7 @@ export default function Orders() {
                 <TableHead className="w-[130px]">LPN</TableHead>
                 <TableHead className="min-w-[180px]">产品名称</TableHead>
                 <TableHead className="w-[120px]">SKU</TableHead>
-                <TableHead className="text-center w-[80px]">等级</TableHead>
+                <TableHead className="w-[100px]">等级</TableHead>
                 <TableHead className="text-center w-[60px]">照片</TableHead>
                 <TableHead className="text-center w-[60px]">数量</TableHead>
                 <TableHead className="w-[140px]">订单号</TableHead>

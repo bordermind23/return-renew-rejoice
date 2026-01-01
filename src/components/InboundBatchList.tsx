@@ -1,5 +1,5 @@
 import { useState, useMemo } from "react";
-import { ChevronDown, ChevronRight, Package, Trash2, Image, CheckSquare, Square, Minus } from "lucide-react";
+import { ChevronDown, ChevronRight, Package, Trash2, Image } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Card } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
@@ -18,13 +18,8 @@ import {
   CollapsibleContent,
   CollapsibleTrigger,
 } from "@/components/ui/collapsible";
-import {
-  Dialog,
-  DialogContent,
-  DialogHeader,
-  DialogTitle,
-} from "@/components/ui/dialog";
 import { ScrollArea, ScrollBar } from "@/components/ui/scroll-area";
+import { PhotoViewDialog } from "@/components/PhotoViewDialog";
 import { type InboundItem } from "@/hooks/useInboundItems";
 import { cn } from "@/lib/utils";
 
@@ -355,48 +350,32 @@ export function InboundBatchList({ items, onDelete, onBatchDelete, enableBatchSe
         );
       })}
 
-      {/* 照片查看弹窗 */}
-      <Dialog open={!!photoViewItem} onOpenChange={() => setPhotoViewItem(null)}>
-        <DialogContent className="max-w-4xl max-h-[90vh] overflow-hidden">
-          <DialogHeader>
-            <DialogTitle>产品照片 - {photoViewItem?.lpn}</DialogTitle>
-          </DialogHeader>
-          <ScrollArea className="max-h-[70vh]">
-            {photoViewItem && (
-              <div className="grid grid-cols-2 md:grid-cols-3 gap-4 p-1">
-                {[
-                  { key: 'lpn_label_photo', label: 'LPN标签' },
-                  { key: 'packaging_photo_1', label: '包装照片1' },
-                  { key: 'packaging_photo_2', label: '包装照片2' },
-                  { key: 'packaging_photo_3', label: '包装照片3' },
-                  { key: 'packaging_photo_4', label: '包装照片4' },
-                  { key: 'packaging_photo_5', label: '包装照片5' },
-                  { key: 'packaging_photo_6', label: '包装照片6' },
-                  { key: 'accessories_photo', label: '配件照片' },
-                  { key: 'detail_photo', label: '细节照片' },
-                  { key: 'product_photo', label: '产品照片' },
-                  { key: 'package_photo', label: '包裹照片' },
-                ].map(({ key, label }) => {
-                  const url = photoViewItem[key as keyof InboundItem] as string | null;
-                  if (!url) return null;
-                  return (
-                    <div key={key} className="space-y-2">
-                      <p className="text-sm font-medium text-muted-foreground">{label}</p>
-                      <div className="aspect-square rounded-lg border overflow-hidden bg-muted">
-                        <img
-                          src={url}
-                          alt={label}
-                          className="w-full h-full object-cover"
-                        />
-                      </div>
-                    </div>
-                  );
-                })}
-              </div>
-            )}
-          </ScrollArea>
-        </DialogContent>
-      </Dialog>
+      {/* 照片查看弹窗 - 使用优化后的 PhotoViewDialog */}
+      {photoViewItem && (
+        <PhotoViewDialog
+          open={!!photoViewItem}
+          onOpenChange={() => setPhotoViewItem(null)}
+          title={`入库照片 - ${photoViewItem.lpn}`}
+          photos={[
+            { key: 'lpn_label_photo', label: 'LPN标签' },
+            { key: 'packaging_photo_1', label: '包装照片1' },
+            { key: 'packaging_photo_2', label: '包装照片2' },
+            { key: 'packaging_photo_3', label: '包装照片3' },
+            { key: 'packaging_photo_4', label: '包装照片4' },
+            { key: 'packaging_photo_5', label: '包装照片5' },
+            { key: 'packaging_photo_6', label: '包装照片6' },
+            { key: 'accessories_photo', label: '配件照片' },
+            { key: 'detail_photo', label: '细节照片' },
+            { key: 'product_photo', label: '产品照片' },
+            { key: 'package_photo', label: '包裹照片' },
+          ]
+            .map(({ key, label }) => {
+              const url = photoViewItem[key as keyof InboundItem] as string | null;
+              return url ? { key, label, url } : null;
+            })
+            .filter((item): item is { key: string; label: string; url: string } => item !== null)}
+        />
+      )}
     </div>
   );
 }

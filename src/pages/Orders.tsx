@@ -44,7 +44,7 @@ import { Checkbox } from "@/components/ui/checkbox";
 import { GradeBadge } from "@/components/ui/grade-badge";
 import { OrderStatusBadge } from "@/components/ui/order-status-badge";
 import { GradeEditDialog } from "@/components/GradeEditDialog";
-import { PhotoViewDialog } from "@/components/PhotoViewDialog";
+
 import { OrderFilters } from "@/components/orders/OrderFilters";
 import { OrderStatsCards } from "@/components/orders/OrderStatsCards";
 import { OrderPagination } from "@/components/orders/OrderPagination";
@@ -109,7 +109,6 @@ export default function Orders() {
   const [isBulkDeleteOpen, setIsBulkDeleteOpen] = useState(false);
   const [isBulkEditOpen, setIsBulkEditOpen] = useState(false);
   const [gradeEditOrder, setGradeEditOrder] = useState<Order | null>(null);
-  const [photoViewOrder, setPhotoViewOrder] = useState<Order | null>(null);
   
   // 选择状态
   const [selectedIds, setSelectedIds] = useState<string[]>([]);
@@ -227,26 +226,6 @@ export default function Orders() {
 
   const hasGroups = groupedOrders.length > 0;
   const hasActiveFilters = !!(debouncedSearch || storeFilter !== "all" || statusFilters.length > 0 || gradeFilter !== "all");
-  const photoInboundItem = photoViewOrder ? inboundByLpn[photoViewOrder.lpn] : null;
-
-  // 照片列表构建
-  const getPhotoList = (item: typeof inboundItems[0] | undefined) => {
-    if (!item) return [];
-    const photoFields = [
-      { key: 'lpn_label_photo', label: 'LPN标签' },
-      { key: 'packaging_photo_1', label: '包装照片1' },
-      { key: 'packaging_photo_2', label: '包装照片2' },
-      { key: 'packaging_photo_3', label: '包装照片3' },
-      { key: 'packaging_photo_4', label: '包装照片4' },
-      { key: 'packaging_photo_5', label: '包装照片5' },
-      { key: 'packaging_photo_6', label: '包装照片6' },
-      { key: 'accessories_photo', label: '配件照片' },
-      { key: 'detail_photo', label: '细节照片' },
-    ] as const;
-    return photoFields
-      .filter(f => item[f.key])
-      .map(f => ({ key: f.key, label: f.label, url: item[f.key] as string }));
-  };
 
   // 事件处理
   const handleSearchChange = (value: string) => {
@@ -1053,7 +1032,6 @@ export default function Orders() {
                 <TableHead className="min-w-[180px]">产品名称</TableHead>
                 <TableHead className="w-[120px]">SKU</TableHead>
                 <TableHead className="w-[100px]">等级</TableHead>
-                <TableHead className="text-center w-[60px]">照片</TableHead>
                 <TableHead className="text-center w-[60px]">数量</TableHead>
                 <TableHead className="w-[140px]">订单号</TableHead>
                 <TableHead className="text-center w-[90px]">操作</TableHead>
@@ -1062,7 +1040,7 @@ export default function Orders() {
             <TableBody>
               {orders.length === 0 ? (
                 <TableRow>
-                  <TableCell colSpan={11} className="h-32 text-center text-muted-foreground">
+                  <TableCell colSpan={10} className="h-32 text-center text-muted-foreground">
                     暂无数据
                   </TableCell>
                 </TableRow>
@@ -1111,7 +1089,6 @@ export default function Orders() {
                           <TableCell><span className="line-clamp-1 font-medium">{firstOrder.product_name || "-"}</span></TableCell>
                           <TableCell><code className="text-xs bg-muted px-1.5 py-0.5 rounded">{firstOrder.product_sku || "-"}</code></TableCell>
                           <TableCell className="text-center text-muted-foreground">-</TableCell>
-                          <TableCell className="text-center text-muted-foreground">-</TableCell>
                           <TableCell className="text-center font-semibold">{group.totalQuantity}</TableCell>
                           <TableCell className="font-medium">{firstOrder.order_number}</TableCell>
                           <TableCell>
@@ -1126,7 +1103,6 @@ export default function Orders() {
                         {/* 展开后的子行 */}
                         {isExpanded && group.orders.map((item) => {
                           const inboundItem = inboundByLpn[item.lpn];
-                          const hasPhotos = !!(inboundItem?.product_photo || inboundItem?.package_photo);
                           const displayGrade = item.grade || inboundItem?.grade;
 
                           return (
@@ -1138,8 +1114,6 @@ export default function Orders() {
                               onView={() => setSelectedOrder(item)}
                               onDelete={() => setDeleteId(item.id)}
                               onEditGrade={() => setGradeEditOrder(item)}
-                              onViewPhotos={() => setPhotoViewOrder(item)}
-                              hasPhotos={hasPhotos}
                               displayGrade={displayGrade}
                               hasInboundItem={!!inboundItem}
                               isGroupChild
@@ -1153,7 +1127,6 @@ export default function Orders() {
                   {/* 单个LPN订单 */}
                   {singleOrders.map((item) => {
                     const inboundItem = inboundByLpn[item.lpn];
-                    const hasPhotos = !!(inboundItem?.product_photo || inboundItem?.package_photo);
                     const displayGrade = item.grade || inboundItem?.grade;
 
                     return (
@@ -1165,8 +1138,6 @@ export default function Orders() {
                         onView={() => setSelectedOrder(item)}
                         onDelete={() => setDeleteId(item.id)}
                         onEditGrade={() => setGradeEditOrder(item)}
-                        onViewPhotos={() => setPhotoViewOrder(item)}
-                        hasPhotos={hasPhotos}
                         displayGrade={displayGrade}
                         hasInboundItem={!!inboundItem}
                       />
@@ -1397,14 +1368,6 @@ export default function Orders() {
         onSave={handleGradeSave}
         lpn={gradeEditOrder?.lpn || ""}
         currentGrade={gradeEditOrder?.grade || inboundByLpn[gradeEditOrder?.lpn || ""]?.grade || null}
-      />
-
-      {/* 照片查看对话框 */}
-      <PhotoViewDialog
-        open={!!photoViewOrder}
-        onOpenChange={() => setPhotoViewOrder(null)}
-        photos={getPhotoList(photoInboundItem)}
-        title={`照片 - ${photoViewOrder?.lpn || ""}`}
       />
     </div>
   );

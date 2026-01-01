@@ -183,6 +183,78 @@ export type Database = {
           },
         ]
       }
+      deleted_refurbishment_records: {
+        Row: {
+          created_at: string
+          deleted_at: string
+          deleted_by: string | null
+          grade: string
+          id: string
+          is_restored: boolean
+          lpn: string
+          original_inbound_id: string | null
+          product_name: string
+          product_sku: string
+          refurbished_at: string | null
+          refurbished_by: string | null
+          refurbishment_grade: string | null
+          refurbishment_notes: string | null
+          refurbishment_photos: string[] | null
+          refurbishment_videos: string[] | null
+          removal_order_id: string
+          restored_at: string | null
+          restored_by: string | null
+          return_reason: string | null
+          tracking_number: string | null
+        }
+        Insert: {
+          created_at?: string
+          deleted_at?: string
+          deleted_by?: string | null
+          grade?: string
+          id?: string
+          is_restored?: boolean
+          lpn: string
+          original_inbound_id?: string | null
+          product_name: string
+          product_sku: string
+          refurbished_at?: string | null
+          refurbished_by?: string | null
+          refurbishment_grade?: string | null
+          refurbishment_notes?: string | null
+          refurbishment_photos?: string[] | null
+          refurbishment_videos?: string[] | null
+          removal_order_id: string
+          restored_at?: string | null
+          restored_by?: string | null
+          return_reason?: string | null
+          tracking_number?: string | null
+        }
+        Update: {
+          created_at?: string
+          deleted_at?: string
+          deleted_by?: string | null
+          grade?: string
+          id?: string
+          is_restored?: boolean
+          lpn?: string
+          original_inbound_id?: string | null
+          product_name?: string
+          product_sku?: string
+          refurbished_at?: string | null
+          refurbished_by?: string | null
+          refurbishment_grade?: string | null
+          refurbishment_notes?: string | null
+          refurbishment_photos?: string[] | null
+          refurbishment_videos?: string[] | null
+          removal_order_id?: string
+          restored_at?: string | null
+          restored_by?: string | null
+          return_reason?: string | null
+          tracking_number?: string | null
+        }
+        Relationships: []
+      }
       inbound_items: {
         Row: {
           accessories_photo: string | null

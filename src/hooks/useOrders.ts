@@ -286,21 +286,126 @@ export const useUpdateOrder = () => {
   });
 };
 
+// 辅助函数：从URL中提取存储路径
+const extractStoragePath = (url: string | null): string | null => {
+  if (!url) return null;
+  const match = url.match(/\/storage\/v1\/object\/public\/product-images\/(.+)/);
+  return match ? match[1] : null;
+};
+
+// 辅助函数：删除入库记录及其关联的存储文件
+const deleteInboundItemsWithStorage = async (lpns: string[]) => {
+  if (lpns.length === 0) return { deletedItems: 0, deletedFiles: 0 };
+
+  // 查询所有匹配LPN的入库记录
+  const { data: inboundItems, error: fetchError } = await supabase
+    .from("inbound_items")
+    .select("*")
+    .in("lpn", lpns);
+
+  if (fetchError) throw fetchError;
+  if (!inboundItems || inboundItems.length === 0) {
+    return { deletedItems: 0, deletedFiles: 0 };
+  }
+
+  // 收集所有需要删除的存储文件路径
+  const filesToDelete: string[] = [];
+  
+  for (const item of inboundItems) {
+    const photoFields = [
+      item.package_photo,
+      item.product_photo,
+      item.lpn_label_photo,
+      item.packaging_photo_1,
+      item.packaging_photo_2,
+      item.packaging_photo_3,
+      item.packaging_photo_4,
+      item.packaging_photo_5,
+      item.packaging_photo_6,
+      item.accessories_photo,
+      item.detail_photo,
+    ];
+
+    for (const url of photoFields) {
+      const path = extractStoragePath(url);
+      if (path) filesToDelete.push(path);
+    }
+
+    // 处理翻新照片数组
+    if (item.refurbishment_photos && Array.isArray(item.refurbishment_photos)) {
+      for (const url of item.refurbishment_photos) {
+        const path = extractStoragePath(url);
+        if (path) filesToDelete.push(path);
+      }
+    }
+
+    // 处理翻新视频数组
+    if (item.refurbishment_videos && Array.isArray(item.refurbishment_videos)) {
+      for (const url of item.refurbishment_videos) {
+        const path = extractStoragePath(url);
+        if (path) filesToDelete.push(path);
+      }
+    }
+  }
+
+  // 删除存储文件
+  let deletedFiles = 0;
+  if (filesToDelete.length > 0) {
+    const { error: storageError } = await supabase.storage
+      .from("product-images")
+      .remove(filesToDelete);
+    
+    if (!storageError) {
+      deletedFiles = filesToDelete.length;
+    }
+  }
+
+  // 删除入库记录
+  const { error: deleteError } = await supabase
+    .from("inbound_items")
+    .delete()
+    .in("lpn", lpns);
+
+  if (deleteError) throw deleteError;
+
+  return { deletedItems: inboundItems.length, deletedFiles };
+};
+
 export const useDeleteOrder = () => {
   const queryClient = useQueryClient();
 
   return useMutation({
     mutationFn: async (id: string) => {
+      // 先获取订单的LPN
+      const { data: order, error: fetchError } = await supabase
+        .from("orders")
+        .select("lpn")
+        .eq("id", id)
+        .single();
+
+      if (fetchError) throw fetchError;
+
+      // 级联删除关联的入库记录
+      const { deletedItems, deletedFiles } = await deleteInboundItemsWithStorage([order.lpn]);
+
+      // 删除订单
       const { error } = await supabase
         .from("orders")
         .delete()
         .eq("id", id);
 
       if (error) throw error;
+
+      return { deletedItems, deletedFiles };
     },
-    onSuccess: () => {
+    onSuccess: ({ deletedItems, deletedFiles }) => {
       queryClient.invalidateQueries({ queryKey: ["orders"] });
-      toast.success("订单删除成功");
+      queryClient.invalidateQueries({ queryKey: ["inbound_items"] });
+      if (deletedItems > 0) {
+        toast.success(`订单删除成功，同时删除了 ${deletedItems} 条入库记录和 ${deletedFiles} 个存储文件`);
+      } else {
+        toast.success("订单删除成功");
+      }
     },
     onError: (error) => {
       toast.error("删除失败: " + error.message);
@@ -313,16 +418,37 @@ export const useBulkDeleteOrders = () => {
 
   return useMutation({
     mutationFn: async (ids: string[]) => {
+      // 先获取所有要删除订单的LPN
+      const { data: orders, error: fetchError } = await supabase
+        .from("orders")
+        .select("lpn")
+        .in("id", ids);
+
+      if (fetchError) throw fetchError;
+
+      const lpns = orders?.map(o => o.lpn) || [];
+
+      // 级联删除关联的入库记录
+      const { deletedItems, deletedFiles } = await deleteInboundItemsWithStorage(lpns);
+
+      // 删除订单
       const { error } = await supabase
         .from("orders")
         .delete()
         .in("id", ids);
 
       if (error) throw error;
+
+      return { deletedOrders: ids.length, deletedItems, deletedFiles };
     },
-    onSuccess: (_, ids) => {
+    onSuccess: ({ deletedOrders, deletedItems, deletedFiles }) => {
       queryClient.invalidateQueries({ queryKey: ["orders"] });
-      toast.success(`成功删除 ${ids.length} 条订单`);
+      queryClient.invalidateQueries({ queryKey: ["inbound_items"] });
+      if (deletedItems > 0) {
+        toast.success(`成功删除 ${deletedOrders} 条订单，同时删除了 ${deletedItems} 条入库记录和 ${deletedFiles} 个存储文件`);
+      } else {
+        toast.success(`成功删除 ${deletedOrders} 条订单`);
+      }
     },
     onError: (error) => {
       toast.error("批量删除失败: " + error.message);

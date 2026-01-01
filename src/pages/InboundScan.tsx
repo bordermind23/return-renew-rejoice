@@ -768,15 +768,15 @@ export default function InboundScan() {
         <div className="grid gap-6 lg:grid-cols-3">
           {/* 左侧：LPN扫描区域 - 主操作区 */}
           <div className="lg:col-span-2 space-y-6">
-            {/* LPN扫描卡片 - 突出显示 */}
-            <Card className="border-2 border-primary/40 bg-gradient-to-br from-primary/5 to-primary/10 shadow-lg">
+            {/* LPN扫描卡片 - 蓝色主题 */}
+            <Card className="border-2 border-info/40 bg-gradient-to-br from-info/5 to-info/10 shadow-lg">
               <CardContent className="pt-6 pb-6">
                 <div className="text-center space-y-4">
-                  <div className="inline-flex items-center justify-center h-14 w-14 rounded-full bg-primary/10">
-                    <ScanLine className="h-7 w-7 text-primary" />
+                  <div className="inline-flex items-center justify-center h-14 w-14 rounded-full bg-info/10">
+                    <ScanLine className="h-7 w-7 text-info" />
                   </div>
                   <div>
-                    <h2 className="text-lg font-semibold">扫描LPN号</h2>
+                    <h2 className="text-lg font-semibold text-info">扫描LPN号</h2>
                     <p className="text-sm text-muted-foreground">
                       逐个扫描产品的LPN号进行入库
                     </p>
@@ -788,14 +788,14 @@ export default function InboundScan() {
                       value={lpnInput}
                       onChange={(e) => setLpnInput(e.target.value)}
                       onKeyDown={(e) => e.key === "Enter" && handleScanLpn()}
-                      className="text-lg h-12 text-center sm:text-left"
+                      className="text-lg h-12 text-center sm:text-left border-info/30 focus-visible:ring-info"
                     />
                     <div className="flex gap-2">
-                      <Button onClick={() => handleScanLpn()} className="gradient-primary h-12 px-6">
+                      <Button onClick={() => handleScanLpn()} className="gradient-lpn h-12 px-6">
                         <ScanLine className="mr-2 h-5 w-5" />
                         确认
                       </Button>
-                      <Scanner onScan={handleCameraScanLpn} buttonLabel="摄像头" />
+                      <Scanner onScan={handleCameraScanLpn} buttonLabel="摄像头" scanType="lpn" />
                     </div>
                   </div>
                 </div>
@@ -836,7 +836,7 @@ export default function InboundScan() {
               <Card>
                 <CardHeader className="pb-3">
                   <CardTitle className="flex items-center gap-2 text-base">
-                    <Package className="h-5 w-5 text-primary" />
+                    <Package className="h-5 w-5 text-info" />
                     已入库 ({currentTrackingInboundItems.length} 件)
                   </CardTitle>
                 </CardHeader>
@@ -874,17 +874,17 @@ export default function InboundScan() {
 
           {/* 右侧：货件信息面板 */}
           <div className="space-y-4">
-            {/* 进度卡片 */}
-            <Card className="bg-muted/30">
+            {/* 进度卡片 - 蓝色主题 */}
+            <Card className="bg-info/5 border-info/20">
               <CardContent className="pt-4 pb-4">
                 <div className="text-center space-y-3">
-                  <div className="text-3xl font-bold text-primary">
+                  <div className="text-3xl font-bold text-info">
                     {getInboundedCount(matchedShipment.tracking_number)} / {matchedShipments.reduce((sum, s) => sum + s.quantity, 0)}
                   </div>
                   <p className="text-sm text-muted-foreground">入库进度</p>
                   <Progress 
                     value={(getInboundedCount(matchedShipment.tracking_number) / matchedShipments.reduce((sum, s) => sum + s.quantity, 0)) * 100} 
-                    className="h-2"
+                    className="h-2 [&>div]:bg-info"
                   />
                 </div>
               </CardContent>

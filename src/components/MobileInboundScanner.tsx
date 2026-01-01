@@ -1,6 +1,6 @@
 import { useState, useEffect, useRef, useCallback } from "react";
 import { useNavigate } from "react-router-dom";
-import { Camera, Package, CheckCircle, X, ArrowRight, Truck, AlertCircle, PackageCheck, Loader2, RefreshCw, Upload } from "lucide-react";
+import { Camera, Package, CheckCircle, X, ArrowRight, Truck, AlertCircle, PackageCheck, Loader2, RefreshCw } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Badge } from "@/components/ui/badge";
@@ -54,16 +54,12 @@ export function MobileInboundScanner({ initialTracking }: MobileInboundScannerPr
   const [scannedLpns, setScannedLpns] = useState<string[]>([]);
   const [isForceCompleteOpen, setIsForceCompleteOpen] = useState(false);
   
-  // 拍照相关状态
-  const [isCapturing, setIsCapturing] = useState(false);
+  // 拍照相关状态 - 使用原生相机
   const [capturedImage, setCapturedImage] = useState<string | null>(null);
   const [isRecognizing, setIsRecognizing] = useState(false);
   const [recognizedNumbers, setRecognizedNumbers] = useState<string[]>([]);
-  const [cameraError, setCameraError] = useState<string | null>(null);
   const [shippingLabelPhoto, setShippingLabelPhoto] = useState<string | null>(null);
-  const videoRef = useRef<HTMLVideoElement>(null);
-  const streamRef = useRef<MediaStream | null>(null);
-  const fileInputRef = useRef<HTMLInputElement>(null);
+  const nativeCameraRef = useRef<HTMLInputElement>(null);
 
   const { data: shipments } = useRemovalShipments();
   const { data: inboundItems } = useInboundItems();
@@ -93,61 +89,19 @@ export function MobileInboundScanner({ initialTracking }: MobileInboundScannerPr
     }
   }, [initialTracking, shipments]);
 
-  // 启动摄像头
-  const startCamera = useCallback(async () => {
-    setCameraError(null);
-    try {
-      const stream = await navigator.mediaDevices.getUserMedia({
-        video: { facingMode: "environment", width: { ideal: 1920 }, height: { ideal: 1080 } }
-      });
-      streamRef.current = stream;
-      if (videoRef.current) {
-        videoRef.current.srcObject = stream;
-      }
-      setIsCapturing(true);
-    } catch (error) {
-      console.error("Failed to start camera:", error);
-      setCameraError("无法访问摄像头");
-      toast.error("无法访问摄像头");
-    }
-  }, []);
-
-  // 停止摄像头
-  const stopCamera = useCallback(() => {
-    if (streamRef.current) {
-      streamRef.current.getTracks().forEach(track => track.stop());
-      streamRef.current = null;
-    }
-    setIsCapturing(false);
-  }, []);
-
-  // 开始扫描流程 - 改为启动拍照
+  // 开始扫描流程 - 直接触发原生相机
   const startScanning = () => {
     setStep("scan_tracking");
     setCapturedImage(null);
     setRecognizedNumbers([]);
-    startCamera();
+    // 延迟触发原生相机，确保状态已更新
+    setTimeout(() => {
+      nativeCameraRef.current?.click();
+    }, 100);
   };
 
-  // 拍摄照片
-  const capturePhoto = () => {
-    if (!videoRef.current) return;
-    
-    const canvas = document.createElement("canvas");
-    canvas.width = videoRef.current.videoWidth;
-    canvas.height = videoRef.current.videoHeight;
-    const ctx = canvas.getContext("2d");
-    if (ctx) {
-      ctx.drawImage(videoRef.current, 0, 0);
-      const imageData = canvas.toDataURL("image/jpeg", 0.8);
-      setCapturedImage(imageData);
-      stopCamera();
-      recognizeTracking(imageData);
-    }
-  };
-
-  // 处理文件上传
-  const handleFileUpload = (event: React.ChangeEvent<HTMLInputElement>) => {
+  // 处理原生相机拍照结果
+  const handleNativeCameraCapture = (event: React.ChangeEvent<HTMLInputElement>) => {
     const file = event.target.files?.[0];
     if (!file) return;
 
@@ -158,6 +112,9 @@ export function MobileInboundScanner({ initialTracking }: MobileInboundScannerPr
       recognizeTracking(imageData);
     };
     reader.readAsDataURL(file);
+    
+    // 重置input以允许再次选择同一文件
+    event.target.value = '';
   };
 
   // AI识别物流号 - 识别成功后自动进入LPN扫描
@@ -310,11 +267,13 @@ export function MobileInboundScanner({ initialTracking }: MobileInboundScannerPr
     toast.success(`匹配成功: ${allMatched.length} 种产品`);
   };
 
-  // 重拍照片
+  // 重拍照片 - 重新触发原生相机
   const retakePhoto = () => {
     setCapturedImage(null);
     setRecognizedNumbers([]);
-    startCamera();
+    setTimeout(() => {
+      nativeCameraRef.current?.click();
+    }, 100);
   };
 
   // 处理物流号扫描（手动输入备用）
@@ -598,100 +557,82 @@ export function MobileInboundScanner({ initialTracking }: MobileInboundScannerPr
     );
   }
 
-  // 拍摄物流面单步骤
+  // 拍摄物流面单步骤 - 使用原生相机
   if (step === "scan_tracking") {
     return (
-      <div className="fixed inset-0 z-50 bg-black flex flex-col">
+      <div className="fixed inset-0 z-50 bg-background flex flex-col">
+        {/* 隐藏的原生相机input */}
+        <input
+          ref={nativeCameraRef}
+          type="file"
+          accept="image/*"
+          capture="environment"
+          className="hidden"
+          onChange={handleNativeCameraCapture}
+        />
+        
         {/* 顶部栏 */}
-        <div className="flex items-center justify-between p-4 shrink-0 bg-black/50 backdrop-blur-sm z-10">
-          <Button variant="ghost" size="icon" onClick={() => { stopCamera(); handleClose(); }} className="rounded-full h-11 w-11 bg-white/10 text-white">
+        <div className="flex items-center justify-between p-4 shrink-0 border-b">
+          <Button variant="ghost" size="icon" onClick={handleClose} className="rounded-full h-11 w-11">
             <X className="h-5 w-5" />
           </Button>
           <div className="text-center">
-            <p className="text-sm text-white/70">拍摄物流面单</p>
+            <p className="text-sm font-medium">拍摄物流面单</p>
           </div>
           <div className="w-11" />
         </div>
 
-        {/* 摄像头视图 */}
-        {isCapturing && !capturedImage && (
-          <div className="flex-1 relative">
-            <video
-              ref={videoRef}
-              autoPlay
-              playsInline
-              muted
-              className="absolute inset-0 w-full h-full object-cover"
-            />
-            {/* 取景框 */}
-            <div className="absolute inset-8 border-2 border-white/50 border-dashed rounded-lg pointer-events-none" />
-            
-            {/* 底部拍摄按钮 */}
-            <div className="absolute bottom-0 left-0 right-0 p-6 pb-10 bg-gradient-to-t from-black/80 to-transparent">
-              <div className="flex items-center justify-center gap-6">
-                <Button
-                  variant="ghost"
-                  size="icon"
-                  className="h-14 w-14 rounded-full bg-white/10 text-white"
-                  onClick={() => fileInputRef.current?.click()}
-                >
-                  <Upload className="h-6 w-6" />
-                </Button>
-                <Button
-                  onClick={capturePhoto}
-                  className="h-20 w-20 rounded-full bg-white hover:bg-white/90 text-black shadow-2xl"
-                >
-                  <Camera className="h-8 w-8" />
-                </Button>
-                <div className="w-14" />
+        {/* 无照片时的提示界面 */}
+        {!capturedImage && !isRecognizing && (
+          <div className="flex-1 flex flex-col items-center justify-center px-6">
+            <div className="text-center mb-8">
+              <div className="h-20 w-20 rounded-full bg-primary/10 flex items-center justify-center mx-auto mb-4">
+                <Camera className="h-10 w-10 text-primary" />
               </div>
-              <input
-                ref={fileInputRef}
-                type="file"
-                accept="image/*"
-                className="hidden"
-                onChange={handleFileUpload}
-              />
+              <h2 className="text-xl font-semibold mb-2">拍摄物流面单</h2>
+              <p className="text-sm text-muted-foreground">
+                点击下方按钮打开相机拍摄
+              </p>
             </div>
-          </div>
-        )}
-
-        {/* 加载摄像头中 */}
-        {!isCapturing && !capturedImage && !cameraError && (
-          <div className="flex-1 flex items-center justify-center bg-black">
-            <div className="text-center text-white">
-              <Loader2 className="h-10 w-10 animate-spin mx-auto mb-3" />
-              <p className="text-sm opacity-70">正在启动摄像头...</p>
-            </div>
-          </div>
-        )}
-
-        {/* 摄像头错误 */}
-        {cameraError && !capturedImage && (
-          <div className="flex-1 flex flex-col items-center justify-center bg-black px-6">
-            <div className="text-center text-white mb-6">
-              <AlertCircle className="h-12 w-12 mx-auto mb-3 text-amber-400" />
-              <p className="text-sm opacity-70">{cameraError}</p>
-            </div>
+            
             <div className="flex flex-col gap-3 w-full max-w-xs">
-              <Button onClick={startCamera} variant="outline" className="h-12 bg-white/10 border-white/20 text-white">
-                <RefreshCw className="mr-2 h-4 w-4" />
-                重试
-              </Button>
               <Button 
-                className="h-12 bg-white text-black"
-                onClick={() => fileInputRef.current?.click()}
+                onClick={() => nativeCameraRef.current?.click()}
+                className="h-14 text-lg gradient-primary"
               >
-                <Upload className="mr-2 h-5 w-5" />
-                上传照片
+                <Camera className="mr-2 h-6 w-6" />
+                打开相机
               </Button>
-              <input
-                ref={fileInputRef}
-                type="file"
-                accept="image/*"
-                className="hidden"
-                onChange={handleFileUpload}
-              />
+              
+              {/* 手动输入备用 */}
+              <div className="mt-6 pt-6 border-t w-full">
+                <p className="text-xs text-muted-foreground text-center mb-3">或手动输入物流号</p>
+                <div className="flex gap-2">
+                  <Input
+                    placeholder="输入物流跟踪号"
+                    value={trackingInput}
+                    onChange={(e) => setTrackingInput(e.target.value)}
+                    className="h-12 text-center font-mono"
+                  />
+                  <Button 
+                    onClick={() => handleTrackingScan(trackingInput)} 
+                    className="h-12 px-4 gradient-primary"
+                    disabled={!trackingInput}
+                  >
+                    确认
+                  </Button>
+                </div>
+              </div>
+            </div>
+          </div>
+        )}
+
+        {/* 正在识别中 */}
+        {isRecognizing && !capturedImage && (
+          <div className="flex-1 flex items-center justify-center">
+            <div className="text-center">
+              <Loader2 className="h-12 w-12 animate-spin mx-auto mb-4 text-primary" />
+              <p className="text-muted-foreground">正在识别物流号...</p>
             </div>
           </div>
         )}
@@ -699,16 +640,16 @@ export function MobileInboundScanner({ initialTracking }: MobileInboundScannerPr
         {/* 已拍摄照片 - 识别中或显示结果 */}
         {capturedImage && (
           <div className="flex-1 flex flex-col">
-            <div className="flex-1 relative">
+            <div className="flex-1 relative bg-muted">
               <img
                 src={capturedImage}
                 alt="物流面单"
-                className="absolute inset-0 w-full h-full object-contain bg-black"
+                className="absolute inset-0 w-full h-full object-contain"
               />
               {isRecognizing && (
-                <div className="absolute inset-0 bg-black/60 flex items-center justify-center">
-                  <div className="text-center text-white">
-                    <Loader2 className="h-10 w-10 animate-spin mx-auto mb-3" />
+                <div className="absolute inset-0 bg-background/80 flex items-center justify-center">
+                  <div className="text-center">
+                    <Loader2 className="h-10 w-10 animate-spin mx-auto mb-3 text-primary" />
                     <p>正在识别物流号...</p>
                   </div>
                 </div>
@@ -716,23 +657,10 @@ export function MobileInboundScanner({ initialTracking }: MobileInboundScannerPr
             </div>
             
             {/* 识别结果 */}
-            <div className="p-4 pb-8 bg-background">
+            <div className="p-4 pb-8 bg-background border-t">
               {recognizedNumbers.length > 0 ? (
                 <div className="space-y-3">
-                  <p className="text-sm text-center text-muted-foreground">点击选择物流号</p>
-                  <div className="flex flex-col gap-2">
-                    {recognizedNumbers.map((num, idx) => (
-                      <Button
-                        key={idx}
-                        variant="outline"
-                        className="h-14 text-lg font-mono justify-between px-4 border-primary/50"
-                        onClick={() => selectTrackingNumber(num)}
-                      >
-                        <span>{num}</span>
-                        <CheckCircle className="h-5 w-5 text-primary" />
-                      </Button>
-                    ))}
-                  </div>
+                  <p className="text-sm text-center text-muted-foreground">识别成功，正在匹配...</p>
                 </div>
               ) : !isRecognizing ? (
                 <div className="text-center space-y-3">

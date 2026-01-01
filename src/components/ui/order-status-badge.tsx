@@ -19,6 +19,10 @@ const statusConfig: Record<OrderStatus, { label: string; className: string }> = 
     label: '出库',
     className: 'text-green-600 dark:text-green-400',
   },
+  '待同步': {
+    label: '待同步',
+    className: 'text-orange-600 dark:text-orange-400',
+  },
 };
 
 export function OrderStatusBadge({ status, className }: OrderStatusBadgeProps) {

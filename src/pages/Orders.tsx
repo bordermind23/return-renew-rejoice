@@ -337,16 +337,47 @@ export default function Orders() {
     });
   };
 
-  const handleSubmit = () => {
+  const handleSubmit = async () => {
     if (!formData.lpn || !formData.order_number || !formData.store_name) {
       toast.error("请填写所有必填字段");
       return;
     }
 
-    const existingLpn = orders?.find(o => o.lpn === formData.lpn.trim());
-    if (existingLpn) {
-      toast.error(`LPN号 "${formData.lpn}" 已存在，不能重复添加`);
-      return;
+    // 检查LPN是否已存在
+    const { data: existingOrders } = await supabase
+      .from("orders")
+      .select("*")
+      .ilike("lpn", formData.lpn.trim());
+    
+    const existingOrder = existingOrders?.[0];
+    
+    if (existingOrder) {
+      // 检查是否是待同步订单（可以更新）
+      const isPending = existingOrder.status === "待同步" || 
+                        existingOrder.order_number === "待同步" || 
+                        existingOrder.removal_order_id === "无入库信息";
+      
+      if (isPending) {
+        // 更新待同步订单
+        updateOrderMutation.mutate(
+          {
+            id: existingOrder.id,
+            ...formData,
+            status: "到货" as const,
+          },
+          {
+            onSuccess: () => {
+              toast.success("待同步订单已更新");
+              setIsDialogOpen(false);
+              resetForm();
+            },
+          }
+        );
+        return;
+      } else {
+        toast.error(`LPN号 "${formData.lpn}" 已存在，不能重复添加`);
+        return;
+      }
     }
 
     createMutation.mutate(

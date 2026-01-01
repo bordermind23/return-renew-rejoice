@@ -17,6 +17,7 @@ import {
 import { useRemovalShipments, useUpdateRemovalShipment, type RemovalShipment } from "@/hooks/useRemovalShipments";
 import { useInboundItems } from "@/hooks/useInboundItems";
 import { fetchOrdersByLpn } from "@/hooks/useOrdersByLpn";
+import { supabase } from "@/integrations/supabase/client";
 import { useSound } from "@/hooks/useSound";
 import { toast } from "sonner";
 import { cn } from "@/lib/utils";
@@ -145,9 +146,14 @@ export function MobileInboundScanner({ initialTracking }: MobileInboundScannerPr
       return;
     }
 
-    // 检查是否已存在于入库记录
-    const existingItem = inboundItems?.find(item => item.lpn === lpn);
-    if (existingItem) {
+    // 实时查询数据库检查是否已存在于入库记录（不依赖缓存）
+    const { data: existingItems } = await supabase
+      .from("inbound_items")
+      .select("id")
+      .eq("lpn", lpn)
+      .limit(1);
+    
+    if (existingItems && existingItems.length > 0) {
       vibrateWarning();
       playWarning();
       toast.error("该LPN已入库");

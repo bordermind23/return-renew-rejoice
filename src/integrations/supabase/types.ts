@@ -67,6 +67,41 @@ export type Database = {
           },
         ]
       }
+      case_reminders: {
+        Row: {
+          case_id: string
+          created_at: string
+          created_by: string | null
+          id: string
+          is_completed: boolean
+          remind_at: string
+        }
+        Insert: {
+          case_id: string
+          created_at?: string
+          created_by?: string | null
+          id?: string
+          is_completed?: boolean
+          remind_at: string
+        }
+        Update: {
+          case_id?: string
+          created_at?: string
+          created_by?: string | null
+          id?: string
+          is_completed?: boolean
+          remind_at?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "case_reminders_case_id_fkey"
+            columns: ["case_id"]
+            isOneToOne: false
+            referencedRelation: "cases"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       case_types: {
         Row: {
           code: string
@@ -100,6 +135,7 @@ export type Database = {
           amazon_case_id: string | null
           amazon_case_url: string | null
           approved_amount: number | null
+          attachments: string[] | null
           case_number: string
           case_type: Database["public"]["Enums"]["case_type"]
           claim_amount: number | null
@@ -126,6 +162,7 @@ export type Database = {
           amazon_case_id?: string | null
           amazon_case_url?: string | null
           approved_amount?: number | null
+          attachments?: string[] | null
           case_number: string
           case_type: Database["public"]["Enums"]["case_type"]
           claim_amount?: number | null
@@ -152,6 +189,7 @@ export type Database = {
           amazon_case_id?: string | null
           amazon_case_url?: string | null
           approved_amount?: number | null
+          attachments?: string[] | null
           case_number?: string
           case_type?: Database["public"]["Enums"]["case_type"]
           claim_amount?: number | null
@@ -354,6 +392,33 @@ export type Database = {
         }
         Relationships: []
       }
+      inventory_alerts: {
+        Row: {
+          created_at: string
+          created_by: string | null
+          id: string
+          min_threshold: number
+          sku: string
+          updated_at: string
+        }
+        Insert: {
+          created_at?: string
+          created_by?: string | null
+          id?: string
+          min_threshold?: number
+          sku: string
+          updated_at?: string
+        }
+        Update: {
+          created_at?: string
+          created_by?: string | null
+          id?: string
+          min_threshold?: number
+          sku?: string
+          updated_at?: string
+        }
+        Relationships: []
+      }
       inventory_items: {
         Row: {
           created_at: string
@@ -396,6 +461,36 @@ export type Database = {
           total_stock?: number
           updated_at?: string
           warehouse?: string
+        }
+        Relationships: []
+      }
+      operation_logs: {
+        Row: {
+          action: string
+          created_at: string
+          details: Json | null
+          entity_id: string | null
+          entity_type: string
+          id: string
+          user_id: string
+        }
+        Insert: {
+          action: string
+          created_at?: string
+          details?: Json | null
+          entity_id?: string | null
+          entity_type: string
+          id?: string
+          user_id: string
+        }
+        Update: {
+          action?: string
+          created_at?: string
+          details?: Json | null
+          entity_id?: string | null
+          entity_type?: string
+          id?: string
+          user_id?: string
         }
         Relationships: []
       }
@@ -647,6 +742,36 @@ export type Database = {
           store_name?: string | null
           tracking_number?: string
           updated_at?: string
+        }
+        Relationships: []
+      }
+      user_preferences: {
+        Row: {
+          created_at: string
+          default_filters: Json | null
+          id: string
+          sidebar_collapsed: boolean
+          theme: string
+          updated_at: string
+          user_id: string
+        }
+        Insert: {
+          created_at?: string
+          default_filters?: Json | null
+          id?: string
+          sidebar_collapsed?: boolean
+          theme?: string
+          updated_at?: string
+          user_id: string
+        }
+        Update: {
+          created_at?: string
+          default_filters?: Json | null
+          id?: string
+          sidebar_collapsed?: boolean
+          theme?: string
+          updated_at?: string
+          user_id?: string
         }
         Relationships: []
       }

@@ -650,15 +650,15 @@ export function MobileInboundScanner({ initialTracking }: MobileInboundScannerPr
           onChange={handleNativeCameraCapture}
         />
         
-        {/* 顶部栏 */}
-        <div className="flex items-center justify-between p-4 shrink-0 border-b">
-          <Button variant="ghost" size="icon" onClick={handleClose} className="rounded-full h-11 w-11">
+        {/* 顶部栏 - 安全区域内边距 */}
+        <div className="flex items-center justify-between px-4 py-3 shrink-0 border-b pt-[calc(env(safe-area-inset-top,0px)+12px)]">
+          <Button variant="ghost" size="icon" onClick={handleClose} className="rounded-full h-10 w-10 shrink-0">
             <X className="h-5 w-5" />
           </Button>
-          <div className="text-center">
+          <div className="text-center flex-1">
             <p className="text-sm font-medium">拍摄物流面单</p>
           </div>
-          <div className="w-11" />
+          <div className="w-10 shrink-0" />
         </div>
 
         {/* 无照片时的提示界面 */}
@@ -834,16 +834,16 @@ export function MobileInboundScanner({ initialTracking }: MobileInboundScannerPr
     });
 
     return (
-      <div className="fixed inset-0 z-50 bg-gradient-to-b from-primary/5 to-background flex flex-col pt-[env(safe-area-inset-top,0px)]">
-        {/* 顶部栏 */}
-        <div className="flex items-center justify-between p-4 shrink-0">
-          <Button variant="ghost" size="icon" onClick={handleClose} className="rounded-full h-11 w-11 bg-muted/50">
+      <div className="fixed inset-0 z-50 bg-gradient-to-b from-primary/5 to-background flex flex-col">
+        {/* 顶部栏 - 安全区域内边距 */}
+        <div className="flex items-center justify-between px-4 py-3 shrink-0 pt-[calc(env(safe-area-inset-top,0px)+12px)]">
+          <Button variant="ghost" size="icon" onClick={handleClose} className="rounded-full h-10 w-10 bg-muted/50 shrink-0">
             <X className="h-5 w-5" />
           </Button>
-          <div className="text-center">
+          <div className="text-center flex-1">
             <p className="text-sm text-muted-foreground">步骤 2/2</p>
           </div>
-          <div className="w-11" />
+          <div className="w-10 shrink-0" />
         </div>
 
         {/* 进度概览 - 固定在顶部 */}

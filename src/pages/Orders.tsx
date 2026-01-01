@@ -90,6 +90,28 @@ const templateHeaders = [
   "退货时间", "订购时间"
 ];
 
+// 图片大小状态
+const [photoSizes, setPhotoSizes] = useState<Record<string, number | null>>({});
+
+// 获取图片大小
+const fetchPhotoSize = async (url: string) => {
+  if (photoSizes[url] !== undefined) return;
+  try {
+    const response = await fetch(url, { method: 'HEAD' });
+    const size = response.headers.get('content-length');
+    setPhotoSizes(prev => ({ ...prev, [url]: size ? parseInt(size) : null }));
+  } catch {
+    setPhotoSizes(prev => ({ ...prev, [url]: null }));
+  }
+};
+
+const formatFileSize = (bytes: number | null): string => {
+  if (bytes === null) return '';
+  if (bytes < 1024) return `${bytes} B`;
+  if (bytes < 1024 * 1024) return `${(bytes / 1024).toFixed(1)} KB`;
+  return `${(bytes / (1024 * 1024)).toFixed(2)} MB`;
+};
+
 export default function Orders() {
   // 筛选状态
   const [searchTerm, setSearchTerm] = useState("");
@@ -1242,21 +1264,35 @@ export default function Orders() {
                         <div className="space-y-3 border-t pt-4">
                           <p className="text-sm font-medium">入库照片</p>
                           <div className="grid grid-cols-3 sm:grid-cols-4 gap-3">
-                            {inboundPhotos.map((photo, idx) => (
-                              <div key={idx} className="space-y-1.5 group">
-                                <div 
-                                  className="relative aspect-square rounded-lg border overflow-hidden cursor-pointer hover:ring-2 hover:ring-primary transition-all"
-                                  onClick={() => window.open(photo.url, '_blank')}
-                                >
-                                  <img 
-                                    src={photo.url} 
-                                    alt={photo.label} 
-                                    className="w-full h-full object-cover group-hover:scale-105 transition-transform" 
-                                  />
+                            {inboundPhotos.map((photo, idx) => {
+                              // 获取图片大小
+                              if (photoSizes[photo.url] === undefined) {
+                                fetchPhotoSize(photo.url);
+                              }
+                              const size = photoSizes[photo.url];
+                              
+                              return (
+                                <div key={idx} className="space-y-1.5 group">
+                                  <div 
+                                    className="relative aspect-square rounded-lg border overflow-hidden cursor-pointer hover:ring-2 hover:ring-primary transition-all"
+                                    onClick={() => window.open(photo.url, '_blank')}
+                                  >
+                                    <img 
+                                      src={photo.url} 
+                                      alt={photo.label} 
+                                      className="w-full h-full object-cover group-hover:scale-105 transition-transform" 
+                                    />
+                                    {/* 文件大小标签 */}
+                                    {size !== undefined && size !== null && (
+                                      <div className="absolute bottom-1 right-1 bg-black/60 text-white text-[10px] px-1.5 py-0.5 rounded">
+                                        {formatFileSize(size)}
+                                      </div>
+                                    )}
+                                  </div>
+                                  <p className="text-xs text-muted-foreground text-center truncate">{photo.label}</p>
                                 </div>
-                                <p className="text-xs text-muted-foreground text-center truncate">{photo.label}</p>
-                              </div>
-                            ))}
+                              );
+                            })}
                           </div>
                         </div>
                       )}

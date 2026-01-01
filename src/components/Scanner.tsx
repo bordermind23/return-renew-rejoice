@@ -17,6 +17,7 @@ interface ScannerProps {
   buttonVariant?: "default" | "outline" | "ghost" | "secondary";
   buttonSize?: "default" | "sm" | "lg" | "icon";
   buttonClassName?: string;
+  scanType?: "tracking" | "lpn";
 }
 
 export function Scanner({
@@ -25,6 +26,7 @@ export function Scanner({
   buttonVariant = "secondary",
   buttonSize = "default",
   buttonClassName = "",
+  scanType = "tracking",
 }: ScannerProps) {
   const [isOpen, setIsOpen] = useState(false);
   const [isScanning, setIsScanning] = useState(false);
@@ -187,11 +189,17 @@ export function Scanner({
       </Button>
 
       <Dialog open={isOpen} onOpenChange={handleClose}>
-        <DialogContent className="max-w-[90vw] sm:max-w-md w-full mx-auto z-[110]">
+        <DialogContent className={cn(
+          "max-w-[90vw] sm:max-w-md w-full mx-auto z-[110]",
+          scanType === "lpn" && "border-t-4 border-t-info"
+        )}>
           <DialogHeader>
-            <DialogTitle className="flex items-center gap-2">
+            <DialogTitle className={cn(
+              "flex items-center gap-2",
+              scanType === "lpn" ? "text-info" : "text-primary"
+            )}>
               <Scan className="h-5 w-5" />
-              扫描条码/二维码
+              {scanType === "lpn" ? "扫描LPN条码" : "扫描物流条码"}
             </DialogTitle>
             <DialogDescription>
               请允许摄像头权限，并将条码或二维码对准取景框。

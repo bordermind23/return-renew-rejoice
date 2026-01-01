@@ -567,16 +567,26 @@ export function MobileInboundScanner({ initialTracking }: MobileInboundScannerPr
             </div>
           )}
 
-          {/* 大扫描按钮 */}
+          {/* 大扫描按钮 - 根据状态显示不同颜色 */}
           <div className="relative">
-            <div className="absolute inset-0 bg-primary/20 rounded-3xl blur-2xl pointer-events-none scale-110" />
+            <div className={cn(
+              "absolute inset-0 rounded-3xl blur-2xl pointer-events-none scale-110",
+              hasActiveShipment ? "bg-info/20" : "bg-primary/20"
+            )} />
             <Button
               onClick={hasActiveShipment ? () => setStep("scan_lpn") : startScanning}
-              className="relative h-40 w-40 rounded-3xl gradient-primary shadow-2xl hover:shadow-3xl transition-all duration-300 active:scale-95"
+              className={cn(
+                "relative h-40 w-40 rounded-3xl shadow-2xl hover:shadow-3xl transition-all duration-300 active:scale-95",
+                hasActiveShipment ? "gradient-lpn" : "gradient-tracking"
+              )}
             >
               <div className="flex flex-col items-center gap-4">
                 <div className="h-16 w-16 rounded-2xl bg-white/20 flex items-center justify-center backdrop-blur-sm">
-                  <Camera className="h-10 w-10" />
+                  {hasActiveShipment ? (
+                    <Package className="h-10 w-10" />
+                  ) : (
+                    <Truck className="h-10 w-10" />
+                  )}
                 </div>
                 <span className="text-lg font-bold">
                   {hasActiveShipment ? "扫描LPN" : "拍摄面单"}
@@ -666,7 +676,7 @@ export function MobileInboundScanner({ initialTracking }: MobileInboundScannerPr
           <div className="flex-1 flex flex-col items-center justify-center px-6">
             <div className="text-center mb-8">
               <div className="h-20 w-20 rounded-full bg-primary/10 flex items-center justify-center mx-auto mb-4">
-                <Camera className="h-10 w-10 text-primary" />
+                <Truck className="h-10 w-10 text-primary" />
               </div>
               <h2 className="text-xl font-semibold mb-2">拍摄物流面单</h2>
               <p className="text-sm text-muted-foreground">
@@ -677,7 +687,7 @@ export function MobileInboundScanner({ initialTracking }: MobileInboundScannerPr
             <div className="flex flex-col gap-3 w-full max-w-xs">
               <Button 
                 onClick={() => nativeCameraRef.current?.click()}
-                className="h-14 text-lg gradient-primary"
+                className="h-14 text-lg gradient-tracking"
               >
                 <Camera className="mr-2 h-6 w-6" />
                 打开相机
@@ -695,7 +705,7 @@ export function MobileInboundScanner({ initialTracking }: MobileInboundScannerPr
                   />
                   <Button 
                     onClick={() => handleTrackingScan(trackingInput)} 
-                    className="h-12 px-4 gradient-primary"
+                    className="h-12 px-4 gradient-tracking"
                     disabled={!trackingInput}
                   >
                     确认
@@ -801,7 +811,7 @@ export function MobileInboundScanner({ initialTracking }: MobileInboundScannerPr
                     />
                     <Button 
                       onClick={() => handleTrackingScan(trackingInput)} 
-                      className="h-12 px-4 gradient-primary"
+                      className="h-12 px-4 gradient-tracking"
                       disabled={!trackingInput}
                     >
                       确认
@@ -834,24 +844,24 @@ export function MobileInboundScanner({ initialTracking }: MobileInboundScannerPr
     });
 
     return (
-      <div className="fixed inset-0 z-50 bg-gradient-to-b from-primary/5 to-background flex flex-col">
+      <div className="fixed inset-0 z-50 bg-gradient-to-b from-info/5 to-background flex flex-col">
         {/* 顶部栏 - 安全区域内边距 */}
         <div className="flex items-center justify-between px-4 py-3 shrink-0 pt-[calc(env(safe-area-inset-top,0px)+12px)]">
-          <Button variant="ghost" size="icon" onClick={handleClose} className="rounded-full h-10 w-10 bg-muted/50 shrink-0">
+          <Button variant="ghost" size="icon" onClick={handleClose} className="rounded-full h-10 w-10 bg-info/10 shrink-0">
             <X className="h-5 w-5" />
           </Button>
           <div className="text-center flex-1">
-            <p className="text-sm text-muted-foreground">步骤 2/2</p>
+            <p className="text-sm text-info font-medium">步骤 2/2 · 扫描LPN</p>
           </div>
           <div className="w-10 shrink-0" />
         </div>
 
         {/* 进度概览 - 固定在顶部 */}
         <div className="px-4 pb-4 shrink-0">
-          <div className="bg-card rounded-2xl border-2 border-primary/20 p-4 shadow-lg">
+          <div className="bg-card rounded-2xl border-2 border-info/30 p-4 shadow-lg">
             <div className="flex items-center justify-between mb-3">
               <div className="text-center flex-1">
-                <div className="text-3xl font-bold text-primary">{inboundedCount}</div>
+                <div className="text-3xl font-bold text-info">{inboundedCount}</div>
                 <p className="text-xs text-muted-foreground">已入库</p>
               </div>
               <div className="h-10 w-px bg-border" />
@@ -867,24 +877,25 @@ export function MobileInboundScanner({ initialTracking }: MobileInboundScannerPr
                 <p className="text-xs text-muted-foreground">待入库</p>
               </div>
             </div>
-            <Progress value={(inboundedCount / totalQuantity) * 100} className="h-2" />
+            <Progress value={(inboundedCount / totalQuantity) * 100} className="h-2 [&>div]:bg-info" />
           </div>
         </div>
 
         {/* 扫描区域 */}
         <div className="flex-1 flex flex-col items-center justify-center px-6">
-          {/* 大扫描按钮 */}
+          {/* 大扫描按钮 - 蓝色主题 */}
           <div className="relative mb-6">
-            <div className="absolute inset-0 bg-primary/20 rounded-3xl blur-2xl pointer-events-none scale-110" />
+            <div className="absolute inset-0 bg-info/20 rounded-3xl blur-2xl pointer-events-none scale-110" />
             <Scanner 
               onScan={handleLpnScan} 
               buttonLabel=""
               buttonSize="lg"
-              buttonClassName="h-32 w-32 rounded-3xl gradient-primary shadow-2xl"
+              buttonClassName="h-32 w-32 rounded-3xl gradient-lpn shadow-2xl"
+              scanType="lpn"
             />
           </div>
           
-          <h2 className="text-xl font-bold mb-1">扫描LPN标签</h2>
+          <h2 className="text-xl font-bold mb-1 text-info">扫描LPN标签</h2>
           <p className="text-sm text-muted-foreground mb-6">扫描产品上的LPN条码</p>
 
           {/* 手动输入 */}
@@ -900,12 +911,12 @@ export function MobileInboundScanner({ initialTracking }: MobileInboundScannerPr
                 value={lpnInput}
                 onChange={(e) => setLpnInput(e.target.value)}
                 onKeyDown={(e) => e.key === "Enter" && handleLpnScan(lpnInput)}
-                className="h-14 text-center font-mono text-lg rounded-xl"
+                className="h-14 text-center font-mono text-lg rounded-xl border-info/30 focus-visible:ring-info"
               />
               <Button 
                 onClick={() => handleLpnScan(lpnInput)} 
                 size="icon" 
-                className="h-14 w-14 gradient-primary shrink-0 rounded-xl"
+                className="h-14 w-14 gradient-lpn shrink-0 rounded-xl"
                 disabled={!lpnInput}
               >
                 <ArrowRight className="h-6 w-6" />
@@ -919,7 +930,7 @@ export function MobileInboundScanner({ initialTracking }: MobileInboundScannerPr
           <details className="bg-card rounded-xl border">
             <summary className="p-3 cursor-pointer text-sm font-medium flex items-center justify-between">
               <span className="flex items-center gap-2">
-                <Package className="h-4 w-4 text-primary" />
+                <Package className="h-4 w-4 text-info" />
                 产品列表 ({skuProgress.length})
               </span>
               <span className="text-xs text-muted-foreground">展开查看</span>

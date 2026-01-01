@@ -26,6 +26,7 @@ export default function InboundProcess() {
   const [searchParams] = useSearchParams();
   const lpn = searchParams.get("lpn") || "";
   const trackingNumber = searchParams.get("tracking") || "";
+  const shippingLabelPhotoUrl = searchParams.get("labelPhoto") || "";
   const { playSuccess, playError } = useSound();
 
   const [matchedShipment, setMatchedShipment] = useState<RemovalShipment | null>(null);
@@ -132,6 +133,7 @@ export default function InboundProcess() {
         processed_by: "操作员",
         tracking_number: matchedShipment.tracking_number,
         shipment_id: matchedShipment.id,
+        shipping_label_photo: shippingLabelPhotoUrl || null, // 保存物流面单照片
         lpn_label_photo: capturedPhotos.lpn_label_photo || null,
         packaging_photo_1: capturedPhotos.packaging_photo_1 || null,
         packaging_photo_2: capturedPhotos.packaging_photo_2 || null,
@@ -166,6 +168,14 @@ export default function InboundProcess() {
           }
 
           const totalInbounded = getInboundedCount(matchedShipment.tracking_number) + 1;
+          
+          // 第一个LPN入库时，更新移除货件的物流面单照片
+          if (totalInbounded === 1 && shippingLabelPhotoUrl) {
+            updateShipmentMutation.mutate({
+              id: matchedShipment.id,
+              shipping_label_photo: shippingLabelPhotoUrl,
+            });
+          }
           
           if (totalInbounded >= matchedShipment.quantity) {
             updateShipmentMutation.mutate({

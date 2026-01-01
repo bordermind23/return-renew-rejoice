@@ -350,13 +350,20 @@ export function MobileInboundScanner({ initialTracking }: MobileInboundScannerPr
       return;
     }
 
-    // 成功振动和音效，然后跳转到处理页面
+    // 成功振动和音效，然后跳转到处理页面（传递物流面单照片URL）
     vibrateSuccess();
     playSuccess();
     setLpnInput("");
     
-    // 跳转到入库处理页面
-    navigate(`/inbound/process?lpn=${encodeURIComponent(lpn)}&tracking=${encodeURIComponent(matchedShipment?.tracking_number || "")}`);
+    // 跳转到入库处理页面，包含物流面单照片URL
+    const params = new URLSearchParams({
+      lpn,
+      tracking: matchedShipment?.tracking_number || "",
+    });
+    if (shippingLabelPhoto) {
+      params.set("labelPhoto", shippingLabelPhoto);
+    }
+    navigate(`/inbound/process?${params.toString()}`);
   };
 
   // 重置

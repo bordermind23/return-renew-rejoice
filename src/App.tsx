@@ -78,6 +78,17 @@ const App = () => (
               </ProtectedRoute>
             }
           />
+          {/* 添加 /inbound 路由，支持直接访问和带参数访问 */}
+          <Route
+            path="/inbound"
+            element={
+              <ProtectedRoute>
+                <MainLayout>
+                  <InboundScan />
+                </MainLayout>
+              </ProtectedRoute>
+            }
+          />
           <Route
             path="/inbound/scan"
             element={

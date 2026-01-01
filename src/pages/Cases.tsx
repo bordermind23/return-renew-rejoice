@@ -1,5 +1,5 @@
 import { useState } from "react";
-import { Plus, Search, Eye, Trash2, MessageSquare, ExternalLink, Filter, DollarSign, Settings } from "lucide-react";
+import { Plus, Search, Eye, Trash2, MessageSquare, ExternalLink, Filter, Euro, Settings } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { PageHeader } from "@/components/ui/page-header";
@@ -104,7 +104,7 @@ export default function Cases() {
     amazon_case_id: '',
     amazon_case_url: '',
     claim_amount: '',
-    currency: 'USD',
+    currency: 'EUR',
   });
 
   const resetForm = () => {
@@ -121,7 +121,7 @@ export default function Cases() {
       amazon_case_id: '',
       amazon_case_url: '',
       claim_amount: '',
-      currency: 'USD',
+      currency: 'EUR',
     });
   };
 
@@ -272,7 +272,7 @@ export default function Cases() {
         </Card>
         <Card>
           <CardContent className="pt-4">
-            <div className="text-2xl font-bold text-green-600">${stats.totalApproved.toFixed(2)}</div>
+            <div className="text-2xl font-bold text-green-600">€{stats.totalApproved.toFixed(2)}</div>
             <p className="text-sm text-muted-foreground">{t.cases.approvedAmount}</p>
           </CardContent>
         </Card>
@@ -533,7 +533,7 @@ export default function Cases() {
               {/* 索赔信息 */}
               <div className="p-4 rounded-lg bg-muted/30">
                 <h3 className="font-semibold mb-3 flex items-center gap-2">
-                  <DollarSign className="h-4 w-4" />
+                  <Euro className="h-4 w-4" />
                   索赔信息
                 </h3>
                 <div className="grid grid-cols-2 gap-4 text-sm">

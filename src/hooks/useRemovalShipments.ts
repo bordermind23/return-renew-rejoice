@@ -20,12 +20,13 @@ export interface RemovalShipment {
   ship_date: string | null;
   msku: string | null;
   product_type: string | null;
+  shipping_label_photo: string | null;
   created_at: string;
   updated_at: string;
   duplicate_confirmed: boolean;
 }
 
-export type RemovalShipmentInsert = Omit<RemovalShipment, "id" | "created_at" | "updated_at" | "product_image" | "duplicate_confirmed"> & { product_image?: string | null; duplicate_confirmed?: boolean };
+export type RemovalShipmentInsert = Omit<RemovalShipment, "id" | "created_at" | "updated_at" | "product_image" | "duplicate_confirmed" | "shipping_label_photo"> & { product_image?: string | null; duplicate_confirmed?: boolean; shipping_label_photo?: string | null };
 export type RemovalShipmentUpdate = Partial<RemovalShipmentInsert>;
 
 export const useRemovalShipments = () => {

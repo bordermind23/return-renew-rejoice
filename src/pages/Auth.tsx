@@ -9,11 +9,11 @@ import { Card, CardContent, CardDescription, CardFooter, CardHeader, CardTitle }
 import { toast } from "sonner";
 import { Package, Loader2 } from "lucide-react";
 
-const usernameSchema = z.string().min(3, "用户名至少需要3个字符");
+const identifierSchema = z.string().min(3, "用户名/邮箱至少需要3个字符");
 const passwordSchema = z.string().min(6, "密码至少需要6个字符");
 
 export default function Auth() {
-  const [username, setUsername] = useState("");
+  const [identifier, setIdentifier] = useState("");
   const [password, setPassword] = useState("");
   const [isSubmitting, setIsSubmitting] = useState(false);
   
@@ -32,7 +32,7 @@ export default function Auth() {
 
   const validateInputs = (): boolean => {
     try {
-      usernameSchema.parse(username);
+      identifierSchema.parse(identifier);
     } catch (e) {
       if (e instanceof z.ZodError) {
         toast.error(e.errors[0].message);
@@ -59,8 +59,10 @@ export default function Auth() {
     
     setIsSubmitting(true);
     
-    // Convert username to placeholder email format for Supabase Auth
-    const loginEmail = `${username}@placeholder.local`;
+    // If input contains "@", treat as email; otherwise add placeholder suffix
+    const loginEmail = identifier.includes("@") 
+      ? identifier 
+      : `${identifier}@placeholder.local`;
     
     const { error } = await signIn(loginEmail, password);
     
@@ -102,13 +104,13 @@ export default function Auth() {
         <form onSubmit={handleLogin}>
           <CardContent className="space-y-4 pt-4">
             <div className="space-y-2">
-              <Label htmlFor="login-username">用户名</Label>
+              <Label htmlFor="login-identifier">用户名 / 邮箱</Label>
               <Input
-                id="login-username"
+                id="login-identifier"
                 type="text"
-                placeholder="请输入用户名"
-                value={username}
-                onChange={(e) => setUsername(e.target.value)}
+                placeholder="请输入用户名或邮箱"
+                value={identifier}
+                onChange={(e) => setIdentifier(e.target.value)}
                 disabled={isSubmitting}
                 autoComplete="username"
               />

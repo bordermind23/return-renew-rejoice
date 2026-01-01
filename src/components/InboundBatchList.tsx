@@ -409,24 +409,45 @@ export function InboundBatchList({ items, onDelete, onBatchDelete, enableBatchSe
         />
       )}
 
-      {/* 批次物流面单照片查看弹窗 */}
+      {/* 批次所有照片查看弹窗 */}
       {batchPhotoViewItem && (
         <PhotoViewDialog
           open={!!batchPhotoViewItem}
           onOpenChange={() => setBatchPhotoViewItem(null)}
-          title={`物流面单 - ${batchPhotoViewItem.trackingNumber}`}
+          title={`批次照片 - ${batchPhotoViewItem.trackingNumber}`}
           photos={(() => {
             const photos: { key: string; label: string; url: string }[] = [];
-            for (const item of batchPhotoViewItem.items) {
-              if (item.shipping_label_photo) {
-                photos.push({
-                  key: `shipping_label_${item.id}`,
-                  label: '物流面单',
-                  url: item.shipping_label_photo
-                });
-                break; // 只取第一张
-              }
-            }
+            const photoFields = [
+              { key: 'shipping_label_photo', label: '物流面单' },
+              { key: 'lpn_label_photo', label: 'LPN标签' },
+              { key: 'packaging_photo_1', label: '包装照片1' },
+              { key: 'packaging_photo_2', label: '包装照片2' },
+              { key: 'packaging_photo_3', label: '包装照片3' },
+              { key: 'packaging_photo_4', label: '包装照片4' },
+              { key: 'packaging_photo_5', label: '包装照片5' },
+              { key: 'packaging_photo_6', label: '包装照片6' },
+              { key: 'accessories_photo', label: '配件照片' },
+              { key: 'detail_photo', label: '细节照片' },
+              { key: 'product_photo', label: '产品照片' },
+              { key: 'package_photo', label: '包裹照片' },
+            ] as const;
+            
+            // 收集批次内所有入库记录的所有照片
+            batchPhotoViewItem.items.forEach((item, itemIndex) => {
+              photoFields.forEach(({ key, label }) => {
+                const url = item[key as keyof InboundItem] as string | null;
+                if (url) {
+                  photos.push({
+                    key: `${key}_${item.id}`,
+                    label: batchPhotoViewItem.items.length > 1 
+                      ? `${label} (${item.lpn})` 
+                      : label,
+                    url
+                  });
+                }
+              });
+            });
+            
             return photos;
           })()}
         />

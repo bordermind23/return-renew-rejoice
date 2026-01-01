@@ -1,5 +1,5 @@
 import { useState } from "react";
-import { Shield, Users, UserCog, Crown, Warehouse, Eye, UserPlus, Loader2 } from "lucide-react";
+import { Shield, Users, UserCog, Crown, Warehouse, Eye, UserPlus, Loader2, Trash2 } from "lucide-react";
 import { PageHeader } from "@/components/ui/page-header";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
@@ -15,6 +15,16 @@ import {
   DialogTitle,
   DialogTrigger,
 } from "@/components/ui/dialog";
+import {
+  AlertDialog,
+  AlertDialogAction,
+  AlertDialogCancel,
+  AlertDialogContent,
+  AlertDialogDescription,
+  AlertDialogFooter,
+  AlertDialogHeader,
+  AlertDialogTitle,
+} from "@/components/ui/alert-dialog";
 import {
   Select,
   SelectContent,
@@ -36,6 +46,7 @@ import {
   useUpdateUserRole,
   useCurrentUserRole,
   useCreateUser,
+  useDeleteUser,
   type AppRole,
 } from "@/hooks/useUserManagement";
 import { useAuth } from "@/hooks/useAuth";
@@ -70,9 +81,11 @@ export default function UserManagement() {
   const { user: currentUser } = useAuth();
   const updateRoleMutation = useUpdateUserRole();
   const createUserMutation = useCreateUser();
+  const deleteUserMutation = useDeleteUser();
   const [editingUserId, setEditingUserId] = useState<string | null>(null);
   const [isAddDialogOpen, setIsAddDialogOpen] = useState(false);
-  const [newUserIdentifier, setNewUserIdentifier] = useState(""); // 支持邮箱或用户名
+  const [deleteUserId, setDeleteUserId] = useState<string | null>(null);
+  const [newUsername, setNewUsername] = useState("");
   const [newUserPassword, setNewUserPassword] = useState("");
   const [newUserRole, setNewUserRole] = useState<AppRole>("warehouse_staff");
 
@@ -84,8 +97,12 @@ export default function UserManagement() {
   };
 
   const handleCreateUser = async () => {
-    if (!newUserIdentifier || !newUserPassword) {
-      toast.error("请填写邮箱/用户名和密码");
+    if (!newUsername || !newUserPassword) {
+      toast.error("请填写用户名和密码");
+      return;
+    }
+    if (newUsername.length < 3) {
+      toast.error("用户名至少需要3个字符");
       return;
     }
     if (newUserPassword.length < 6) {
@@ -93,26 +110,33 @@ export default function UserManagement() {
       return;
     }
     
-    // 判断是邮箱还是用户名
-    const isEmail = newUserIdentifier.includes("@");
-    
     createUserMutation.mutate(
       { 
-        email: isEmail ? newUserIdentifier : undefined, 
-        username: !isEmail ? newUserIdentifier : undefined,
+        username: newUsername,
         password: newUserPassword, 
         role: newUserRole 
       },
       {
         onSuccess: () => {
           setIsAddDialogOpen(false);
-          setNewUserIdentifier("");
+          setNewUsername("");
           setNewUserPassword("");
           setNewUserRole("warehouse_staff");
         },
       }
     );
   };
+
+  const handleDeleteUser = () => {
+    if (deleteUserId) {
+      deleteUserMutation.mutate(deleteUserId, {
+        onSuccess: () => setDeleteUserId(null),
+      });
+    }
+  };
+
+  // 找到要删除的用户
+  const userToDelete = users?.find(u => u.id === deleteUserId);
 
   if (!isAdmin) {
     return (
@@ -158,17 +182,14 @@ export default function UserManagement() {
               </DialogHeader>
               <div className="space-y-4 py-4">
                 <div className="space-y-2">
-                  <Label htmlFor="new-identifier">邮箱或用户名</Label>
+                  <Label htmlFor="new-username">用户名</Label>
                   <Input
-                    id="new-identifier"
+                    id="new-username"
                     type="text"
-                    placeholder="user@example.com 或 username"
-                    value={newUserIdentifier}
-                    onChange={(e) => setNewUserIdentifier(e.target.value)}
+                    placeholder="请输入用户名（至少3个字符）"
+                    value={newUsername}
+                    onChange={(e) => setNewUsername(e.target.value)}
                   />
-                  <p className="text-xs text-muted-foreground">
-                    支持邮箱地址或自定义用户名
-                  </p>
                 </div>
                 <div className="space-y-2">
                   <Label htmlFor="new-password">密码</Label>
@@ -276,7 +297,7 @@ export default function UserManagement() {
             用户列表
           </CardTitle>
           <CardDescription>
-            点击角色可以修改用户权限
+            点击角色可以修改用户权限，管理员账户不可删除
           </CardDescription>
         </CardHeader>
         <CardContent>
@@ -290,7 +311,7 @@ export default function UserManagement() {
             <Table>
               <TableHeader>
                 <TableRow>
-                  <TableHead>邮箱</TableHead>
+                  <TableHead>用户名</TableHead>
                   <TableHead>角色</TableHead>
                   <TableHead>注册时间</TableHead>
                   <TableHead className="text-right">操作</TableHead>
@@ -354,24 +375,38 @@ export default function UserManagement() {
                         {new Date(user.created_at).toLocaleDateString("zh-CN")}
                       </TableCell>
                       <TableCell className="text-right">
-                        {editingUserId === user.id ? (
-                          <Button
-                            variant="ghost"
-                            size="sm"
-                            onClick={() => setEditingUserId(null)}
-                          >
-                            取消
-                          </Button>
-                        ) : (
-                          <Button
-                            variant="outline"
-                            size="sm"
-                            onClick={() => setEditingUserId(user.id)}
-                            disabled={user.id === currentUser?.id}
-                          >
-                            修改角色
-                          </Button>
-                        )}
+                        <div className="flex justify-end gap-2">
+                          {editingUserId === user.id ? (
+                            <Button
+                              variant="ghost"
+                              size="sm"
+                              onClick={() => setEditingUserId(null)}
+                            >
+                              取消
+                            </Button>
+                          ) : (
+                            <>
+                              <Button
+                                variant="outline"
+                                size="sm"
+                                onClick={() => setEditingUserId(user.id)}
+                                disabled={user.id === currentUser?.id}
+                              >
+                                修改角色
+                              </Button>
+                              <Button
+                                variant="ghost"
+                                size="sm"
+                                className="text-destructive hover:text-destructive"
+                                onClick={() => setDeleteUserId(user.id)}
+                                disabled={user.id === currentUser?.id || user.role === "admin"}
+                                title={user.role === "admin" ? "管理员不可删除" : "删除用户"}
+                              >
+                                <Trash2 className="h-4 w-4" />
+                              </Button>
+                            </>
+                          )}
+                        </div>
                       </TableCell>
                     </TableRow>
                   ))
@@ -419,6 +454,35 @@ export default function UserManagement() {
           </div>
         </CardContent>
       </Card>
+
+      {/* Delete Confirmation Dialog */}
+      <AlertDialog open={!!deleteUserId} onOpenChange={(open) => !open && setDeleteUserId(null)}>
+        <AlertDialogContent>
+          <AlertDialogHeader>
+            <AlertDialogTitle>确认删除用户</AlertDialogTitle>
+            <AlertDialogDescription>
+              您确定要删除用户 <strong>{userToDelete?.email}</strong> 吗？此操作无法撤销。
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+          <AlertDialogFooter>
+            <AlertDialogCancel>取消</AlertDialogCancel>
+            <AlertDialogAction
+              onClick={handleDeleteUser}
+              className="bg-destructive text-destructive-foreground hover:bg-destructive/90"
+              disabled={deleteUserMutation.isPending}
+            >
+              {deleteUserMutation.isPending ? (
+                <>
+                  <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+                  删除中...
+                </>
+              ) : (
+                "确认删除"
+              )}
+            </AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
     </div>
   );
 }

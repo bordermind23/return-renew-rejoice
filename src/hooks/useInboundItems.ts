@@ -138,6 +138,18 @@ const extractStoragePath = (url: string | null): string | null => {
   }
 };
 
+// 辅助函数：从URL中提取shipping-labels存储路径
+const extractShippingLabelPath = (url: string | null): string | null => {
+  if (!url) return null;
+  try {
+    // URL格式: https://xxx.supabase.co/storage/v1/object/public/shipping-labels/xxx/filename.jpg
+    const match = url.match(/\/shipping-labels\/(.+)$/);
+    return match ? match[1] : null;
+  } catch {
+    return null;
+  }
+};
+
 export const useDeleteInboundItem = () => {
   const queryClient = useQueryClient();
 
@@ -153,6 +165,7 @@ export const useDeleteInboundItem = () => {
       if (fetchError) throw fetchError;
 
       const lpn = inboundItem?.lpn;
+      const trackingNumber = inboundItem?.tracking_number;
 
       // 收集所有需要删除的存储文件路径
       const photoFields = [
@@ -186,6 +199,40 @@ export const useDeleteInboundItem = () => {
         }
       }
 
+      // 检查是否需要清除removal_shipments中的物流面单
+      // 只有当该物流号下没有其他入库记录时才清除
+      let shippingLabelFilesToDelete: string[] = [];
+      if (trackingNumber) {
+        const { data: otherInboundItems } = await supabase
+          .from("inbound_items")
+          .select("id")
+          .eq("tracking_number", trackingNumber)
+          .neq("id", id);
+        
+        // 如果没有其他入库记录使用该物流号，清除removal_shipments中的物流面单
+        if (!otherInboundItems || otherInboundItems.length === 0) {
+          // 获取该物流号的货件物流面单URL
+          const { data: shipments } = await supabase
+            .from("removal_shipments")
+            .select("id, shipping_label_photo")
+            .eq("tracking_number", trackingNumber);
+          
+          if (shipments && shipments.length > 0) {
+            // 收集需要删除的物流面单文件路径
+            for (const shipment of shipments) {
+              const path = extractShippingLabelPath(shipment.shipping_label_photo);
+              if (path) shippingLabelFilesToDelete.push(path);
+            }
+            
+            // 清除removal_shipments中的shipping_label_photo字段
+            await supabase
+              .from("removal_shipments")
+              .update({ shipping_label_photo: null })
+              .eq("tracking_number", trackingNumber);
+          }
+        }
+      }
+
       // 删除入库记录
       const { error: deleteError } = await supabase
         .from("inbound_items")
@@ -194,7 +241,7 @@ export const useDeleteInboundItem = () => {
 
       if (deleteError) throw deleteError;
 
-      // 删除存储中的文件
+      // 删除product-images存储中的文件
       if (filesToDelete.length > 0) {
         const { error: storageError } = await supabase.storage
           .from("product-images")
@@ -202,9 +249,23 @@ export const useDeleteInboundItem = () => {
         
         if (storageError) {
           console.error("删除存储文件失败:", storageError);
-          // 不抛出错误，因为入库记录已经删除成功
         } else {
           console.log(`成功删除 ${filesToDelete.length} 个存储文件`);
+        }
+      }
+
+      // 删除shipping-labels存储中的物流面单文件
+      if (shippingLabelFilesToDelete.length > 0) {
+        // 去重，因为同一物流号的多个货件可能指向同一张图片
+        const uniqueShippingLabelFiles = [...new Set(shippingLabelFilesToDelete)];
+        const { error: shippingLabelStorageError } = await supabase.storage
+          .from("shipping-labels")
+          .remove(uniqueShippingLabelFiles);
+        
+        if (shippingLabelStorageError) {
+          console.error("删除物流面单存储文件失败:", shippingLabelStorageError);
+        } else {
+          console.log(`成功删除 ${uniqueShippingLabelFiles.length} 个物流面单存储文件`);
         }
       }
 
@@ -220,15 +281,15 @@ export const useDeleteInboundItem = () => {
 
         if (updateError) {
           console.error("更新订单状态失败:", updateError);
-          // 不抛出错误，因为入库记录已经删除成功
         }
       }
 
-      return { lpn, deletedFiles: filesToDelete.length };
+      return { lpn, deletedFiles: filesToDelete.length + shippingLabelFilesToDelete.length };
     },
     onSuccess: (data) => {
       queryClient.invalidateQueries({ queryKey: ["inbound_items"] });
       queryClient.invalidateQueries({ queryKey: ["orders"] });
+      queryClient.invalidateQueries({ queryKey: ["removal_shipments"] });
       const fileMsg = data.deletedFiles > 0 ? `，已清理 ${data.deletedFiles} 个存储文件` : '';
       toast.success(`入库记录已删除，订单状态已更新${fileMsg}`);
     },

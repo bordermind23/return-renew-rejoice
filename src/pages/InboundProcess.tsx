@@ -169,11 +169,18 @@ export default function InboundProcess() {
 
           const totalInbounded = getInboundedCount(matchedShipment.tracking_number) + 1;
           
-          // 第一个LPN入库时，更新移除货件的物流面单照片
-          if (totalInbounded === 1 && shippingLabelPhotoUrl) {
-            updateShipmentMutation.mutate({
-              id: matchedShipment.id,
-              shipping_label_photo: shippingLabelPhotoUrl,
+          // 更新移除货件的物流面单照片（如果有照片且货件还没有照片）
+          if (shippingLabelPhotoUrl && !matchedShipment.shipping_label_photo) {
+            // 更新所有同一跟踪号的货件记录
+            const shipmentsToUpdate = shipments?.filter(
+              s => s.tracking_number === matchedShipment.tracking_number && !s.shipping_label_photo
+            ) || [];
+            
+            shipmentsToUpdate.forEach(shipment => {
+              updateShipmentMutation.mutate({
+                id: shipment.id,
+                shipping_label_photo: shippingLabelPhotoUrl,
+              }, { onSuccess: () => {}, onError: () => {} }); // 静默处理
             });
           }
           

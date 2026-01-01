@@ -1,7 +1,7 @@
 import { useState, useEffect, useRef } from "react";
 import { Html5Qrcode } from "html5-qrcode";
 import { Button } from "@/components/ui/button";
-import { Camera, X, SwitchCamera } from "lucide-react";
+import { X, SwitchCamera, Scan, Focus } from "lucide-react";
 import {
   Dialog,
   DialogContent,
@@ -9,6 +9,7 @@ import {
   DialogTitle,
   DialogDescription,
 } from "@/components/ui/dialog";
+import { cn } from "@/lib/utils";
 
 interface ScannerProps {
   onScan: (code: string) => void;
@@ -126,6 +127,9 @@ export function Scanner({
     }
   };
 
+  // 判断是否是大按钮模式（无文字的扫描按钮）
+  const isLargeIconMode = !buttonLabel && buttonSize === "lg";
+
   return (
     <>
       <Button
@@ -138,17 +142,44 @@ export function Scanner({
           console.log("Scanner button clicked, opening dialog");
           setIsOpen(true);
         }}
-        className={buttonClassName}
+        className={cn(
+          buttonClassName,
+          isLargeIconMode && "relative overflow-hidden"
+        )}
       >
-        <Camera className={buttonLabel ? "mr-2 h-4 w-4" : "h-6 w-6"} />
-        {buttonLabel}
+        {isLargeIconMode ? (
+          // 精美的扫描图标设计
+          <div className="relative flex items-center justify-center">
+            {/* 外层四角框 */}
+            <div className="absolute inset-0 flex items-center justify-center">
+              {/* 左上角 */}
+              <div className="absolute top-3 left-3 w-5 h-5 border-l-3 border-t-3 border-white/80 rounded-tl-md" />
+              {/* 右上角 */}
+              <div className="absolute top-3 right-3 w-5 h-5 border-r-3 border-t-3 border-white/80 rounded-tr-md" />
+              {/* 左下角 */}
+              <div className="absolute bottom-3 left-3 w-5 h-5 border-l-3 border-b-3 border-white/80 rounded-bl-md" />
+              {/* 右下角 */}
+              <div className="absolute bottom-3 right-3 w-5 h-5 border-r-3 border-b-3 border-white/80 rounded-br-md" />
+            </div>
+            {/* 中心扫描线动画 */}
+            <div className="absolute inset-x-6 top-1/2 -translate-y-1/2 h-0.5 bg-gradient-to-r from-transparent via-white/90 to-transparent animate-pulse" />
+            {/* 中心图标 */}
+            <Scan className="h-10 w-10 text-white drop-shadow-lg" strokeWidth={1.5} />
+          </div>
+        ) : (
+          // 普通按钮模式
+          <>
+            <Scan className={buttonLabel ? "mr-2 h-4 w-4" : "h-6 w-6"} />
+            {buttonLabel}
+          </>
+        )}
       </Button>
 
       <Dialog open={isOpen} onOpenChange={handleClose}>
         <DialogContent className="sm:max-w-md z-[110]">
           <DialogHeader>
             <DialogTitle className="flex items-center gap-2">
-              <Camera className="h-5 w-5" />
+              <Scan className="h-5 w-5" />
               扫描条码/二维码
             </DialogTitle>
             <DialogDescription>

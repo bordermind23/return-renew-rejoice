@@ -1,5 +1,5 @@
 import React, { useState, useRef, useMemo } from "react";
-import { Eye, Plus, Trash2, Upload, Download, FileSpreadsheet, ChevronDown, AlertCircle, CheckCircle2, Loader2, Edit, ChevronUp, Package, Wrench } from "lucide-react";
+import { Eye, Plus, Trash2, Upload, Download, FileSpreadsheet, ChevronDown, AlertCircle, CheckCircle2, Loader2, Edit, ChevronUp, Package, Wrench, X, ChevronLeft, ChevronRight } from "lucide-react";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -1208,6 +1208,21 @@ export default function Orders() {
                       </div>
                     );
                   }
+                  
+                  // 收集所有入库照片
+                  const inboundPhotos: { url: string; label: string }[] = [];
+                  if (inboundItem.lpn_label_photo) inboundPhotos.push({ url: inboundItem.lpn_label_photo, label: "LPN标签" });
+                  if (inboundItem.packaging_photo_1) inboundPhotos.push({ url: inboundItem.packaging_photo_1, label: "包装照片1" });
+                  if (inboundItem.packaging_photo_2) inboundPhotos.push({ url: inboundItem.packaging_photo_2, label: "包装照片2" });
+                  if (inboundItem.packaging_photo_3) inboundPhotos.push({ url: inboundItem.packaging_photo_3, label: "包装照片3" });
+                  if (inboundItem.packaging_photo_4) inboundPhotos.push({ url: inboundItem.packaging_photo_4, label: "包装照片4" });
+                  if (inboundItem.packaging_photo_5) inboundPhotos.push({ url: inboundItem.packaging_photo_5, label: "包装照片5" });
+                  if (inboundItem.packaging_photo_6) inboundPhotos.push({ url: inboundItem.packaging_photo_6, label: "包装照片6" });
+                  if (inboundItem.accessories_photo) inboundPhotos.push({ url: inboundItem.accessories_photo, label: "配件照片" });
+                  if (inboundItem.detail_photo) inboundPhotos.push({ url: inboundItem.detail_photo, label: "细节照片" });
+                  if (inboundItem.product_photo) inboundPhotos.push({ url: inboundItem.product_photo, label: "产品照片" });
+                  if (inboundItem.package_photo) inboundPhotos.push({ url: inboundItem.package_photo, label: "包装照片" });
+                  
                   return (
                     <div className="space-y-4">
                       <div className="grid grid-cols-2 gap-4 rounded-lg bg-muted/50 p-4 text-sm">
@@ -1223,28 +1238,25 @@ export default function Orders() {
                       </div>
                       
                       {/* 入库照片 */}
-                      {(inboundItem.product_photo || inboundItem.package_photo || inboundItem.lpn_label_photo) && (
-                        <div className="space-y-2">
+                      {inboundPhotos.length > 0 && (
+                        <div className="space-y-3 border-t pt-4">
                           <p className="text-sm font-medium">入库照片</p>
-                          <div className="grid grid-cols-3 gap-2">
-                            {inboundItem.lpn_label_photo && (
-                              <div className="space-y-1">
-                                <img src={inboundItem.lpn_label_photo} alt="LPN标签" className="w-full h-24 object-cover rounded-lg border" />
-                                <p className="text-xs text-muted-foreground text-center">LPN标签</p>
+                          <div className="grid grid-cols-3 sm:grid-cols-4 gap-3">
+                            {inboundPhotos.map((photo, idx) => (
+                              <div key={idx} className="space-y-1.5 group">
+                                <div 
+                                  className="relative aspect-square rounded-lg border overflow-hidden cursor-pointer hover:ring-2 hover:ring-primary transition-all"
+                                  onClick={() => window.open(photo.url, '_blank')}
+                                >
+                                  <img 
+                                    src={photo.url} 
+                                    alt={photo.label} 
+                                    className="w-full h-full object-cover group-hover:scale-105 transition-transform" 
+                                  />
+                                </div>
+                                <p className="text-xs text-muted-foreground text-center truncate">{photo.label}</p>
                               </div>
-                            )}
-                            {inboundItem.product_photo && (
-                              <div className="space-y-1">
-                                <img src={inboundItem.product_photo} alt="产品照片" className="w-full h-24 object-cover rounded-lg border" />
-                                <p className="text-xs text-muted-foreground text-center">产品照片</p>
-                              </div>
-                            )}
-                            {inboundItem.package_photo && (
-                              <div className="space-y-1">
-                                <img src={inboundItem.package_photo} alt="包装照片" className="w-full h-24 object-cover rounded-lg border" />
-                                <p className="text-xs text-muted-foreground text-center">包装照片</p>
-                              </div>
-                            )}
+                            ))}
                           </div>
                         </div>
                       )}

@@ -1,5 +1,5 @@
 import { useState, useRef, useMemo, useCallback } from "react";
-import { Plus, Search, Filter, Trash2, Edit, Eye, Upload, Download, FileSpreadsheet, ChevronDown, ChevronRight, AlertCircle, CheckCircle2, Loader2, Package, Copy, LayoutGrid, List, Check } from "lucide-react";
+import { Plus, Search, Filter, Trash2, Edit, Eye, Upload, Download, FileSpreadsheet, ChevronDown, ChevronRight, AlertCircle, CheckCircle2, Loader2, Package, Copy, LayoutGrid, List, Check, Image } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { PageHeader } from "@/components/ui/page-header";
@@ -1512,6 +1512,28 @@ export default function Removals() {
                   <p className="font-medium">{viewingItem.note}</p>
                 </div>
               )}
+              
+              {/* 物流面单照片 */}
+              {viewingItem.shipping_label_photo && (
+                <div className="pt-2 border-t">
+                  <Label className="text-muted-foreground text-xs mb-2 block">物流面单照片</Label>
+                  <div className="relative group">
+                    <img 
+                      src={viewingItem.shipping_label_photo} 
+                      alt="物流面单" 
+                      className="w-full max-h-64 object-contain rounded-lg border bg-muted cursor-pointer hover:opacity-90 transition-opacity"
+                      onClick={() => window.open(viewingItem.shipping_label_photo!, '_blank')}
+                    />
+                    <div className="absolute inset-0 flex items-center justify-center opacity-0 group-hover:opacity-100 transition-opacity pointer-events-none">
+                      <div className="bg-black/50 text-white px-3 py-1 rounded-full text-sm flex items-center gap-1">
+                        <Image className="h-4 w-4" />
+                        点击查看大图
+                      </div>
+                    </div>
+                  </div>
+                </div>
+              )}
+              
               <div className="text-xs text-muted-foreground pt-2 border-t">
                 创建时间: {new Date(viewingItem.created_at).toLocaleString("zh-CN")}
               </div>

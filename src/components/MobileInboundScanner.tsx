@@ -846,118 +846,112 @@ export function MobileInboundScanner({ initialTracking }: MobileInboundScannerPr
     return (
       <div className="fixed inset-0 z-50 bg-gradient-to-b from-info/5 to-background flex flex-col">
         {/* 顶部栏 - 安全区域内边距 */}
-        <div className="flex items-center justify-center px-4 py-3 shrink-0 pt-[calc(env(safe-area-inset-top,0px)+12px)]">
+        <div className="flex items-center justify-center px-4 py-2 shrink-0 pt-[calc(env(safe-area-inset-top,0px)+8px)]">
           <p className="text-sm text-info font-medium">步骤 2/2 · 扫描LPN</p>
         </div>
 
-        {/* 进度概览 - 固定在顶部 */}
-        <div className="px-4 pb-4 shrink-0">
-          <div className="bg-card rounded-2xl border-2 border-info/30 p-4 shadow-lg">
-            <div className="flex items-center justify-between mb-3">
+        {/* 进度概览 - 更紧凑 */}
+        <div className="px-4 pb-3 shrink-0">
+          <div className="bg-card rounded-xl border border-info/20 p-3 shadow-sm">
+            <div className="flex items-center justify-between mb-2">
               <div className="text-center flex-1">
-                <div className="text-3xl font-bold text-info">{inboundedCount}</div>
-                <p className="text-xs text-muted-foreground">已入库</p>
+                <div className="text-2xl font-bold text-info">{inboundedCount}</div>
+                <p className="text-[10px] text-muted-foreground">已入库</p>
               </div>
-              <div className="h-10 w-px bg-border" />
+              <div className="h-8 w-px bg-border" />
               <div className="text-center flex-1">
-                <div className="text-3xl font-bold">{totalQuantity}</div>
-                <p className="text-xs text-muted-foreground">总计</p>
+                <div className="text-2xl font-bold">{totalQuantity}</div>
+                <p className="text-[10px] text-muted-foreground">总计</p>
               </div>
-              <div className="h-10 w-px bg-border" />
+              <div className="h-8 w-px bg-border" />
               <div className="text-center flex-1">
-                <div className={cn("text-3xl font-bold", remainingCount > 0 ? "text-amber-500" : "text-green-500")}>
+                <div className={cn("text-2xl font-bold", remainingCount > 0 ? "text-amber-500" : "text-green-500")}>
                   {remainingCount}
                 </div>
-                <p className="text-xs text-muted-foreground">待入库</p>
+                <p className="text-[10px] text-muted-foreground">待入库</p>
               </div>
             </div>
-            <Progress value={(inboundedCount / totalQuantity) * 100} className="h-2 [&>div]:bg-info" />
+            <Progress value={(inboundedCount / totalQuantity) * 100} className="h-1.5 [&>div]:bg-info" />
           </div>
         </div>
 
-        {/* 扫描区域 */}
-        <div className="flex-1 flex flex-col items-center justify-center px-6">
-          {/* 大扫描按钮 - 蓝色主题 */}
-          <div className="relative mb-6">
-            <div className="absolute inset-0 bg-info/20 rounded-3xl blur-2xl pointer-events-none scale-110" />
-            <Scanner 
-              onScan={handleLpnScan} 
-              buttonLabel=""
-              buttonSize="lg"
-              buttonClassName="h-32 w-32 rounded-3xl gradient-lpn shadow-2xl"
-              scanType="lpn"
-            />
+        {/* 主扫描区域 - 紧凑布局 */}
+        <div className="flex-1 flex flex-col px-4 overflow-hidden">
+          {/* 扫描按钮区域 */}
+          <div className="flex flex-col items-center py-6">
+            <div className="relative mb-4">
+              <div className="absolute inset-0 bg-info/20 rounded-2xl blur-xl pointer-events-none scale-110" />
+              <Scanner 
+                onScan={handleLpnScan} 
+                buttonLabel=""
+                buttonSize="lg"
+                buttonClassName="h-28 w-28 rounded-2xl gradient-lpn shadow-xl"
+                scanType="lpn"
+              />
+            </div>
+            <h2 className="text-lg font-bold text-info">扫描LPN标签</h2>
+            <p className="text-xs text-muted-foreground">扫描产品上的LPN条码</p>
           </div>
-          
-          <h2 className="text-xl font-bold mb-1 text-info">扫描LPN标签</h2>
-          <p className="text-sm text-muted-foreground mb-6">扫描产品上的LPN条码</p>
 
-          {/* 手动输入 */}
-          <div className="w-full max-w-sm space-y-3">
-            <div className="flex items-center gap-3">
+          {/* 手动输入 - 更紧凑 */}
+          <div className="w-full max-w-sm mx-auto space-y-2 mb-4">
+            <div className="flex items-center gap-2">
               <div className="h-px flex-1 bg-border" />
-              <p className="text-xs text-muted-foreground px-2">或手动输入</p>
+              <p className="text-[10px] text-muted-foreground">或手动输入</p>
               <div className="h-px flex-1 bg-border" />
             </div>
-            <div className="flex gap-3">
+            <div className="flex gap-2">
               <Input
                 placeholder="输入LPN号"
                 value={lpnInput}
                 onChange={(e) => setLpnInput(e.target.value)}
                 onKeyDown={(e) => e.key === "Enter" && handleLpnScan(lpnInput)}
-                className="h-14 text-center font-mono text-lg rounded-xl border-info/30 focus-visible:ring-info"
+                className="h-12 text-center font-mono rounded-xl border-info/30 focus-visible:ring-info"
               />
               <Button 
                 onClick={() => handleLpnScan(lpnInput)} 
                 size="icon" 
-                className="h-14 w-14 gradient-lpn shrink-0 rounded-xl"
+                className="h-12 w-12 gradient-lpn shrink-0 rounded-xl"
                 disabled={!lpnInput}
               >
-                <ArrowRight className="h-6 w-6" />
+                <ArrowRight className="h-5 w-5" />
               </Button>
             </div>
           </div>
-        </div>
 
-        {/* 产品列表 - 可折叠 */}
-        <div className="px-4 pb-4 shrink-0">
-          <details className="bg-card rounded-xl border">
-            <summary className="p-3 cursor-pointer text-sm font-medium flex items-center justify-between">
-              <span className="flex items-center gap-2">
-                <Package className="h-4 w-4 text-info" />
-                产品列表 ({skuProgress.length})
-              </span>
-              <span className="text-xs text-muted-foreground">展开查看</span>
-            </summary>
-            <div className="px-3 pb-3 space-y-2">
-              {skuProgress.map((shipment, index) => (
-                <div 
-                  key={shipment.id} 
-                  className={cn(
-                    "flex items-center justify-between p-3 rounded-lg text-sm",
-                    shipment.inbounded >= shipment.quantity 
-                      ? "bg-green-50 dark:bg-green-950/30" 
-                      : "bg-muted/50"
-                  )}
-                >
-                  <div className="flex items-center gap-2 min-w-0 flex-1">
-                    {shipment.inbounded >= shipment.quantity ? (
-                      <CheckCircle className="h-4 w-4 text-green-500 shrink-0" />
-                    ) : (
-                      <div className="h-4 w-4 rounded-full border-2 border-muted-foreground/30 shrink-0" />
+          {/* 产品列表 - 可滚动 */}
+          <div className="flex-1 overflow-hidden">
+            <ScrollArea className="h-full">
+              <div className="space-y-1.5 pb-2">
+                {skuProgress.map((shipment) => (
+                  <div 
+                    key={shipment.id} 
+                    className={cn(
+                      "flex items-center justify-between p-2.5 rounded-lg text-sm",
+                      shipment.inbounded >= shipment.quantity 
+                        ? "bg-green-50 dark:bg-green-950/30 border border-green-200 dark:border-green-800" 
+                        : "bg-card border"
                     )}
-                    <span className="truncate">{shipment.product_name}</span>
+                  >
+                    <div className="flex items-center gap-2 min-w-0 flex-1">
+                      {shipment.inbounded >= shipment.quantity ? (
+                        <CheckCircle className="h-4 w-4 text-green-500 shrink-0" />
+                      ) : (
+                        <Package className="h-4 w-4 text-info shrink-0" />
+                      )}
+                      <span className="truncate text-xs">{shipment.product_name}</span>
+                    </div>
+                    <Badge variant={shipment.inbounded >= shipment.quantity ? "default" : "outline"} className={cn(
+                      "shrink-0 ml-2 text-xs",
+                      shipment.inbounded >= shipment.quantity && "bg-green-600"
+                    )}>
+                      {shipment.inbounded}/{shipment.quantity}
+                    </Badge>
                   </div>
-                  <Badge variant={shipment.inbounded >= shipment.quantity ? "default" : "outline"} className={cn(
-                    "shrink-0 ml-2",
-                    shipment.inbounded >= shipment.quantity && "bg-green-600"
-                  )}>
-                    {shipment.inbounded}/{shipment.quantity}
-                  </Badge>
-                </div>
-              ))}
-            </div>
-          </details>
+                ))}
+              </div>
+            </ScrollArea>
+          </div>
         </div>
 
         {/* 底部操作栏 */}

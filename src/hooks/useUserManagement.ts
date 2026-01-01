@@ -89,19 +89,17 @@ export function useCreateUser() {
 
   return useMutation({
     mutationFn: async ({
-      email,
       username,
       password,
       role,
     }: {
-      email?: string;
-      username?: string;
+      username: string;
       password: string;
       role: AppRole;
     }) => {
       // Use Supabase Admin API via edge function to create user
       const { data, error } = await supabase.functions.invoke("create-user", {
-        body: { email, username, password, role },
+        body: { username, password, role },
       });
 
       if (error) {
@@ -119,6 +117,34 @@ export function useCreateUser() {
     onError: (error) => {
       console.error("Failed to create user:", error);
       toast.error(`创建用户失败: ${error.message}`);
+    },
+  });
+}
+
+export function useDeleteUser() {
+  const queryClient = useQueryClient();
+
+  return useMutation({
+    mutationFn: async (userId: string) => {
+      const { data, error } = await supabase.functions.invoke("delete-user", {
+        body: { userId },
+      });
+
+      if (error) {
+        console.error("Edge function error:", error);
+        throw new Error(error.message || "Edge Function 调用失败");
+      }
+      if (data?.error) throw new Error(data.error);
+
+      return data;
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ["users-with-roles"] });
+      toast.success("用户已删除");
+    },
+    onError: (error) => {
+      console.error("Failed to delete user:", error);
+      toast.error(`删除用户失败: ${error.message}`);
     },
   });
 }

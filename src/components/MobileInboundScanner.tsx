@@ -232,7 +232,7 @@ export function MobileInboundScanner({ initialTracking }: MobileInboundScannerPr
     handleReset();
   };
 
-  // 空闲状态 - 显示浮动按钮
+  // 空闲状态 - 显示主界面
   if (step === "idle") {
     const hasActiveShipment = matchedShipment !== null;
     const inboundedCount = matchedShipment ? getInboundedCount(matchedShipment.tracking_number) : 0;
@@ -240,84 +240,93 @@ export function MobileInboundScanner({ initialTracking }: MobileInboundScannerPr
     const remainingCount = totalQuantity - inboundedCount;
 
     return (
-      <div className="min-h-[calc(100vh-120px)] flex flex-col items-center justify-center p-6 bg-gradient-to-b from-background to-muted/30">
-        {/* 已匹配货件信息卡片 */}
-        {hasActiveShipment && matchedShipment && (
-          <div className="w-full max-w-sm mb-8 rounded-xl bg-card border shadow-sm p-5 animate-fade-in">
-            <div className="flex items-center justify-between mb-4">
-              <div className="flex items-center gap-3">
-                <div className="h-10 w-10 rounded-lg bg-primary/10 flex items-center justify-center">
-                  <Truck className="h-5 w-5 text-primary" />
-                </div>
-                <span className="font-semibold">当前货件</span>
-              </div>
-              <Button variant="outline" size="sm" onClick={handleReset} className="h-8 text-xs">
-                更换货件
-              </Button>
-            </div>
-            <p className="font-medium truncate mb-1">{matchedShipment.product_name}</p>
-            <p className="text-sm text-muted-foreground mb-4 font-mono">{matchedShipment.tracking_number}</p>
-            <div className="flex items-center justify-between text-sm mb-2">
-              <span className="text-muted-foreground">入库进度</span>
-              <span className="font-semibold text-primary">{inboundedCount} / {totalQuantity}</span>
-            </div>
-            <Progress 
-              value={(inboundedCount / totalQuantity) * 100}
-              className="h-2"
-            />
-            
-            {/* 完成/强制完成按钮 */}
-            {inboundedCount > 0 && (
-              <div className="mt-4 pt-4 border-t space-y-2">
-                {inboundedCount >= totalQuantity ? (
-                  <Button onClick={handleCompletePackage} className="w-full bg-green-600 hover:bg-green-700">
-                    <PackageCheck className="mr-2 h-4 w-4" />
-                    完成包裹
-                  </Button>
-                ) : (
-                  <Button variant="outline" onClick={() => setIsForceCompleteOpen(true)} className="w-full border-amber-300 text-amber-700">
-                    <AlertCircle className="mr-2 h-4 w-4" />
-                    强制完成 (差 {remainingCount} 件)
-                  </Button>
-                )}
-              </div>
-            )}
-          </div>
-        )}
-
-        {/* 中央浮动扫描按钮 */}
-        <div className="relative">
-          <div className="absolute inset-0 bg-primary/15 rounded-2xl blur-xl pointer-events-none" />
-          <Button
-            onClick={hasActiveShipment ? () => setStep("scan_lpn") : startScanning}
-            className="relative h-36 w-36 rounded-2xl gradient-primary shadow-xl hover:shadow-2xl transition-all duration-300 hover:scale-[1.02] active:scale-[0.98]"
-          >
-            <div className="flex flex-col items-center gap-3">
-              <div className="h-14 w-14 rounded-xl bg-white/20 flex items-center justify-center backdrop-blur-sm">
-                <ScanLine className="h-8 w-8" />
-              </div>
-              <span className="text-base font-semibold">
-                {hasActiveShipment ? "扫描LPN" : "开始扫描"}
-              </span>
-            </div>
-          </Button>
+      <div className="min-h-[calc(100vh-120px)] flex flex-col p-4 bg-gradient-to-b from-background to-muted/20">
+        {/* 顶部标题 */}
+        <div className="text-center mb-6">
+          <h1 className="text-2xl font-bold">入库扫码</h1>
+          <p className="text-sm text-muted-foreground mt-1">
+            {hasActiveShipment ? "点击下方按钮继续扫描" : "点击开始扫描物流号"}
+          </p>
         </div>
 
-        {/* 提示文字 */}
-        <p className="mt-8 text-sm text-muted-foreground text-center max-w-xs leading-relaxed">
-          {hasActiveShipment 
-            ? `还有 ${remainingCount} 件待入库，点击按钮扫描LPN`
-            : "点击按钮开始扫描物流跟踪号"}
-        </p>
+        {/* 主内容区 */}
+        <div className="flex-1 flex flex-col items-center justify-center">
+          {/* 已匹配货件卡片 - 简化显示 */}
+          {hasActiveShipment && matchedShipment && (
+            <div className="w-full max-w-sm mb-6 rounded-2xl bg-card border-2 border-primary/20 shadow-lg p-5 animate-fade-in">
+              <div className="flex items-center justify-between mb-4">
+                <Badge variant="secondary" className="text-xs">当前货件</Badge>
+                <Button variant="ghost" size="sm" onClick={handleReset} className="h-7 text-xs text-muted-foreground">
+                  更换
+                </Button>
+              </div>
+              
+              {/* 大进度显示 */}
+              <div className="text-center mb-4">
+                <div className="text-4xl font-bold text-primary mb-1">
+                  {inboundedCount} <span className="text-muted-foreground text-xl font-normal">/ {totalQuantity}</span>
+                </div>
+                <p className="text-sm text-muted-foreground">已入库</p>
+              </div>
+              
+              <Progress value={(inboundedCount / totalQuantity) * 100} className="h-3 rounded-full" />
+              
+              <p className="text-xs text-muted-foreground text-center mt-3 font-mono truncate">
+                {matchedShipment.tracking_number}
+              </p>
+              
+              {/* 快捷操作 */}
+              {inboundedCount > 0 && (
+                <div className="mt-4 pt-4 border-t">
+                  {inboundedCount >= totalQuantity ? (
+                    <Button onClick={handleCompletePackage} className="w-full h-12 bg-green-600 hover:bg-green-700 text-base">
+                      <PackageCheck className="mr-2 h-5 w-5" />
+                      完成包裹
+                    </Button>
+                  ) : (
+                    <Button variant="outline" onClick={() => setIsForceCompleteOpen(true)} className="w-full h-11 border-amber-300 text-amber-700">
+                      强制完成 (差 {remainingCount} 件)
+                    </Button>
+                  )}
+                </div>
+              )}
+            </div>
+          )}
 
-        {/* 今日统计 */}
-        <div className="mt-10 px-6 py-4 bg-card rounded-xl border shadow-sm">
-          <div className="flex items-center gap-3">
-            <div className="h-10 w-10 rounded-lg bg-green-500/10 flex items-center justify-center">
-              <CheckCircle className="h-5 w-5 text-green-500" />
+          {/* 大扫描按钮 */}
+          <div className="relative">
+            <div className="absolute inset-0 bg-primary/20 rounded-3xl blur-2xl pointer-events-none scale-110" />
+            <Button
+              onClick={hasActiveShipment ? () => setStep("scan_lpn") : startScanning}
+              className="relative h-40 w-40 rounded-3xl gradient-primary shadow-2xl hover:shadow-3xl transition-all duration-300 active:scale-95"
+            >
+              <div className="flex flex-col items-center gap-4">
+                <div className="h-16 w-16 rounded-2xl bg-white/20 flex items-center justify-center backdrop-blur-sm">
+                  <ScanLine className="h-10 w-10" />
+                </div>
+                <span className="text-lg font-bold">
+                  {hasActiveShipment ? "扫描LPN" : "开始扫描"}
+                </span>
+              </div>
+            </Button>
+          </div>
+
+          {/* 提示 */}
+          {!hasActiveShipment && (
+            <p className="mt-6 text-sm text-muted-foreground text-center">
+              扫描物流跟踪号开始入库流程
+            </p>
+          )}
+        </div>
+
+        {/* 底部统计 */}
+        <div className="mt-auto pt-6">
+          <div className="flex items-center justify-center gap-3 px-5 py-4 bg-card rounded-2xl border shadow-sm">
+            <div className="h-12 w-12 rounded-xl bg-green-500/10 flex items-center justify-center">
+              <CheckCircle className="h-6 w-6 text-green-500" />
             </div>
             <div>
-              <p className="text-2xl font-bold">{inboundItems?.length || 0}</p>
+              <p className="text-3xl font-bold">{inboundItems?.length || 0}</p>
               <p className="text-xs text-muted-foreground">今日已入库</p>
             </div>
           </div>
@@ -325,25 +334,26 @@ export function MobileInboundScanner({ initialTracking }: MobileInboundScannerPr
 
         {/* 强制完成确认抽屉 */}
         <Drawer open={isForceCompleteOpen} onOpenChange={setIsForceCompleteOpen}>
-          <DrawerContent>
+          <DrawerContent className="pb-8">
             <DrawerHeader>
-              <DrawerTitle className="flex items-center gap-2 text-amber-600">
+              <DrawerTitle className="flex items-center justify-center gap-2 text-amber-600 text-lg">
                 <AlertCircle className="h-5 w-5" />
                 确认强制完成
               </DrawerTitle>
             </DrawerHeader>
-            <div className="px-4 pb-4">
-              <p className="text-sm text-muted-foreground mb-4">
-                物流单申报 {totalQuantity} 件，实际入库 {inboundedCount} 件，差异 {remainingCount} 件。
-                确定要强制完成入库吗？
+            <div className="px-6 pb-4 text-center">
+              <p className="text-muted-foreground">
+                申报 <span className="font-bold text-foreground">{totalQuantity}</span> 件，
+                已入库 <span className="font-bold text-foreground">{inboundedCount}</span> 件，
+                差异 <span className="font-bold text-amber-600">{remainingCount}</span> 件
               </p>
             </div>
-            <DrawerFooter className="flex-row gap-3">
-              <Button variant="outline" onClick={() => setIsForceCompleteOpen(false)} className="flex-1">
+            <DrawerFooter className="flex-row gap-3 px-6">
+              <Button variant="outline" onClick={() => setIsForceCompleteOpen(false)} className="flex-1 h-12">
                 取消
               </Button>
-              <Button onClick={handleForceComplete} className="flex-1 bg-amber-600 hover:bg-amber-700">
-                确认强制完成
+              <Button onClick={handleForceComplete} className="flex-1 h-12 bg-amber-600 hover:bg-amber-700">
+                确认完成
               </Button>
             </DrawerFooter>
           </DrawerContent>
@@ -355,64 +365,62 @@ export function MobileInboundScanner({ initialTracking }: MobileInboundScannerPr
   // 扫描物流号步骤
   if (step === "scan_tracking") {
     return (
-      <div className="fixed inset-0 z-50 bg-gradient-to-b from-background to-muted/30 pt-[env(safe-area-inset-top,0px)]">
+      <div className="fixed inset-0 z-50 bg-gradient-to-b from-primary/5 to-background flex flex-col pt-[env(safe-area-inset-top,0px)]">
         {/* 顶部栏 */}
-        <div className="flex items-center justify-between p-4 bg-background/80 backdrop-blur-sm border-b">
-          <Button variant="ghost" size="icon" onClick={handleClose} className="rounded-lg">
+        <div className="flex items-center justify-between p-4 shrink-0">
+          <Button variant="ghost" size="icon" onClick={handleClose} className="rounded-full h-11 w-11 bg-muted/50">
             <X className="h-5 w-5" />
           </Button>
-          <h2 className="font-semibold text-lg">扫描物流跟踪号</h2>
-          <div className="w-10" />
+          <div className="text-center">
+            <p className="text-sm text-muted-foreground">步骤 1/2</p>
+          </div>
+          <div className="w-11" />
         </div>
 
-        <div className="flex flex-col items-center justify-center p-6 h-[calc(100%-72px)]">
-          {/* 步骤指示 */}
-          <div className="flex items-center gap-3 mb-10 bg-card px-5 py-2 rounded-full border shadow-sm">
-            <div className="h-7 w-7 rounded-lg bg-primary text-primary-foreground flex items-center justify-center text-sm font-semibold">
-              1
+        {/* 主内容 */}
+        <div className="flex-1 flex flex-col items-center justify-center px-6">
+          {/* 标题 */}
+          <div className="text-center mb-10">
+            <div className="inline-flex items-center justify-center h-20 w-20 rounded-full bg-primary/10 mb-4">
+              <Truck className="h-10 w-10 text-primary" />
             </div>
-            <div className="h-px w-6 bg-border" />
-            <div className="h-7 w-7 rounded-lg bg-muted text-muted-foreground flex items-center justify-center text-sm">
-              2
-            </div>
+            <h1 className="text-2xl font-bold mb-2">扫描物流号</h1>
+            <p className="text-muted-foreground">扫描包裹上的物流跟踪条码</p>
           </div>
 
-          {/* 扫描按钮 */}
-          <div className="mb-8 relative">
-            <div className="absolute inset-0 bg-primary/15 rounded-2xl blur-xl pointer-events-none" />
+          {/* 大扫描按钮 */}
+          <div className="relative mb-10">
+            <div className="absolute inset-0 bg-primary/20 rounded-3xl blur-2xl pointer-events-none scale-110" />
             <Scanner 
               onScan={handleTrackingScan} 
               buttonLabel=""
               buttonSize="lg"
-              buttonClassName="h-32 w-32 rounded-2xl gradient-primary shadow-xl"
+              buttonClassName="h-36 w-36 rounded-3xl gradient-primary shadow-2xl"
             />
           </div>
-
-          <p className="text-xl font-semibold mb-2">扫描物流跟踪号</p>
-          <p className="text-sm text-muted-foreground mb-8">扫描包裹上的物流条码</p>
 
           {/* 手动输入 */}
           <div className="w-full max-w-sm space-y-4">
             <div className="flex items-center gap-3">
               <div className="h-px flex-1 bg-border" />
-              <p className="text-xs text-muted-foreground">或手动输入</p>
+              <p className="text-xs text-muted-foreground px-2">或手动输入</p>
               <div className="h-px flex-1 bg-border" />
             </div>
-            <div className="flex gap-2">
+            <div className="flex gap-3">
               <Input
-                placeholder="输入物流跟踪号..."
+                placeholder="输入物流跟踪号"
                 value={trackingInput}
                 onChange={(e) => setTrackingInput(e.target.value)}
                 onKeyDown={(e) => e.key === "Enter" && handleTrackingScan(trackingInput)}
-                className="h-12 text-center font-mono"
+                className="h-14 text-center font-mono text-lg rounded-xl"
               />
               <Button 
                 onClick={() => handleTrackingScan(trackingInput)} 
                 size="icon" 
-                className="h-12 w-12 gradient-primary shrink-0"
+                className="h-14 w-14 gradient-primary shrink-0 rounded-xl"
                 disabled={!trackingInput}
               >
-                <ArrowRight className="h-5 w-5" />
+                <ArrowRight className="h-6 w-6" />
               </Button>
             </div>
           </div>
@@ -439,158 +447,168 @@ export function MobileInboundScanner({ initialTracking }: MobileInboundScannerPr
     });
 
     return (
-      <div className="fixed inset-0 z-50 bg-gradient-to-b from-background to-muted/30 flex flex-col pt-[env(safe-area-inset-top,0px)]">
+      <div className="fixed inset-0 z-50 bg-gradient-to-b from-primary/5 to-background flex flex-col pt-[env(safe-area-inset-top,0px)]">
         {/* 顶部栏 */}
-        <div className="flex items-center justify-between p-4 bg-background/80 backdrop-blur-sm border-b shrink-0">
-          <Button variant="ghost" size="icon" onClick={handleClose} className="rounded-lg">
+        <div className="flex items-center justify-between p-4 shrink-0">
+          <Button variant="ghost" size="icon" onClick={handleClose} className="rounded-full h-11 w-11 bg-muted/50">
             <X className="h-5 w-5" />
           </Button>
-          <h2 className="font-semibold text-lg">扫描LPN入库</h2>
-          <div className="w-10" />
+          <div className="text-center">
+            <p className="text-sm text-muted-foreground">步骤 2/2</p>
+          </div>
+          <div className="w-11" />
         </div>
 
-        <ScrollArea className="flex-1">
-          <div className="p-4 pb-32 space-y-4">
-            {/* 步骤指示 */}
-            <div className="flex items-center justify-center gap-3 bg-card px-5 py-2 rounded-full border shadow-sm mx-auto w-fit">
-              <div className="h-7 w-7 rounded-lg bg-green-500 text-white flex items-center justify-center text-sm">
-                <CheckCircle className="h-4 w-4" />
+        {/* 进度概览 - 固定在顶部 */}
+        <div className="px-4 pb-4 shrink-0">
+          <div className="bg-card rounded-2xl border-2 border-primary/20 p-4 shadow-lg">
+            <div className="flex items-center justify-between mb-3">
+              <div className="text-center flex-1">
+                <div className="text-3xl font-bold text-primary">{inboundedCount}</div>
+                <p className="text-xs text-muted-foreground">已入库</p>
               </div>
-              <div className="h-px w-6 bg-primary" />
-              <div className="h-7 w-7 rounded-lg bg-primary text-primary-foreground flex items-center justify-center text-sm font-semibold">
-                2
+              <div className="h-10 w-px bg-border" />
+              <div className="text-center flex-1">
+                <div className="text-3xl font-bold">{totalQuantity}</div>
+                <p className="text-xs text-muted-foreground">总计</p>
+              </div>
+              <div className="h-10 w-px bg-border" />
+              <div className="text-center flex-1">
+                <div className={cn("text-3xl font-bold", remainingCount > 0 ? "text-amber-500" : "text-green-500")}>
+                  {remainingCount}
+                </div>
+                <p className="text-xs text-muted-foreground">待入库</p>
               </div>
             </div>
+            <Progress value={(inboundedCount / totalQuantity) * 100} className="h-2" />
+          </div>
+        </div>
 
-            {/* 货件产品列表 */}
-            <div className="space-y-2">
+        {/* 扫描区域 */}
+        <div className="flex-1 flex flex-col items-center justify-center px-6">
+          {/* 大扫描按钮 */}
+          <div className="relative mb-6">
+            <div className="absolute inset-0 bg-primary/20 rounded-3xl blur-2xl pointer-events-none scale-110" />
+            <Scanner 
+              onScan={handleLpnScan} 
+              buttonLabel=""
+              buttonSize="lg"
+              buttonClassName="h-32 w-32 rounded-3xl gradient-primary shadow-2xl"
+            />
+          </div>
+          
+          <h2 className="text-xl font-bold mb-1">扫描LPN标签</h2>
+          <p className="text-sm text-muted-foreground mb-6">扫描产品上的LPN条码</p>
+
+          {/* 手动输入 */}
+          <div className="w-full max-w-sm space-y-3">
+            <div className="flex items-center gap-3">
+              <div className="h-px flex-1 bg-border" />
+              <p className="text-xs text-muted-foreground px-2">或手动输入</p>
+              <div className="h-px flex-1 bg-border" />
+            </div>
+            <div className="flex gap-3">
+              <Input
+                placeholder="输入LPN号"
+                value={lpnInput}
+                onChange={(e) => setLpnInput(e.target.value)}
+                onKeyDown={(e) => e.key === "Enter" && handleLpnScan(lpnInput)}
+                className="h-14 text-center font-mono text-lg rounded-xl"
+              />
+              <Button 
+                onClick={() => handleLpnScan(lpnInput)} 
+                size="icon" 
+                className="h-14 w-14 gradient-primary shrink-0 rounded-xl"
+                disabled={!lpnInput}
+              >
+                <ArrowRight className="h-6 w-6" />
+              </Button>
+            </div>
+          </div>
+        </div>
+
+        {/* 产品列表 - 可折叠 */}
+        <div className="px-4 pb-4 shrink-0">
+          <details className="bg-card rounded-xl border">
+            <summary className="p-3 cursor-pointer text-sm font-medium flex items-center justify-between">
+              <span className="flex items-center gap-2">
+                <Package className="h-4 w-4 text-primary" />
+                产品列表 ({skuProgress.length})
+              </span>
+              <span className="text-xs text-muted-foreground">展开查看</span>
+            </summary>
+            <div className="px-3 pb-3 space-y-2">
               {skuProgress.map((shipment, index) => (
                 <div 
                   key={shipment.id} 
                   className={cn(
-                    "rounded-lg border p-4 transition-all",
+                    "flex items-center justify-between p-3 rounded-lg text-sm",
                     shipment.inbounded >= shipment.quantity 
-                      ? "bg-green-50 border-green-200 dark:bg-green-950/30 dark:border-green-800" 
-                      : "bg-card"
+                      ? "bg-green-50 dark:bg-green-950/30" 
+                      : "bg-muted/50"
                   )}
                 >
-                  <div className="flex items-center gap-3 mb-2">
-                    <div className={cn(
-                      "h-10 w-10 rounded-lg flex items-center justify-center shrink-0",
-                      shipment.inbounded >= shipment.quantity ? "bg-green-100 dark:bg-green-900" : "bg-primary/10"
-                    )}>
-                      {shipment.inbounded >= shipment.quantity ? (
-                        <CheckCircle className="h-5 w-5 text-green-600 dark:text-green-400" />
-                      ) : (
-                        <Package className="h-5 w-5 text-primary" />
-                      )}
-                    </div>
-                    <div className="flex-1 min-w-0">
-                      <p className="font-medium truncate">{shipment.product_name}</p>
-                      <p className="text-xs text-muted-foreground font-mono">{shipment.tracking_number}</p>
-                    </div>
-                    <Badge variant={shipment.inbounded >= shipment.quantity ? "default" : "secondary"} className={cn(
-                      shipment.inbounded >= shipment.quantity && "bg-green-600"
-                    )}>
-                      {shipment.inbounded}/{shipment.quantity}
-                    </Badge>
+                  <div className="flex items-center gap-2 min-w-0 flex-1">
+                    {shipment.inbounded >= shipment.quantity ? (
+                      <CheckCircle className="h-4 w-4 text-green-500 shrink-0" />
+                    ) : (
+                      <div className="h-4 w-4 rounded-full border-2 border-muted-foreground/30 shrink-0" />
+                    )}
+                    <span className="truncate">{shipment.product_name}</span>
                   </div>
-                  <Progress 
-                    value={(shipment.inbounded / shipment.quantity) * 100}
-                    className={cn("h-1.5", shipment.inbounded >= shipment.quantity && "[&>div]:bg-green-500")}
-                  />
+                  <Badge variant={shipment.inbounded >= shipment.quantity ? "default" : "outline"} className={cn(
+                    "shrink-0 ml-2",
+                    shipment.inbounded >= shipment.quantity && "bg-green-600"
+                  )}>
+                    {shipment.inbounded}/{shipment.quantity}
+                  </Badge>
                 </div>
               ))}
             </div>
-
-            {/* 剩余数量提示 */}
-            <div className="text-center py-2">
-              <Badge variant="outline" className="text-base px-4 py-1">
-                还剩 {remainingCount} 件待入库
-              </Badge>
-            </div>
-
-            {/* 扫描按钮 */}
-            <div className="flex flex-col items-center pt-4">
-              <div className="relative mb-4">
-                <div className="absolute inset-0 bg-primary/15 rounded-2xl blur-xl pointer-events-none" />
-                <Scanner 
-                  onScan={handleLpnScan} 
-                  buttonLabel=""
-                  buttonSize="lg"
-                  buttonClassName="h-28 w-28 rounded-2xl gradient-primary shadow-xl"
-                />
-              </div>
-              <p className="text-lg font-semibold">扫描LPN标签</p>
-              <p className="text-sm text-muted-foreground">扫描产品上的LPN条码</p>
-            </div>
-
-            {/* 手动输入 */}
-            <div className="space-y-3 pt-4">
-              <div className="flex items-center gap-3">
-                <div className="h-px flex-1 bg-border" />
-                <p className="text-xs text-muted-foreground">或手动输入</p>
-                <div className="h-px flex-1 bg-border" />
-              </div>
-              <div className="flex gap-2">
-                <Input
-                  placeholder="输入LPN号..."
-                  value={lpnInput}
-                  onChange={(e) => setLpnInput(e.target.value)}
-                  onKeyDown={(e) => e.key === "Enter" && handleLpnScan(lpnInput)}
-                  className="h-12 text-center font-mono"
-                />
-                <Button 
-                  onClick={() => handleLpnScan(lpnInput)} 
-                  size="icon" 
-                  className="h-12 w-12 gradient-primary shrink-0"
-                  disabled={!lpnInput}
-                >
-                  <ArrowRight className="h-5 w-5" />
-                </Button>
-              </div>
-            </div>
-          </div>
-        </ScrollArea>
+          </details>
+        </div>
 
         {/* 底部操作栏 */}
-        <div className="fixed bottom-0 left-0 right-0 bg-background/95 backdrop-blur-sm border-t p-4 pb-[calc(env(safe-area-inset-bottom,12px)+12px)]">
-          <div className="flex gap-3">
-            {inboundedCount >= totalQuantity ? (
-              <Button onClick={handleCompletePackage} className="flex-1 h-12 bg-green-600 hover:bg-green-700">
-                <PackageCheck className="mr-2 h-5 w-5" />
-                完成包裹
-              </Button>
-            ) : inboundedCount > 0 ? (
-              <Button variant="outline" onClick={() => setIsForceCompleteOpen(true)} className="flex-1 h-12 border-amber-300 text-amber-700">
-                <AlertCircle className="mr-2 h-5 w-5" />
-                强制完成 (差 {remainingCount} 件)
-              </Button>
-            ) : null}
-          </div>
+        <div className="shrink-0 bg-background border-t p-4 pb-[calc(env(safe-area-inset-bottom,12px)+12px)]">
+          {inboundedCount >= totalQuantity ? (
+            <Button onClick={handleCompletePackage} className="w-full h-14 bg-green-600 hover:bg-green-700 text-lg rounded-xl">
+              <PackageCheck className="mr-2 h-6 w-6" />
+              完成包裹
+            </Button>
+          ) : inboundedCount > 0 ? (
+            <Button variant="outline" onClick={() => setIsForceCompleteOpen(true)} className="w-full h-14 border-amber-300 text-amber-700 text-base rounded-xl">
+              <AlertCircle className="mr-2 h-5 w-5" />
+              强制完成 (差 {remainingCount} 件)
+            </Button>
+          ) : (
+            <p className="text-center text-sm text-muted-foreground py-2">
+              扫描第一个LPN开始入库
+            </p>
+          )}
         </div>
 
         {/* 强制完成确认抽屉 */}
         <Drawer open={isForceCompleteOpen} onOpenChange={setIsForceCompleteOpen}>
-          <DrawerContent>
+          <DrawerContent className="pb-8">
             <DrawerHeader>
-              <DrawerTitle className="flex items-center gap-2 text-amber-600">
+              <DrawerTitle className="flex items-center justify-center gap-2 text-amber-600 text-lg">
                 <AlertCircle className="h-5 w-5" />
                 确认强制完成
               </DrawerTitle>
             </DrawerHeader>
-            <div className="px-4 pb-4">
-              <p className="text-sm text-muted-foreground mb-4">
-                物流单申报 {totalQuantity} 件，实际入库 {inboundedCount} 件，差异 {remainingCount} 件。
-                确定要强制完成入库吗？
+            <div className="px-6 pb-4 text-center">
+              <p className="text-muted-foreground">
+                申报 <span className="font-bold text-foreground">{totalQuantity}</span> 件，
+                已入库 <span className="font-bold text-foreground">{inboundedCount}</span> 件，
+                差异 <span className="font-bold text-amber-600">{remainingCount}</span> 件
               </p>
             </div>
-            <DrawerFooter className="flex-row gap-3">
-              <Button variant="outline" onClick={() => setIsForceCompleteOpen(false)} className="flex-1">
+            <DrawerFooter className="flex-row gap-3 px-6">
+              <Button variant="outline" onClick={() => setIsForceCompleteOpen(false)} className="flex-1 h-12">
                 取消
               </Button>
-              <Button onClick={handleForceComplete} className="flex-1 bg-amber-600 hover:bg-amber-700">
-                确认强制完成
+              <Button onClick={handleForceComplete} className="flex-1 h-12 bg-amber-600 hover:bg-amber-700">
+                确认完成
               </Button>
             </DrawerFooter>
           </DrawerContent>

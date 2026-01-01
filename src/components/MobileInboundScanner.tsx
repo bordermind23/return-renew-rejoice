@@ -650,19 +650,18 @@ export function MobileInboundScanner({ initialTracking }: MobileInboundScannerPr
           onChange={handleNativeCameraCapture}
         />
         
-        {/* 右上角关闭按钮 - 绝对定位 */}
-        <Button 
-          variant="outline" 
-          size="icon" 
-          onClick={handleClose} 
-          className="absolute top-[calc(env(safe-area-inset-top,0px)+16px)] right-4 z-10 rounded-full h-10 w-10 bg-background/80 backdrop-blur-sm border-muted-foreground/20 shadow-md"
-        >
-          <X className="h-5 w-5" />
-        </Button>
-
-        {/* 顶部标题 */}
-        <div className="text-center pt-5 pb-2 shrink-0 border-b">
-          <p className="text-sm font-medium">拍摄物流面单</p>
+        {/* 顶部栏 */}
+        <div className="flex items-center justify-between px-4 py-3 shrink-0 border-b">
+          <div className="text-sm font-medium">拍摄物流面单</div>
+          <Button 
+            variant="outline" 
+            size="sm" 
+            onClick={handleClose} 
+            className="h-8 px-3 rounded-full bg-background/80 border-muted-foreground/20"
+          >
+            <X className="h-4 w-4 mr-1" />
+            关闭
+          </Button>
         </div>
 
         {/* 无照片时的提示界面 */}
@@ -839,19 +838,18 @@ export function MobileInboundScanner({ initialTracking }: MobileInboundScannerPr
 
     return (
       <div className="fixed inset-0 z-50 bg-gradient-to-b from-primary/5 to-background flex flex-col pt-[env(safe-area-inset-top,0px)]">
-        {/* 右上角关闭按钮 - 绝对定位 */}
-        <Button 
-          variant="outline" 
-          size="icon" 
-          onClick={handleClose} 
-          className="absolute top-[calc(env(safe-area-inset-top,0px)+16px)] right-4 z-10 rounded-full h-10 w-10 bg-background/80 backdrop-blur-sm border-muted-foreground/20 shadow-md"
-        >
-          <X className="h-5 w-5" />
-        </Button>
-
-        {/* 顶部进度标题 */}
-        <div className="text-center pt-5 pb-2 shrink-0">
-          <p className="text-sm text-muted-foreground">步骤 2/2</p>
+        {/* 顶部栏 */}
+        <div className="flex items-center justify-between px-4 py-3 shrink-0">
+          <div className="text-sm text-muted-foreground">步骤 2/2</div>
+          <Button 
+            variant="outline" 
+            size="sm" 
+            onClick={handleClose} 
+            className="h-8 px-3 rounded-full bg-background/80 backdrop-blur-sm border-muted-foreground/20"
+          >
+            <X className="h-4 w-4 mr-1" />
+            关闭
+          </Button>
         </div>
 
         {/* 进度概览 - 固定在顶部 */}

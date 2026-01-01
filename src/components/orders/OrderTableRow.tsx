@@ -70,10 +70,10 @@ export function OrderTableRow({
           {order.product_sku || "-"}
         </code>
       </TableCell>
-      <TableCell className="text-center">
+      <TableCell>
         {hasInboundItem ? (
           <button
-            className="inline-flex items-center gap-1 px-2 py-1 rounded hover:bg-muted transition-colors"
+            className="inline-flex items-center gap-1.5 px-2 py-1 rounded hover:bg-muted transition-colors"
             onClick={onEditGrade}
           >
             {displayGrade ? (

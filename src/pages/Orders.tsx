@@ -465,11 +465,11 @@ export default function Orders() {
           const validItems: OrderInsert[] = [];
           const updateItems: { id: string; lpn: string; data: OrderUpdate }[] = [];
           
-          // 从数据库获取所有"无入库信息"的临时订单（因为orders只是当前页数据）
+          // 从数据库获取所有"待同步"状态的订单
           const { data: pendingOrdersData } = await supabase
             .from("orders")
             .select("*")
-            .or("removal_order_id.eq.无入库信息,order_number.eq.待同步");
+            .eq("status", "待同步");
           
           // 构建"无入库信息"临时订单映射：LPN -> order
           const pendingOrdersMap = new Map<string, Order>();
@@ -506,10 +506,10 @@ export default function Orders() {
             const lpnLower = lpn.toLowerCase();
             const orderNumber = String(row[8]).trim();
             
-            // 检查是否有"无入库信息"的临时订单需要更新
+            // 检查是否有"待同步"状态的订单需要更新
             const pendingOrder = pendingOrdersMap.get(lpnLower);
             if (pendingOrder) {
-              // 更新临时订单而不是创建新订单
+              // 更新待同步订单的产品信息和状态
               updateItems.push({
                 id: pendingOrder.id,
                 lpn: lpn,
@@ -530,7 +530,8 @@ export default function Orders() {
                   return_time: row[14] ? String(row[14]).trim() : null,
                   order_time: row[15] ? String(row[15]).trim() : null,
                   removal_order_id: orderNumber,
-                  station: "已同步",
+                  station: String(row[5]).trim(), // 使用店铺名作为站点
+                  status: "到货" as const, // 同步后状态改为到货
                 }
               });
               // 从待处理映射中移除，避免重复更新
@@ -617,7 +618,7 @@ export default function Orders() {
           }
 
           if (updatedCount > 0) {
-            toast.success(`已同步更新 ${updatedCount} 条"无入库信息"订单`);
+            toast.success(`已同步更新 ${updatedCount} 条待同步订单`);
           }
 
           // 再处理新建操作

@@ -1,5 +1,5 @@
 import { useState, useMemo } from "react";
-import { ChevronDown, ChevronRight, Package, Trash2, Image } from "lucide-react";
+import { ChevronDown, ChevronRight, Package, Trash2, Image, Eye } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Card } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
@@ -42,6 +42,7 @@ interface BatchGroup {
 export function InboundBatchList({ items, onDelete, onBatchDelete, enableBatchSelect = false }: InboundBatchListProps) {
   const [expandedBatches, setExpandedBatches] = useState<Set<string>>(new Set());
   const [photoViewItem, setPhotoViewItem] = useState<InboundItem | null>(null);
+  const [batchPhotoViewItem, setBatchPhotoViewItem] = useState<BatchGroup | null>(null);
   const [selectedIds, setSelectedIds] = useState<Set<string>>(new Set());
 
   // 按物流跟踪号分组
@@ -89,12 +90,22 @@ export function InboundBatchList({ items, onDelete, onBatchDelete, enableBatchSe
 
   const getPhotoCount = (item: InboundItem) => {
     const photoFields = [
-      'lpn_label_photo', 'packaging_photo_1', 'packaging_photo_2', 
+      'shipping_label_photo', 'lpn_label_photo', 'packaging_photo_1', 'packaging_photo_2', 
       'packaging_photo_3', 'packaging_photo_4', 'packaging_photo_5',
       'packaging_photo_6', 'accessories_photo', 'detail_photo',
       'product_photo', 'package_photo'
     ] as const;
     return photoFields.filter(field => item[field]).length;
+  };
+
+  // 获取批次的物流面单照片
+  const getBatchShippingLabelPhoto = (batch: BatchGroup): string | null => {
+    for (const item of batch.items) {
+      if (item.shipping_label_photo) {
+        return item.shipping_label_photo;
+      }
+    }
+    return null;
   };
 
   // 选择相关函数
@@ -195,6 +206,7 @@ export function InboundBatchList({ items, onDelete, onBatchDelete, enableBatchSe
 
       {batches.map((batch) => {
         const batchSelectState = getBatchSelectState(batch);
+        const shippingLabelPhoto = getBatchShippingLabelPhoto(batch);
         return (
           <Collapsible
             key={batch.trackingNumber}
@@ -237,6 +249,12 @@ export function InboundBatchList({ items, onDelete, onBatchDelete, enableBatchSe
                         <Badge variant="secondary" className="flex-shrink-0">
                           {batch.totalCount} 件
                         </Badge>
+                        {shippingLabelPhoto && (
+                          <Badge variant="outline" className="flex-shrink-0 text-primary border-primary/30">
+                            <Image className="h-3 w-3 mr-1" />
+                            有面单照片
+                          </Badge>
+                        )}
                       </div>
                       <p className="text-sm text-muted-foreground truncate mt-0.5">
                         {batch.productName} · {batch.productSku}
@@ -248,6 +266,23 @@ export function InboundBatchList({ items, onDelete, onBatchDelete, enableBatchSe
                     </div>
                   </button>
                 </CollapsibleTrigger>
+                {/* 批次操作按钮 */}
+                <div className="pr-4 flex-shrink-0 flex items-center gap-2">
+                  {shippingLabelPhoto && (
+                    <Button
+                      size="sm"
+                      variant="outline"
+                      className="h-8"
+                      onClick={(e) => {
+                        e.stopPropagation();
+                        setBatchPhotoViewItem(batch);
+                      }}
+                    >
+                      <Eye className="h-4 w-4 mr-1" />
+                      查看
+                    </Button>
+                  )}
+                </div>
               </div>
               
               <CollapsibleContent>
@@ -353,6 +388,7 @@ export function InboundBatchList({ items, onDelete, onBatchDelete, enableBatchSe
           onOpenChange={() => setPhotoViewItem(null)}
           title={`入库照片 - ${photoViewItem.lpn}`}
           photos={[
+            { key: 'shipping_label_photo', label: '物流面单' },
             { key: 'lpn_label_photo', label: 'LPN标签' },
             { key: 'packaging_photo_1', label: '包装照片1' },
             { key: 'packaging_photo_2', label: '包装照片2' },
@@ -370,6 +406,29 @@ export function InboundBatchList({ items, onDelete, onBatchDelete, enableBatchSe
               return url ? { key, label, url } : null;
             })
             .filter((item): item is { key: string; label: string; url: string } => item !== null)}
+        />
+      )}
+
+      {/* 批次物流面单照片查看弹窗 */}
+      {batchPhotoViewItem && (
+        <PhotoViewDialog
+          open={!!batchPhotoViewItem}
+          onOpenChange={() => setBatchPhotoViewItem(null)}
+          title={`物流面单 - ${batchPhotoViewItem.trackingNumber}`}
+          photos={(() => {
+            const photos: { key: string; label: string; url: string }[] = [];
+            for (const item of batchPhotoViewItem.items) {
+              if (item.shipping_label_photo) {
+                photos.push({
+                  key: `shipping_label_${item.id}`,
+                  label: '物流面单',
+                  url: item.shipping_label_photo
+                });
+                break; // 只取第一张
+              }
+            }
+            return photos;
+          })()}
         />
       )}
     </div>

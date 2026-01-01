@@ -90,21 +90,6 @@ const templateHeaders = [
   "退货时间", "订购时间"
 ];
 
-// 图片大小状态
-const [photoSizes, setPhotoSizes] = useState<Record<string, number | null>>({});
-
-// 获取图片大小
-const fetchPhotoSize = async (url: string) => {
-  if (photoSizes[url] !== undefined) return;
-  try {
-    const response = await fetch(url, { method: 'HEAD' });
-    const size = response.headers.get('content-length');
-    setPhotoSizes(prev => ({ ...prev, [url]: size ? parseInt(size) : null }));
-  } catch {
-    setPhotoSizes(prev => ({ ...prev, [url]: null }));
-  }
-};
-
 const formatFileSize = (bytes: number | null): string => {
   if (bytes === null) return '';
   if (bytes < 1024) return `${bytes} B`;
@@ -113,6 +98,20 @@ const formatFileSize = (bytes: number | null): string => {
 };
 
 export default function Orders() {
+  // 图片大小状态
+  const [photoSizes, setPhotoSizes] = useState<Record<string, number | null>>({});
+
+  // 获取图片大小
+  const fetchPhotoSize = async (url: string) => {
+    if (photoSizes[url] !== undefined) return;
+    try {
+      const response = await fetch(url, { method: 'HEAD' });
+      const size = response.headers.get('content-length');
+      setPhotoSizes(prev => ({ ...prev, [url]: size ? parseInt(size) : null }));
+    } catch {
+      setPhotoSizes(prev => ({ ...prev, [url]: null }));
+    }
+  };
   // 筛选状态
   const [searchTerm, setSearchTerm] = useState("");
   const [debouncedSearch, setDebouncedSearch] = useState("");

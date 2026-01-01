@@ -66,7 +66,37 @@ export function ShippingLabelCapture({ onTrackingRecognized, onCancel }: Shippin
     setIsCapturing(false);
   }, []);
 
-  const capturePhoto = () => {
+  // 压缩图片以加快识别速度
+  const compressImage = (imageData: string, maxWidth: number = 1200, quality: number = 0.7): Promise<string> => {
+    return new Promise((resolve) => {
+      const img = new Image();
+      img.onload = () => {
+        const canvas = document.createElement("canvas");
+        let width = img.width;
+        let height = img.height;
+        
+        // 如果图片过大，按比例缩小
+        if (width > maxWidth) {
+          height = Math.round((height * maxWidth) / width);
+          width = maxWidth;
+        }
+        
+        canvas.width = width;
+        canvas.height = height;
+        const ctx = canvas.getContext("2d");
+        if (ctx) {
+          ctx.drawImage(img, 0, 0, width, height);
+          resolve(canvas.toDataURL("image/jpeg", quality));
+        } else {
+          resolve(imageData);
+        }
+      };
+      img.onerror = () => resolve(imageData);
+      img.src = imageData;
+    });
+  };
+
+  const capturePhoto = async () => {
     if (!videoRef.current) return;
     
     const canvas = document.createElement("canvas");
@@ -75,22 +105,28 @@ export function ShippingLabelCapture({ onTrackingRecognized, onCancel }: Shippin
     const ctx = canvas.getContext("2d");
     if (ctx) {
       ctx.drawImage(videoRef.current, 0, 0);
-      const imageData = canvas.toDataURL("image/jpeg", 0.8);
-      setCapturedImage(imageData);
+      const originalImage = canvas.toDataURL("image/jpeg", 0.9);
+      setCapturedImage(originalImage);
       stopCamera();
-      recognizeTracking(imageData);
+      
+      // 压缩后再识别
+      const compressedImage = await compressImage(originalImage);
+      recognizeTracking(compressedImage);
     }
   };
 
-  const handleFileUpload = (event: React.ChangeEvent<HTMLInputElement>) => {
+  const handleFileUpload = async (event: React.ChangeEvent<HTMLInputElement>) => {
     const file = event.target.files?.[0];
     if (!file) return;
 
     const reader = new FileReader();
-    reader.onload = (e) => {
+    reader.onload = async (e) => {
       const imageData = e.target?.result as string;
       setCapturedImage(imageData);
-      recognizeTracking(imageData);
+      
+      // 压缩后再识别
+      const compressedImage = await compressImage(imageData);
+      recognizeTracking(compressedImage);
     };
     reader.readAsDataURL(file);
   };

@@ -224,19 +224,38 @@ export default function Refurbishment() {
         },
         {
           onSuccess: async () => {
-            // 同时在订单表中创建记录
+            // 检查订单表是否已存在该LPN
             try {
-                            await supabase.from("orders").insert({
-                                lpn: newLpnInput,
-                                removal_order_id: "无入库信息",
-                                order_number: "待同步",
-                                store_name: "待同步",
-                                station: "待同步",
-                                status: "待同步" as const,
-                                grade: selectedGrade,
-                              });
+              const { data: existingOrder } = await supabase
+                .from("orders")
+                .select("id, status")
+                .ilike("lpn", newLpnInput)
+                .maybeSingle();
+
+              if (existingOrder) {
+                // 已存在订单，更新状态为"到货"并关联等级
+                await supabase
+                  .from("orders")
+                  .update({
+                    status: "到货" as const,
+                    grade: selectedGrade,
+                    inbound_at: new Date().toISOString(),
+                  })
+                  .eq("id", existingOrder.id);
+              } else {
+                // 不存在订单，创建新记录
+                await supabase.from("orders").insert({
+                  lpn: newLpnInput,
+                  removal_order_id: "无入库信息",
+                  order_number: "待同步",
+                  store_name: "待同步",
+                  station: "待同步",
+                  status: "待同步" as const,
+                  grade: selectedGrade,
+                });
+              }
             } catch (error) {
-              console.error("创建订单记录失败:", error);
+              console.error("处理订单记录失败:", error);
             }
             
             playSuccess();

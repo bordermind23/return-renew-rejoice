@@ -10,20 +10,17 @@ import {
 } from "lucide-react";
 import { PageHeader } from "@/components/ui/page-header";
 import { StatCard } from "@/components/ui/stat-card";
-import { DataTable } from "@/components/ui/data-table";
 import { Skeleton } from "@/components/ui/skeleton";
-import { Badge } from "@/components/ui/badge";
 import { useInboundItems } from "@/hooks/useInboundItems";
 import { useInventoryItems } from "@/hooks/useInventoryItems";
-import { useOrderStats, useOrdersPaginated } from "@/hooks/useOrders";
+import { useOrderStats } from "@/hooks/useOrders";
 
 export default function Dashboard() {
   const { data: orderStats, isLoading: statsLoading } = useOrderStats();
-  const { data: recentOrdersData, isLoading: ordersLoading } = useOrdersPaginated(1, 10);
   const { data: inboundItems, isLoading: inboundLoading } = useInboundItems();
   const { data: inventory, isLoading: inventoryLoading } = useInventoryItems();
 
-  const isLoading = statsLoading || ordersLoading || inboundLoading || inventoryLoading;
+  const isLoading = statsLoading || inboundLoading || inventoryLoading;
 
   // 计算库存统计
   const totalStock = (inventory || []).reduce(
@@ -49,39 +46,10 @@ export default function Dashboard() {
     (item) => item.refurbished_at
   ).length;
 
-  // 订单状态映射颜色
-  const getStatusBadge = (status: string) => {
-    switch (status) {
-      case "未到货":
-        return <Badge variant="outline" className="bg-yellow-100 text-yellow-700 border-yellow-300">未到货</Badge>;
-      case "到货":
-        return <Badge variant="outline" className="bg-blue-100 text-blue-700 border-blue-300">到货</Badge>;
-      case "出库":
-        return <Badge variant="outline" className="bg-green-100 text-green-700 border-green-300">出库</Badge>;
-      default:
-        return <Badge variant="outline">{status}</Badge>;
-    }
-  };
-
-  const orderColumns = [
-    { key: "internal_order_no", header: "内部单号" },
-    { key: "lpn", header: "LPN" },
-    { key: "product_name", header: "产品名称", render: (item: any) => (
-      <span className="line-clamp-1 max-w-[200px]">{item.product_name || "-"}</span>
-    )},
-    { key: "store_name", header: "店铺" },
-    {
-      key: "status",
-      header: "状态",
-      render: (item: any) => getStatusBadge(item.status),
-    },
-    {
-      key: "created_at",
-      header: "创建日期",
-      render: (item: any) =>
-        new Date(item.created_at).toLocaleDateString("zh-CN"),
-    },
-  ];
+  // 今日入库统计
+  const todayInbound = (inboundItems || []).filter(
+    (item) => new Date(item.processed_at).toDateString() === new Date().toDateString()
+  ).length;
 
   if (isLoading) {
     return (
@@ -146,9 +114,9 @@ export default function Dashboard() {
           variant="success"
         />
         <StatCard
-          title="入库记录"
-          value={(inboundItems || []).length}
-          subtitle={`待翻新 ${pendingRefurbishment} 件`}
+          title="待翻新"
+          value={pendingRefurbishment}
+          subtitle={`今日入库 ${todayInbound} 件`}
           icon={PackageX}
           variant="primary"
         />
@@ -158,13 +126,6 @@ export default function Dashboard() {
           subtitle="完成质检分级"
           icon={PackageCheck}
           variant="info"
-        />
-        <StatCard
-          title="库存SKU数"
-          value={(inventory || []).length}
-          subtitle="产品种类"
-          icon={ClipboardList}
-          variant="warning"
         />
       </div>
 
@@ -255,16 +216,6 @@ export default function Dashboard() {
             </div>
           </div>
         </div>
-      </div>
-
-      {/* Recent Orders */}
-      <div className="space-y-4">
-        <h3 className="text-lg font-semibold">最近订单</h3>
-        <DataTable
-          columns={orderColumns}
-          data={recentOrdersData?.data || []}
-          emptyMessage="暂无订单记录"
-        />
       </div>
     </div>
   );

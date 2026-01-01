@@ -9,11 +9,11 @@ import { Card, CardContent, CardDescription, CardFooter, CardHeader, CardTitle }
 import { toast } from "sonner";
 import { Package, Loader2 } from "lucide-react";
 
-const emailSchema = z.string().email("请输入有效的邮箱地址");
+const usernameSchema = z.string().min(3, "用户名至少需要3个字符");
 const passwordSchema = z.string().min(6, "密码至少需要6个字符");
 
 export default function Auth() {
-  const [email, setEmail] = useState("");
+  const [username, setUsername] = useState("");
   const [password, setPassword] = useState("");
   const [isSubmitting, setIsSubmitting] = useState(false);
   
@@ -32,7 +32,7 @@ export default function Auth() {
 
   const validateInputs = (): boolean => {
     try {
-      emailSchema.parse(email);
+      usernameSchema.parse(username);
     } catch (e) {
       if (e instanceof z.ZodError) {
         toast.error(e.errors[0].message);
@@ -59,13 +59,16 @@ export default function Auth() {
     
     setIsSubmitting(true);
     
-    const { error } = await signIn(email, password);
+    // Convert username to placeholder email format for Supabase Auth
+    const loginEmail = `${username}@placeholder.local`;
+    
+    const { error } = await signIn(loginEmail, password);
     
     if (error) {
       if (error.message.includes("Invalid login credentials")) {
-        toast.error("邮箱或密码错误");
+        toast.error("用户名或密码错误");
       } else if (error.message.includes("Email not confirmed")) {
-        toast.error("请先验证您的邮箱");
+        toast.error("账户未激活，请联系管理员");
       } else {
         toast.error(error.message);
       }
@@ -99,15 +102,15 @@ export default function Auth() {
         <form onSubmit={handleLogin}>
           <CardContent className="space-y-4 pt-4">
             <div className="space-y-2">
-              <Label htmlFor="login-email">邮箱</Label>
+              <Label htmlFor="login-username">用户名</Label>
               <Input
-                id="login-email"
-                type="email"
-                placeholder="your@email.com"
-                value={email}
-                onChange={(e) => setEmail(e.target.value)}
+                id="login-username"
+                type="text"
+                placeholder="请输入用户名"
+                value={username}
+                onChange={(e) => setUsername(e.target.value)}
                 disabled={isSubmitting}
-                autoComplete="email"
+                autoComplete="username"
               />
             </div>
             <div className="space-y-2">

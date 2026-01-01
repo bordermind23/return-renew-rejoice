@@ -58,6 +58,8 @@ export function MobileInboundScanner({ initialTracking }: MobileInboundScannerPr
   const [capturedImage, setCapturedImage] = useState<string | null>(null);
   const [isRecognizing, setIsRecognizing] = useState(false);
   const [recognizedNumbers, setRecognizedNumbers] = useState<string[]>([]);
+  const [matchedTrackingNumbers, setMatchedTrackingNumbers] = useState<string[]>([]);
+  const [showTrackingSelection, setShowTrackingSelection] = useState(false);
   const [shippingLabelPhoto, setShippingLabelPhoto] = useState<string | null>(null);
   const nativeCameraRef = useRef<HTMLInputElement>(null);
 
@@ -117,10 +119,12 @@ export function MobileInboundScanner({ initialTracking }: MobileInboundScannerPr
     event.target.value = '';
   };
 
-  // AI识别物流号 - 识别成功后自动进入LPN扫描
+  // AI识别物流号 - 识别成功后匹配移除货件
   const recognizeTracking = async (imageData: string) => {
     setIsRecognizing(true);
     setRecognizedNumbers([]);
+    setMatchedTrackingNumbers([]);
+    setShowTrackingSelection(false);
 
     try {
       const { data, error } = await supabase.functions.invoke("recognize-tracking", {
@@ -134,13 +138,39 @@ export function MobileInboundScanner({ initialTracking }: MobileInboundScannerPr
       }
 
       if (data.trackingNumbers && data.trackingNumbers.length > 0) {
-        const trackingNumbers = data.trackingNumbers;
+        const trackingNumbers: string[] = data.trackingNumbers;
         setRecognizedNumbers(trackingNumbers);
-        vibrateSuccess();
-        toast.success(`识别到物流号: ${trackingNumbers[0]}`);
         
-        // 自动选择第一个识别到的物流号并进入LPN扫描
-        await autoSelectTrackingNumber(trackingNumbers[0], imageData);
+        // 查询 removal_shipments 匹配识别到的跟踪号
+        const { data: matchedShipmentsData, error: queryError } = await supabase
+          .from("removal_shipments")
+          .select("tracking_number")
+          .in("tracking_number", trackingNumbers);
+        
+        if (queryError) {
+          console.error("Query error:", queryError);
+        }
+        
+        // 找到匹配的跟踪号（去重）
+        const matched = [...new Set(matchedShipmentsData?.map(s => s.tracking_number) || [])];
+        setMatchedTrackingNumbers(matched);
+        
+        if (matched.length > 1) {
+          // 多个匹配，让用户选择
+          setShowTrackingSelection(true);
+          vibrateSuccess();
+          toast.info(`识别到 ${matched.length} 个匹配的物流号，请选择`);
+        } else if (matched.length === 1) {
+          // 只有一个匹配，自动使用
+          vibrateSuccess();
+          toast.success(`自动匹配到物流号: ${matched[0]}`);
+          await autoSelectTrackingNumber(matched[0], imageData);
+        } else {
+          // 没有匹配，使用第一个识别到的跟踪号
+          vibrateWarning();
+          toast.info(`识别到物流号: ${trackingNumbers[0]}（未找到匹配的移除货件）`);
+          await autoSelectTrackingNumber(trackingNumbers[0], imageData);
+        }
       } else {
         vibrateWarning();
         toast.warning("未能识别到物流号，请手动输入");
@@ -151,6 +181,13 @@ export function MobileInboundScanner({ initialTracking }: MobileInboundScannerPr
     } finally {
       setIsRecognizing(false);
     }
+  };
+
+  // 用户从多个匹配中选择物流号
+  const handleSelectMatchedTracking = async (trackingNumber: string) => {
+    setShowTrackingSelection(false);
+    toast.success(`已选择物流号: ${trackingNumber}`);
+    await autoSelectTrackingNumber(trackingNumber, capturedImage || "");
   };
 
   // 自动选择物流号并进入LPN扫描（识别成功后自动调用）
@@ -271,6 +308,8 @@ export function MobileInboundScanner({ initialTracking }: MobileInboundScannerPr
   const retakePhoto = () => {
     setCapturedImage(null);
     setRecognizedNumbers([]);
+    setMatchedTrackingNumbers([]);
+    setShowTrackingSelection(false);
     setTimeout(() => {
       nativeCameraRef.current?.click();
     }, 100);
@@ -665,7 +704,34 @@ export function MobileInboundScanner({ initialTracking }: MobileInboundScannerPr
             
             {/* 识别结果 */}
             <div className="p-4 pb-8 bg-background border-t">
-              {recognizedNumbers.length > 0 ? (
+              {/* 多个匹配时显示选择界面 */}
+              {showTrackingSelection && matchedTrackingNumbers.length > 1 ? (
+                <div className="space-y-3">
+                  <p className="text-sm font-medium text-center">
+                    识别到多个匹配的物流号，请选择:
+                  </p>
+                  <div className="grid gap-2 max-h-48 overflow-y-auto">
+                    {matchedTrackingNumbers.map((num) => (
+                      <Button
+                        key={num}
+                        variant="outline"
+                        className="h-14 justify-start text-left font-mono hover:bg-primary/10 hover:border-primary"
+                        onClick={() => handleSelectMatchedTracking(num)}
+                      >
+                        <CheckCircle className="mr-3 h-5 w-5 text-primary flex-shrink-0" />
+                        <span className="flex-1 truncate">{num}</span>
+                        <Badge variant="secondary" className="ml-2 flex-shrink-0">已匹配</Badge>
+                      </Button>
+                    ))}
+                  </div>
+                  <div className="flex gap-3 mt-4">
+                    <Button variant="outline" onClick={retakePhoto} className="flex-1 h-12">
+                      <RefreshCw className="mr-2 h-4 w-4" />
+                      重拍
+                    </Button>
+                  </div>
+                </div>
+              ) : recognizedNumbers.length > 0 && !showTrackingSelection ? (
                 <div className="space-y-3">
                   <p className="text-sm text-center text-muted-foreground">识别成功，正在匹配...</p>
                 </div>
@@ -675,37 +741,41 @@ export function MobileInboundScanner({ initialTracking }: MobileInboundScannerPr
                 </div>
               ) : null}
               
-              <div className="flex gap-3 mt-4">
-                <Button variant="outline" onClick={retakePhoto} className="flex-1 h-12">
-                  <RefreshCw className="mr-2 h-4 w-4" />
-                  重拍
-                </Button>
-                {recognizedNumbers.length === 0 && !isRecognizing && (
-                  <Button onClick={() => recognizeTracking(capturedImage)} className="flex-1 h-12">
-                    重新识别
+              {!showTrackingSelection && (
+                <div className="flex gap-3 mt-4">
+                  <Button variant="outline" onClick={retakePhoto} className="flex-1 h-12">
+                    <RefreshCw className="mr-2 h-4 w-4" />
+                    重拍
                   </Button>
-                )}
-              </div>
+                  {recognizedNumbers.length === 0 && !isRecognizing && (
+                    <Button onClick={() => recognizeTracking(capturedImage)} className="flex-1 h-12">
+                      重新识别
+                    </Button>
+                  )}
+                </div>
+              )}
               
               {/* 手动输入备用 */}
-              <div className="mt-4 pt-4 border-t">
-                <p className="text-xs text-muted-foreground text-center mb-3">或手动输入物流号</p>
-                <div className="flex gap-2">
-                  <Input
-                    placeholder="输入物流跟踪号"
-                    value={trackingInput}
-                    onChange={(e) => setTrackingInput(e.target.value)}
-                    className="h-12 text-center font-mono"
-                  />
-                  <Button 
-                    onClick={() => handleTrackingScan(trackingInput)} 
-                    className="h-12 px-4 gradient-primary"
-                    disabled={!trackingInput}
-                  >
-                    确认
-                  </Button>
+              {!showTrackingSelection && (
+                <div className="mt-4 pt-4 border-t">
+                  <p className="text-xs text-muted-foreground text-center mb-3">或手动输入物流号</p>
+                  <div className="flex gap-2">
+                    <Input
+                      placeholder="输入物流跟踪号"
+                      value={trackingInput}
+                      onChange={(e) => setTrackingInput(e.target.value)}
+                      className="h-12 text-center font-mono"
+                    />
+                    <Button 
+                      onClick={() => handleTrackingScan(trackingInput)} 
+                      className="h-12 px-4 gradient-primary"
+                      disabled={!trackingInput}
+                    >
+                      确认
+                    </Button>
+                  </div>
                 </div>
-              </div>
+              )}
             </div>
           </div>
         )}

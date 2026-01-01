@@ -160,7 +160,7 @@ export function MobileInboundScanner({ initialTracking }: MobileInboundScannerPr
     reader.readAsDataURL(file);
   };
 
-  // AI识别物流号
+  // AI识别物流号 - 识别成功后自动进入LPN扫描
   const recognizeTracking = async (imageData: string) => {
     setIsRecognizing(true);
     setRecognizedNumbers([]);
@@ -177,12 +177,16 @@ export function MobileInboundScanner({ initialTracking }: MobileInboundScannerPr
       }
 
       if (data.trackingNumbers && data.trackingNumbers.length > 0) {
-        setRecognizedNumbers(data.trackingNumbers);
+        const trackingNumbers = data.trackingNumbers;
+        setRecognizedNumbers(trackingNumbers);
         vibrateSuccess();
-        toast.success(`识别到 ${data.trackingNumbers.length} 个物流号`);
+        toast.success(`识别到物流号: ${trackingNumbers[0]}`);
+        
+        // 自动选择第一个识别到的物流号并进入LPN扫描
+        await autoSelectTrackingNumber(trackingNumbers[0], imageData);
       } else {
         vibrateWarning();
-        toast.warning("未能识别到物流号");
+        toast.warning("未能识别到物流号，请手动输入");
       }
     } catch (error) {
       console.error("Recognition error:", error);
@@ -190,6 +194,62 @@ export function MobileInboundScanner({ initialTracking }: MobileInboundScannerPr
     } finally {
       setIsRecognizing(false);
     }
+  };
+
+  // 自动选择物流号并进入LPN扫描（识别成功后自动调用）
+  const autoSelectTrackingNumber = async (trackingNumber: string, imageData: string) => {
+    const allMatched = shipments?.filter(
+      s => s.tracking_number.toLowerCase() === trackingNumber.toLowerCase()
+    ) || [];
+
+    if (allMatched.length === 0) {
+      vibrateError();
+      playError();
+      toast.error(`未找到物流跟踪号: ${trackingNumber}，请检查或手动输入`);
+      return;
+    }
+
+    const totalQuantity = allMatched.reduce((sum, s) => sum + s.quantity, 0);
+    const inboundedCount = getInboundedCount(allMatched[0].tracking_number);
+    if (inboundedCount >= totalQuantity) {
+      vibrateWarning();
+      playWarning();
+      toast.warning(`该物流号下的 ${totalQuantity} 件货物已全部入库`);
+      return;
+    }
+
+    // 上传照片到storage
+    try {
+      const response = await fetch(imageData);
+      const blob = await response.blob();
+      const filename = `${trackingNumber}/${Date.now()}.jpg`;
+      
+      await supabase.storage
+        .from("shipping-labels")
+        .upload(filename, blob, {
+          contentType: "image/jpeg",
+          upsert: true
+        });
+
+      const { data: { publicUrl } } = supabase.storage
+        .from("shipping-labels")
+        .getPublicUrl(filename);
+
+      setShippingLabelPhoto(publicUrl);
+    } catch (error) {
+      console.error("Upload error:", error);
+    }
+
+    vibrateSuccess();
+    playSuccess();
+    setMatchedShipment(allMatched[0]);
+    setMatchedShipments(allMatched);
+    setTrackingInput(trackingNumber);
+    setScannedLpns([]);
+    setCapturedImage(null);
+    setRecognizedNumbers([]);
+    setStep("scan_lpn");
+    toast.success(`匹配成功: ${allMatched.length} 种产品，开始扫描LPN`);
   };
 
   // 选择识别到的物流号

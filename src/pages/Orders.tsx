@@ -1053,9 +1053,6 @@ export default function Orders() {
                 <TableHead className="w-[120px]">SKU</TableHead>
                 <TableHead className="text-center w-[80px]">等级</TableHead>
                 <TableHead className="text-center w-[60px]">照片</TableHead>
-                <TableHead className="w-[100px]">店铺</TableHead>
-                <TableHead className="w-[80px]">国家</TableHead>
-                <TableHead className="w-[120px]">退货原因</TableHead>
                 <TableHead className="text-center w-[60px]">数量</TableHead>
                 <TableHead className="w-[140px]">订单号</TableHead>
                 <TableHead className="text-center w-[90px]">操作</TableHead>
@@ -1064,7 +1061,7 @@ export default function Orders() {
             <TableBody>
               {orders.length === 0 ? (
                 <TableRow>
-                  <TableCell colSpan={14} className="h-32 text-center text-muted-foreground">
+                  <TableCell colSpan={11} className="h-32 text-center text-muted-foreground">
                     暂无数据
                   </TableCell>
                 </TableRow>
@@ -1114,9 +1111,6 @@ export default function Orders() {
                           <TableCell><code className="text-xs bg-muted px-1.5 py-0.5 rounded">{firstOrder.product_sku || "-"}</code></TableCell>
                           <TableCell className="text-center text-muted-foreground">-</TableCell>
                           <TableCell className="text-center text-muted-foreground">-</TableCell>
-                          <TableCell className="text-muted-foreground">{firstOrder.store_name}</TableCell>
-                          <TableCell className="text-muted-foreground">{firstOrder.country || "-"}</TableCell>
-                          <TableCell className="text-muted-foreground">-</TableCell>
                           <TableCell className="text-center font-semibold">{group.totalQuantity}</TableCell>
                           <TableCell className="font-medium">{firstOrder.order_number}</TableCell>
                           <TableCell>

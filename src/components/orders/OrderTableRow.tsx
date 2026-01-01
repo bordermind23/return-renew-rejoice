@@ -101,11 +101,6 @@ export function OrderTableRow({
           <span className="text-muted-foreground text-xs">-</span>
         )}
       </TableCell>
-      <TableCell className="text-muted-foreground">{order.store_name}</TableCell>
-      <TableCell className="text-muted-foreground">{order.country || "-"}</TableCell>
-      <TableCell className="text-muted-foreground max-w-[120px] truncate" title={order.return_reason || undefined}>
-        {order.return_reason || "-"}
-      </TableCell>
       <TableCell className="text-center font-semibold tabular-nums">
         {order.return_quantity}
       </TableCell>

@@ -1,5 +1,5 @@
 import { useState, useMemo } from "react";
-import { AlertTriangle, Package, FileWarning, Plus, ExternalLink, CheckCircle } from "lucide-react";
+import { AlertTriangle, Package, FileWarning, Plus, ExternalLink, CheckCircle, Link } from "lucide-react";
 import { PageHeader } from "@/components/ui/page-header";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
@@ -31,10 +31,16 @@ import {
 } from "@/components/ui/table";
 import { ScrollArea, ScrollBar } from "@/components/ui/scroll-area";
 import { Skeleton } from "@/components/ui/skeleton";
+import {
+  Tooltip,
+  TooltipContent,
+  TooltipTrigger,
+} from "@/components/ui/tooltip";
 import { useRemovalShipments, type RemovalShipment } from "@/hooks/useRemovalShipments";
 import { useInboundItems } from "@/hooks/useInboundItems";
-import { useCreateCase, caseTypeLabels, type CaseType } from "@/hooks/useCases";
+import { useCreateCase, useCases, caseTypeLabels, type CaseType } from "@/hooks/useCases";
 import { cn } from "@/lib/utils";
+import { useNavigate } from "react-router-dom";
 
 interface DiscrepancyItem {
   shipment: RemovalShipment;
@@ -43,10 +49,12 @@ interface DiscrepancyItem {
   actualQuantity: number;
   difference: number;
   description: string;
-  hasCaseCreated?: boolean;
+  existingCaseId?: string;
+  existingCaseNumber?: string;
 }
 
 export default function InboundDiscrepancy() {
+  const navigate = useNavigate();
   const [isCreateCaseOpen, setIsCreateCaseOpen] = useState(false);
   const [selectedDiscrepancy, setSelectedDiscrepancy] = useState<DiscrepancyItem | null>(null);
   const [caseForm, setCaseForm] = useState({
@@ -58,6 +66,7 @@ export default function InboundDiscrepancy() {
 
   const { data: shipments, isLoading: shipmentsLoading } = useRemovalShipments();
   const { data: inboundItems, isLoading: inboundLoading } = useInboundItems();
+  const { data: cases, isLoading: casesLoading } = useCases();
   const createCaseMutation = useCreateCase();
 
   // 计算差异包裹
@@ -93,6 +102,9 @@ export default function InboundDiscrepancy() {
         const difference = actualInbound - declaredTotal;
         const discrepancyType = difference < 0 ? "quantity_less" : "quantity_more";
         
+        // 检查是否已有关联的 case
+        const existingCase = cases?.find(c => c.tracking_number === trackingNumber);
+        
         result.push({
           shipment: trackingShipments[0],
           discrepancyType,
@@ -102,6 +114,8 @@ export default function InboundDiscrepancy() {
           description: difference < 0 
             ? `实际入库 ${actualInbound} 件，少于申报 ${declaredTotal} 件，差 ${Math.abs(difference)} 件`
             : `实际入库 ${actualInbound} 件，多于申报 ${declaredTotal} 件，多 ${Math.abs(difference)} 件`,
+          existingCaseId: existingCase?.id,
+          existingCaseNumber: existingCase?.case_number,
         });
       }
     });
@@ -110,7 +124,7 @@ export default function InboundDiscrepancy() {
     return result.sort((a, b) => 
       new Date(b.shipment.updated_at).getTime() - new Date(a.shipment.updated_at).getTime()
     );
-  }, [shipments, inboundItems]);
+  }, [shipments, inboundItems, cases]);
 
   const handleOpenCreateCase = (discrepancy: DiscrepancyItem) => {
     setSelectedDiscrepancy(discrepancy);
@@ -166,7 +180,7 @@ export default function InboundDiscrepancy() {
     }
   };
 
-  const isLoading = shipmentsLoading || inboundLoading;
+  const isLoading = shipmentsLoading || inboundLoading || casesLoading;
 
   if (isLoading) {
     return (
@@ -288,14 +302,32 @@ export default function InboundDiscrepancy() {
                     </TableCell>
                     <TableCell>
                       <div className="flex justify-center">
-                        <Button
-                          size="sm"
-                          variant="outline"
-                          onClick={() => handleOpenCreateCase(item)}
-                        >
-                          <FileWarning className="h-4 w-4 mr-1" />
-                          创建CASE
-                        </Button>
+                        {item.existingCaseId ? (
+                          <Tooltip>
+                            <TooltipTrigger asChild>
+                              <Button
+                                size="sm"
+                                variant="secondary"
+                                onClick={() => navigate("/cases")}
+                              >
+                                <Link className="h-4 w-4 mr-1" />
+                                {item.existingCaseNumber}
+                              </Button>
+                            </TooltipTrigger>
+                            <TooltipContent>
+                              <p>已创建CASE，点击查看</p>
+                            </TooltipContent>
+                          </Tooltip>
+                        ) : (
+                          <Button
+                            size="sm"
+                            variant="outline"
+                            onClick={() => handleOpenCreateCase(item)}
+                          >
+                            <FileWarning className="h-4 w-4 mr-1" />
+                            创建CASE
+                          </Button>
+                        )}
                       </div>
                     </TableCell>
                   </TableRow>

@@ -72,7 +72,7 @@ export default function UserManagement() {
   const createUserMutation = useCreateUser();
   const [editingUserId, setEditingUserId] = useState<string | null>(null);
   const [isAddDialogOpen, setIsAddDialogOpen] = useState(false);
-  const [newUserEmail, setNewUserEmail] = useState("");
+  const [newUserIdentifier, setNewUserIdentifier] = useState(""); // 支持邮箱或用户名
   const [newUserPassword, setNewUserPassword] = useState("");
   const [newUserRole, setNewUserRole] = useState<AppRole>("warehouse_staff");
 
@@ -84,8 +84,8 @@ export default function UserManagement() {
   };
 
   const handleCreateUser = async () => {
-    if (!newUserEmail || !newUserPassword) {
-      toast.error("请填写邮箱和密码");
+    if (!newUserIdentifier || !newUserPassword) {
+      toast.error("请填写邮箱/用户名和密码");
       return;
     }
     if (newUserPassword.length < 6) {
@@ -93,12 +93,20 @@ export default function UserManagement() {
       return;
     }
     
+    // 判断是邮箱还是用户名
+    const isEmail = newUserIdentifier.includes("@");
+    
     createUserMutation.mutate(
-      { email: newUserEmail, password: newUserPassword, role: newUserRole },
+      { 
+        email: isEmail ? newUserIdentifier : undefined, 
+        username: !isEmail ? newUserIdentifier : undefined,
+        password: newUserPassword, 
+        role: newUserRole 
+      },
       {
         onSuccess: () => {
           setIsAddDialogOpen(false);
-          setNewUserEmail("");
+          setNewUserIdentifier("");
           setNewUserPassword("");
           setNewUserRole("warehouse_staff");
         },
@@ -150,14 +158,17 @@ export default function UserManagement() {
               </DialogHeader>
               <div className="space-y-4 py-4">
                 <div className="space-y-2">
-                  <Label htmlFor="new-email">邮箱</Label>
+                  <Label htmlFor="new-identifier">邮箱或用户名</Label>
                   <Input
-                    id="new-email"
-                    type="email"
-                    placeholder="user@example.com"
-                    value={newUserEmail}
-                    onChange={(e) => setNewUserEmail(e.target.value)}
+                    id="new-identifier"
+                    type="text"
+                    placeholder="user@example.com 或 username"
+                    value={newUserIdentifier}
+                    onChange={(e) => setNewUserIdentifier(e.target.value)}
                   />
+                  <p className="text-xs text-muted-foreground">
+                    支持邮箱地址或自定义用户名
+                  </p>
                 </div>
                 <div className="space-y-2">
                   <Label htmlFor="new-password">密码</Label>

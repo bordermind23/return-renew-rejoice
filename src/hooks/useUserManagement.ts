@@ -90,19 +90,24 @@ export function useCreateUser() {
   return useMutation({
     mutationFn: async ({
       email,
+      username,
       password,
       role,
     }: {
-      email: string;
+      email?: string;
+      username?: string;
       password: string;
       role: AppRole;
     }) => {
       // Use Supabase Admin API via edge function to create user
       const { data, error } = await supabase.functions.invoke("create-user", {
-        body: { email, password, role },
+        body: { email, username, password, role },
       });
 
-      if (error) throw error;
+      if (error) {
+        console.error("Edge function error:", error);
+        throw new Error(error.message || "Edge Function 调用失败");
+      }
       if (data?.error) throw new Error(data.error);
 
       return data;

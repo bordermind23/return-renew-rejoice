@@ -294,11 +294,11 @@ const extractStoragePath = (url: string | null): string | null => {
   return match ? match[1] : null;
 };
 
-// 辅助函数：删除入库记录及其关联的存储文件
-const deleteInboundItemsWithStorage = async (lpns: string[]) => {
-  if (lpns.length === 0) return { deletedItems: 0, deletedFiles: 0 };
+// 辅助函数：删除入库记录关联的存储文件（数据库触发器会自动删除记录，这里只删文件）
+const deleteStorageFilesForInboundItems = async (lpns: string[]) => {
+  if (lpns.length === 0) return { deletedFiles: 0 };
 
-  // 查询所有匹配LPN的入库记录
+  // 查询所有匹配LPN的入库记录（获取文件路径）
   const { data: inboundItems, error: fetchError } = await supabase
     .from("inbound_items")
     .select("*")
@@ -306,7 +306,7 @@ const deleteInboundItemsWithStorage = async (lpns: string[]) => {
 
   if (fetchError) throw fetchError;
   if (!inboundItems || inboundItems.length === 0) {
-    return { deletedItems: 0, deletedFiles: 0 };
+    return { deletedFiles: 0 };
   }
 
   // 收集所有需要删除的存储文件路径
@@ -361,15 +361,7 @@ const deleteInboundItemsWithStorage = async (lpns: string[]) => {
     }
   }
 
-  // 删除入库记录
-  const { error: deleteError } = await supabase
-    .from("inbound_items")
-    .delete()
-    .in("lpn", lpns);
-
-  if (deleteError) throw deleteError;
-
-  return { deletedItems: inboundItems.length, deletedFiles };
+  return { deletedFiles, itemCount: inboundItems.length };
 };
 
 export const useDeleteOrder = () => {
@@ -386,10 +378,10 @@ export const useDeleteOrder = () => {
 
       if (fetchError) throw fetchError;
 
-      // 级联删除关联的入库记录
-      const { deletedItems, deletedFiles } = await deleteInboundItemsWithStorage([order.lpn]);
+      // 先删除存储文件（数据库触发器会自动删除入库记录）
+      const { deletedFiles, itemCount } = await deleteStorageFilesForInboundItems([order.lpn]);
 
-      // 删除订单
+      // 删除订单（触发器会自动级联删除入库记录）
       const { error } = await supabase
         .from("orders")
         .delete()
@@ -397,7 +389,7 @@ export const useDeleteOrder = () => {
 
       if (error) throw error;
 
-      return { deletedItems, deletedFiles };
+      return { deletedItems: itemCount, deletedFiles };
     },
     onSuccess: ({ deletedItems, deletedFiles }) => {
       queryClient.invalidateQueries({ queryKey: ["orders"] });
@@ -429,10 +421,10 @@ export const useBulkDeleteOrders = () => {
 
       const lpns = orders?.map(o => o.lpn) || [];
 
-      // 级联删除关联的入库记录
-      const { deletedItems, deletedFiles } = await deleteInboundItemsWithStorage(lpns);
+      // 先删除存储文件（数据库触发器会自动删除入库记录）
+      const { deletedFiles, itemCount } = await deleteStorageFilesForInboundItems(lpns);
 
-      // 删除订单
+      // 删除订单（触发器会自动级联删除入库记录）
       const { error } = await supabase
         .from("orders")
         .delete()
@@ -440,7 +432,7 @@ export const useBulkDeleteOrders = () => {
 
       if (error) throw error;
 
-      return { deletedOrders: ids.length, deletedItems, deletedFiles };
+      return { deletedOrders: ids.length, deletedItems: itemCount, deletedFiles };
     },
     onSuccess: ({ deletedOrders, deletedItems, deletedFiles }) => {
       queryClient.invalidateQueries({ queryKey: ["orders"] });

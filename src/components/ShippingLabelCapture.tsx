@@ -109,12 +109,36 @@ export function ShippingLabelCapture({ onTrackingRecognized, onCancel }: Shippin
       }
 
       if (data.trackingNumbers && data.trackingNumbers.length > 0) {
-        const trackingNumbers = data.trackingNumbers;
+        const trackingNumbers: string[] = data.trackingNumbers;
         setRecognizedNumbers(trackingNumbers);
-        toast.success(`识别到物流号: ${trackingNumbers[0]}，正在处理...`);
         
-        // 自动选择第一个识别到的物流号并上传照片
-        await uploadPhotoAndConfirm(trackingNumbers[0], imageData);
+        // 查询 removal_shipments 匹配识别到的跟踪号
+        const { data: shipments, error: queryError } = await supabase
+          .from("removal_shipments")
+          .select("tracking_number")
+          .in("tracking_number", trackingNumbers);
+        
+        if (queryError) {
+          console.error("Query error:", queryError);
+        }
+        
+        // 找到匹配的跟踪号
+        const matchedTrackingNumbers = shipments?.map(s => s.tracking_number) || [];
+        
+        let selectedTrackingNumber: string;
+        
+        if (matchedTrackingNumbers.length > 0) {
+          // 使用匹配到的第一个跟踪号
+          selectedTrackingNumber = matchedTrackingNumbers[0];
+          toast.success(`自动匹配到移除货件物流号: ${selectedTrackingNumber}`);
+        } else {
+          // 没有匹配，使用第一个识别到的跟踪号
+          selectedTrackingNumber = trackingNumbers[0];
+          toast.info(`识别到物流号: ${selectedTrackingNumber}（未找到匹配的移除货件）`);
+        }
+        
+        // 自动上传照片并确认
+        await uploadPhotoAndConfirm(selectedTrackingNumber, imageData);
       } else {
         toast.warning("未能识别到物流跟踪号，请确保照片清晰或手动输入");
         setIsRecognizing(false);

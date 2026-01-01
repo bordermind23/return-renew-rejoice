@@ -1,4 +1,4 @@
-import { useState, useRef, useCallback } from "react";
+import { useState, useRef, useCallback, useEffect } from "react";
 import { Camera, Upload, Loader2, X, RefreshCw, CheckCircle } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent } from "@/components/ui/card";
@@ -22,11 +22,23 @@ export function ShippingLabelCapture({ onTrackingRecognized, onCancel }: Shippin
   const [isRecognizing, setIsRecognizing] = useState(false);
   const [recognizedNumbers, setRecognizedNumbers] = useState<string[]>([]);
   const [isUploading, setIsUploading] = useState(false);
+  const [cameraError, setCameraError] = useState<string | null>(null);
   const videoRef = useRef<HTMLVideoElement>(null);
   const streamRef = useRef<MediaStream | null>(null);
   const fileInputRef = useRef<HTMLInputElement>(null);
 
+  // 页面加载时自动启动摄像头
+  useEffect(() => {
+    startCamera();
+    return () => {
+      if (streamRef.current) {
+        streamRef.current.getTracks().forEach(track => track.stop());
+      }
+    };
+  }, []);
+
   const startCamera = async () => {
+    setCameraError(null);
     try {
       const stream = await navigator.mediaDevices.getUserMedia({
         video: { facingMode: "environment", width: { ideal: 1920 }, height: { ideal: 1080 } }
@@ -38,6 +50,7 @@ export function ShippingLabelCapture({ onTrackingRecognized, onCancel }: Shippin
       setIsCapturing(true);
     } catch (error) {
       console.error("Failed to start camera:", error);
+      setCameraError("无法访问摄像头，请检查权限设置");
       toast.error("无法访问摄像头");
     }
   };
@@ -170,24 +183,38 @@ export function ShippingLabelCapture({ onTrackingRecognized, onCancel }: Shippin
           <div>
             <h2 className="text-lg font-semibold">拍摄物流面单</h2>
             <p className="text-sm text-muted-foreground">
-              拍摄或上传物流面单照片，系统将自动识别跟踪号
+              将摄像头对准物流面单，点击拍摄按钮
             </p>
           </div>
 
-          {!capturedImage && !isCapturing && (
-            <div className="flex flex-col sm:flex-row gap-3 justify-center max-w-md mx-auto">
-              <Button onClick={startCamera} className="gradient-primary h-12 px-6">
-                <Camera className="mr-2 h-5 w-5" />
-                拍照
-              </Button>
-              <Button 
-                variant="outline" 
-                className="h-12 px-6"
-                onClick={() => fileInputRef.current?.click()}
-              >
-                <Upload className="mr-2 h-5 w-5" />
-                上传照片
-              </Button>
+          {/* 摄像头视图 - 默认显示 */}
+          {isCapturing && !capturedImage && (
+            <div className="space-y-4">
+              <div className="relative aspect-video max-w-lg mx-auto rounded-lg overflow-hidden bg-black">
+                <video
+                  ref={videoRef}
+                  autoPlay
+                  playsInline
+                  muted
+                  className="w-full h-full object-cover"
+                />
+                {/* 取景框提示 */}
+                <div className="absolute inset-4 border-2 border-white/50 border-dashed rounded-lg pointer-events-none" />
+              </div>
+              <div className="flex gap-3 justify-center">
+                <Button onClick={capturePhoto} className="gradient-primary h-14 px-10 text-lg">
+                  <Camera className="mr-2 h-6 w-6" />
+                  拍摄
+                </Button>
+              </div>
+              <p className="text-xs text-muted-foreground">
+                或者 <button 
+                  className="text-primary underline" 
+                  onClick={() => fileInputRef.current?.click()}
+                >
+                  上传照片
+                </button>
+              </p>
               <input
                 ref={fileInputRef}
                 type="file"
@@ -198,26 +225,43 @@ export function ShippingLabelCapture({ onTrackingRecognized, onCancel }: Shippin
             </div>
           )}
 
-          {isCapturing && (
+          {/* 摄像头错误时的备用选项 */}
+          {cameraError && !capturedImage && !isCapturing && (
             <div className="space-y-4">
-              <div className="relative aspect-video max-w-lg mx-auto rounded-lg overflow-hidden bg-black">
-                <video
-                  ref={videoRef}
-                  autoPlay
-                  playsInline
-                  muted
-                  className="w-full h-full object-cover"
+              <div className="p-4 rounded-lg bg-destructive/10 text-destructive">
+                <p className="text-sm">{cameraError}</p>
+              </div>
+              <div className="flex flex-col gap-3 max-w-md mx-auto">
+                <Button onClick={startCamera} variant="outline" className="h-12">
+                  <RefreshCw className="mr-2 h-4 w-4" />
+                  重试摄像头
+                </Button>
+                <Button 
+                  className="gradient-primary h-12 px-6"
+                  onClick={() => fileInputRef.current?.click()}
+                >
+                  <Upload className="mr-2 h-5 w-5" />
+                  上传照片
+                </Button>
+                <input
+                  ref={fileInputRef}
+                  type="file"
+                  accept="image/*"
+                  className="hidden"
+                  onChange={handleFileUpload}
                 />
               </div>
-              <div className="flex gap-3 justify-center">
-                <Button onClick={capturePhoto} className="gradient-primary h-12 px-8">
-                  <Camera className="mr-2 h-5 w-5" />
-                  拍摄
-                </Button>
-                <Button variant="outline" onClick={stopCamera} className="h-12">
-                  <X className="mr-2 h-4 w-4" />
-                  取消
-                </Button>
+            </div>
+          )}
+
+          {/* 加载摄像头中 */}
+          {!isCapturing && !capturedImage && !cameraError && (
+            <div className="space-y-4">
+              <div className="relative aspect-video max-w-lg mx-auto rounded-lg overflow-hidden bg-muted flex items-center justify-center">
+                <div className="text-center">
+                  <Loader2 className="h-8 w-8 animate-spin mx-auto mb-2 text-muted-foreground" />
+                  <p className="text-sm text-muted-foreground">正在启动摄像头...</p>
+                </div>
               </div>
             </div>
           )}

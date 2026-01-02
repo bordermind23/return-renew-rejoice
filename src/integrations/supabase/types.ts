@@ -763,6 +763,33 @@ export type Database = {
         }
         Relationships: []
       }
+      role_permissions: {
+        Row: {
+          allowed: boolean
+          created_at: string
+          id: string
+          permission: Database["public"]["Enums"]["permission_type"]
+          role: Database["public"]["Enums"]["app_role"]
+          updated_at: string
+        }
+        Insert: {
+          allowed?: boolean
+          created_at?: string
+          id?: string
+          permission: Database["public"]["Enums"]["permission_type"]
+          role: Database["public"]["Enums"]["app_role"]
+          updated_at?: string
+        }
+        Update: {
+          allowed?: boolean
+          created_at?: string
+          id?: string
+          permission?: Database["public"]["Enums"]["permission_type"]
+          role?: Database["public"]["Enums"]["app_role"]
+          updated_at?: string
+        }
+        Relationships: []
+      }
       user_preferences: {
         Row: {
           created_at: string
@@ -845,6 +872,17 @@ export type Database = {
         | "product_damaged"
         | "other"
       order_status: "未到货" | "到货" | "出库" | "待同步"
+      permission_type:
+        | "view_dashboard"
+        | "inbound_scan"
+        | "refurbishment"
+        | "view_inventory"
+        | "manage_products"
+        | "manage_orders"
+        | "manage_cases"
+        | "delete_data"
+        | "manage_users"
+        | "manage_roles"
     }
     CompositeTypes: {
       [_ in never]: never
@@ -989,6 +1027,18 @@ export const Constants = {
         "other",
       ],
       order_status: ["未到货", "到货", "出库", "待同步"],
+      permission_type: [
+        "view_dashboard",
+        "inbound_scan",
+        "refurbishment",
+        "view_inventory",
+        "manage_products",
+        "manage_orders",
+        "manage_cases",
+        "delete_data",
+        "manage_users",
+        "manage_roles",
+      ],
     },
   },
 } as const

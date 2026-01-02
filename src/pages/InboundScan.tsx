@@ -977,8 +977,8 @@ export default function InboundScan() {
         </div>
       )}
 
-      {/* 处理对话框 */}
-      <Dialog open={isProcessDialogOpen} onOpenChange={setIsProcessDialogOpen}>
+      {/* 处理对话框 - 拍照时隐藏 */}
+      <Dialog open={isProcessDialogOpen && !isPhotoCaptureOpen} onOpenChange={setIsProcessDialogOpen}>
         <DialogContent className="sm:max-w-2xl">
           <DialogHeader>
             <DialogTitle className="flex items-center gap-2 text-base sm:text-lg pr-8">

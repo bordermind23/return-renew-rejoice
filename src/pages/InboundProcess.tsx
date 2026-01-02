@@ -153,14 +153,6 @@ export default function InboundProcess() {
           // 播放成功音效
           playSuccess();
 
-          // 使用订单的 SKU 和数量更新库存
-          updateInventoryMutation.mutate({
-            sku: finalSku,
-            product_name: finalProductName,
-            grade: "A" as "A" | "B" | "C",
-            quantity: returnQty,
-          });
-
           // 更新对应订单的入库时间（触发器会自动更新状态为"到货"）
           if (matchedOrders.length > 0) {
             for (const order of matchedOrders) {

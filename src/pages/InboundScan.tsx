@@ -979,14 +979,15 @@ export default function InboundScan() {
 
       {/* 处理对话框 */}
       <Dialog open={isProcessDialogOpen} onOpenChange={setIsProcessDialogOpen}>
-        <DialogContent className="sm:max-w-2xl max-h-[90vh] flex flex-col">
-          <DialogHeader className="flex-shrink-0">
+        <DialogContent className="sm:max-w-2xl">
+          <DialogHeader>
             <DialogTitle className="flex items-center gap-2 text-base sm:text-lg pr-8">
               <Package className="h-5 w-5 text-primary flex-shrink-0" />
               <span className="truncate">产品入库处理 - {currentLpn}</span>
             </DialogTitle>
           </DialogHeader>
-          <ScrollArea className="flex-1 min-h-0 -mx-6 px-6">
+
+          <div className="-mx-6 px-6">
             <div className="grid gap-4 py-4">
               {/* SKU不匹配警告 */}
               {skuMismatchWarning && (
@@ -1180,7 +1181,7 @@ export default function InboundScan() {
                 />
               </div>
             </div>
-          </ScrollArea>
+          </div>
           <div className="flex justify-end gap-3 pt-4 border-t flex-shrink-0 mt-4">
             <Button variant="outline" onClick={() => {
               setIsProcessDialogOpen(false);

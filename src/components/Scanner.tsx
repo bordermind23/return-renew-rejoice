@@ -142,14 +142,10 @@ export function Scanner({
       const qrboxConfig = getQrboxConfig();
       const tablet = isTablet();
 
-      // 平板优先请求更高分辨率，提升二维码识别成功率（尤其是远距离/大屏幕）
+      // 平板上某些浏览器对 width/height/facingMode 约束兼容性较差，会导致 start() 直接抛错。
+      // 这里优先使用最稳妥的 deviceId 约束，只锁定摄像头本身。
       const cameraConfig: any = tablet
-        ? {
-            deviceId: { exact: cameraId },
-            facingMode: "environment",
-            width: { ideal: 1920 },
-            height: { ideal: 1080 },
-          }
+        ? { deviceId: { exact: cameraId } }
         : cameraId;
 
       console.log("Starting scanner with config:", {
@@ -187,7 +183,8 @@ export function Scanner({
       );
     } catch (err) {
       console.error("启动扫描器失败:", err);
-      setError("启动摄像头失败，请重试");
+      const msg = err instanceof Error ? err.message : String(err);
+      setError(`启动摄像头失败：${msg}`);
       setIsScanning(false);
     }
   };

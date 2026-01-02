@@ -702,12 +702,12 @@ export default function InboundScan() {
         <div className={cn(
           "flex items-center gap-3 px-4 py-2.5 rounded-full transition-all",
           currentStep === "scan_lpn" 
-            ? "bg-primary text-primary-foreground shadow-lg" 
+            ? "bg-info text-white shadow-lg" 
             : "bg-muted/50 text-muted-foreground"
         )}>
           <div className={cn(
             "h-8 w-8 rounded-full flex items-center justify-center text-sm font-bold",
-            currentStep === "scan_lpn" ? "bg-primary-foreground/20" : "bg-muted"
+            currentStep === "scan_lpn" ? "bg-white/20" : "bg-muted"
           )}>
             2
           </div>

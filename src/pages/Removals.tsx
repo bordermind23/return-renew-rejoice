@@ -1,4 +1,4 @@
-import { useState, useRef, useMemo, useCallback } from "react";
+import { useState, useRef, useMemo, useCallback, useEffect } from "react";
 import { Plus, Search, Filter, Trash2, Edit, Eye, Upload, Download, FileSpreadsheet, ChevronDown, ChevronRight, AlertCircle, CheckCircle2, Loader2, Package, Copy, LayoutGrid, List, Check, Image } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -101,6 +101,10 @@ export default function Removals() {
   const fileInputRef = useRef<HTMLInputElement>(null);
   const [viewMode, setViewMode] = useState<"grouped" | "list">("list");
   const [duplicateFilter, setDuplicateFilter] = useState<"all" | "duplicate" | "unconfirmed">("all");
+  
+  // 分页状态
+  const [currentPage, setCurrentPage] = useState(1);
+  const [pageSize, setPageSize] = useState(50);
   
   const [importProgress, setImportProgress] = useState<ImportProgress>({
     isImporting: false,
@@ -227,24 +231,41 @@ export default function Removals() {
     updateMutation.mutate({ id, duplicate_confirmed: true });
   }, [updateMutation]);
 
-  const filteredData = (shipments || []).filter((item) => {
-    const matchesSearch =
-      item.order_id.toLowerCase().includes(searchTerm.toLowerCase()) ||
-      (item.product_name || "").toLowerCase().includes(searchTerm.toLowerCase()) ||
-      item.tracking_number.toLowerCase().includes(searchTerm.toLowerCase()) ||
-      (item.store_name || "").toLowerCase().includes(searchTerm.toLowerCase());
+  const filteredData = useMemo(() => {
+    return (shipments || []).filter((item) => {
+      const matchesSearch =
+        item.order_id.toLowerCase().includes(searchTerm.toLowerCase()) ||
+        (item.product_name || "").toLowerCase().includes(searchTerm.toLowerCase()) ||
+        item.tracking_number.toLowerCase().includes(searchTerm.toLowerCase()) ||
+        (item.store_name || "").toLowerCase().includes(searchTerm.toLowerCase());
 
-    const matchesStatus =
-      statusFilter === "all" || item.status === statusFilter;
+      const matchesStatus =
+        statusFilter === "all" || item.status === statusFilter;
 
-    const isDuplicate = duplicateInfo.has(item.id);
-    const matchesDuplicate = 
-      duplicateFilter === "all" || 
-      (duplicateFilter === "duplicate" && isDuplicate) ||
-      (duplicateFilter === "unconfirmed" && isDuplicate && !item.duplicate_confirmed);
+      const isDuplicate = duplicateInfo.has(item.id);
+      const matchesDuplicate = 
+        duplicateFilter === "all" || 
+        (duplicateFilter === "duplicate" && isDuplicate) ||
+        (duplicateFilter === "unconfirmed" && isDuplicate && !item.duplicate_confirmed);
 
-    return matchesSearch && matchesStatus && matchesDuplicate;
-  });
+      return matchesSearch && matchesStatus && matchesDuplicate;
+    });
+  }, [shipments, searchTerm, statusFilter, duplicateFilter, duplicateInfo]);
+
+  // 分页计算
+  const totalCount = filteredData.length;
+  const totalPages = Math.ceil(totalCount / pageSize);
+  const startIndex = (currentPage - 1) * pageSize;
+  const endIndex = Math.min(startIndex + pageSize, totalCount);
+  
+  const paginatedData = useMemo(() => {
+    return filteredData.slice(startIndex, endIndex);
+  }, [filteredData, startIndex, endIndex]);
+
+  // 重置页码当筛选条件变化时
+  useEffect(() => {
+    setCurrentPage(1);
+  }, [searchTerm, statusFilter, duplicateFilter]);
 
   // 按移除订单号 + 跟踪号分组
   interface OrderTrackingGroup {
@@ -262,7 +283,10 @@ export default function Removals() {
   const groupedByOrderTracking = useMemo(() => {
     const groups: Record<string, OrderTrackingGroup> = {};
     
-    filteredData.forEach((item) => {
+    // 分组视图使用分页后的数据
+    const dataToGroup = viewMode === "grouped" ? paginatedData : filteredData;
+    
+    dataToGroup.forEach((item) => {
       // 使用 order_id + tracking_number 作为组合键
       const key = `${item.order_id}|||${item.tracking_number}`;
       if (!groups[key]) {
@@ -291,7 +315,7 @@ export default function Removals() {
       const bDate = Math.max(...b.items.map(i => new Date(i.created_at).getTime()));
       return bDate - aDate;
     });
-  }, [filteredData]);
+  }, [filteredData, paginatedData, viewMode]);
 
   const toggleGroup = (groupKey: string) => {
     setExpandedGroups(prev => {
@@ -1091,14 +1115,14 @@ export default function Removals() {
             <TableBody>
               {viewMode === "list" ? (
                 // 列表视图 - 不分组显示
-                filteredData.length === 0 ? (
+                paginatedData.length === 0 ? (
                   <TableRow>
                     <TableCell colSpan={10} className="h-32 text-center text-muted-foreground">
                       暂无移除货件记录
                     </TableCell>
                   </TableRow>
                 ) : (
-                  filteredData.map((item) => {
+                  paginatedData.map((item) => {
                     const isDuplicate = duplicateInfo.has(item.id);
                     return (
                       <TableRow key={item.id} className="hover:bg-muted/30">
@@ -1524,20 +1548,103 @@ export default function Removals() {
         </ScrollArea>
       </Card>
 
-      {/* 数据统计 */}
-      <div className="text-sm text-muted-foreground flex items-center gap-4">
-        <span>
-          {viewMode === "grouped" 
-            ? `共 ${groupedByOrderTracking.length} 个分组（${filteredData.length} 条产品记录）`
-            : `共 ${filteredData.length} 条记录`
-          }
-          {statusFilter !== "all" && ` (已筛选)`}
-        </span>
-        {duplicateInfo.size > 0 && (
-          <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded text-xs bg-amber-100 text-amber-700 dark:bg-amber-900/30 dark:text-amber-400">
-            <Copy className="h-3 w-3" />
-            {duplicateInfo.size} 条可能重复
+      {/* 分页控制 */}
+      <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4 py-2">
+        <div className="flex items-center gap-2 text-sm text-muted-foreground">
+          <span>
+            显示 {totalCount > 0 ? startIndex + 1 : 0}-{endIndex} 条，共 {totalCount} 条
           </span>
+          <span className="text-muted-foreground">每页</span>
+          <Select value={pageSize.toString()} onValueChange={(value) => { setPageSize(Number(value)); setCurrentPage(1); }}>
+            <SelectTrigger className="h-8 w-[70px]">
+              <SelectValue />
+            </SelectTrigger>
+            <SelectContent>
+              <SelectItem value="20">20</SelectItem>
+              <SelectItem value="50">50</SelectItem>
+              <SelectItem value="100">100</SelectItem>
+              <SelectItem value="200">200</SelectItem>
+            </SelectContent>
+          </Select>
+          {duplicateInfo.size > 0 && (
+            <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded text-xs bg-amber-100 text-amber-700 dark:bg-amber-900/30 dark:text-amber-400">
+              <Copy className="h-3 w-3" />
+              {duplicateInfo.size} 条可能重复
+            </span>
+          )}
+        </div>
+        
+        {totalPages > 1 && (
+          <div className="flex items-center gap-1">
+            <Button
+              variant="outline"
+              size="icon"
+              className="h-8 w-8"
+              onClick={() => setCurrentPage(1)}
+              disabled={currentPage === 1}
+            >
+              <span className="text-xs">«</span>
+            </Button>
+            <Button
+              variant="outline"
+              size="icon"
+              className="h-8 w-8"
+              onClick={() => setCurrentPage(prev => Math.max(1, prev - 1))}
+              disabled={currentPage === 1}
+            >
+              <span className="text-xs">‹</span>
+            </Button>
+            
+            {/* 页码按钮 */}
+            {(() => {
+              const pages: (number | string)[] = [];
+              if (totalPages <= 7) {
+                for (let i = 1; i <= totalPages; i++) pages.push(i);
+              } else {
+                if (currentPage <= 4) {
+                  pages.push(1, 2, 3, 4, 5, '...', totalPages);
+                } else if (currentPage >= totalPages - 3) {
+                  pages.push(1, '...', totalPages - 4, totalPages - 3, totalPages - 2, totalPages - 1, totalPages);
+                } else {
+                  pages.push(1, '...', currentPage - 1, currentPage, currentPage + 1, '...', totalPages);
+                }
+              }
+              return pages.map((page, idx) => (
+                typeof page === 'number' ? (
+                  <Button
+                    key={idx}
+                    variant={currentPage === page ? "default" : "outline"}
+                    size="icon"
+                    className="h-8 w-8"
+                    onClick={() => setCurrentPage(page)}
+                  >
+                    <span className="text-xs">{page}</span>
+                  </Button>
+                ) : (
+                  <span key={idx} className="px-1 text-muted-foreground">...</span>
+                )
+              ));
+            })()}
+            
+            <Button
+              variant="outline"
+              size="icon"
+              className="h-8 w-8"
+              onClick={() => setCurrentPage(prev => Math.min(totalPages, prev + 1))}
+              disabled={currentPage === totalPages}
+            >
+              <span className="text-xs">›</span>
+            </Button>
+            <Button
+              variant="outline"
+              size="icon"
+              className="h-8 w-8"
+              onClick={() => setCurrentPage(totalPages)}
+              disabled={currentPage === totalPages}
+            >
+              <span className="text-xs">»</span>
+            </Button>
+          </div>
         )}
       </div>
 

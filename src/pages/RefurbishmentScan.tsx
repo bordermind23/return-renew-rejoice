@@ -1,5 +1,5 @@
 import { useState, useRef, useEffect } from "react";
-import { ScanLine, Camera, Video, CheckCircle, AlertCircle, Wrench, Smartphone } from "lucide-react";
+import { ScanLine, Camera, Video, CheckCircle, AlertCircle, Wrench } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { PageHeader } from "@/components/ui/page-header";
@@ -29,7 +29,6 @@ import { useSound } from "@/hooks/useSound";
 import { useLanguage } from "@/i18n/LanguageContext";
 import { useIsMobile } from "@/hooks/use-mobile";
 import { RefurbishmentMediaCapture } from "@/components/RefurbishmentMediaCapture";
-import { NativePhotoCapture } from "@/components/NativePhotoCapture";
 
 export default function RefurbishmentScan() {
   const { t } = useLanguage();
@@ -45,7 +44,6 @@ export default function RefurbishmentScan() {
   const [showMediaCapture, setShowMediaCapture] = useState(false);
   const [isNewLpn, setIsNewLpn] = useState(false);
   const [newLpnInput, setNewLpnInput] = useState("");
-  const [isPhotoCaptureOpen, setIsPhotoCaptureOpen] = useState(false);
   
   const lpnInputRef = useRef<HTMLInputElement>(null);
   const photoInputRef = useRef<HTMLInputElement>(null);
@@ -176,28 +174,7 @@ export default function RefurbishmentScan() {
       toast.error("请先选择B级或C级");
       return;
     }
-    if (isMobile) {
-      setShowMediaCapture(true);
-    } else {
-      setIsPhotoCaptureOpen(true);
-    }
-  };
-
-  const handleNativePhotoCaptureComplete = async (photos: { [key: string]: string }) => {
-    setIsPhotoCaptureOpen(false);
-    
-    // Extract photos from native capture (only use relevant photos)
-    const newPhotos: string[] = [];
-    Object.values(photos).forEach(url => {
-      if (url) {
-        newPhotos.push(url);
-      }
-    });
-    
-    if (newPhotos.length > 0) {
-      setCapturedPhotos(prev => [...prev, ...newPhotos]);
-      toast.success(`已添加 ${newPhotos.length} 张照片`);
-    }
+    setShowMediaCapture(true);
   };
 
   const handleProcessComplete = async () => {
@@ -362,17 +339,6 @@ export default function RefurbishmentScan() {
     );
   }
 
-  // 原生拍照组件（B/C级电脑端）
-  if (isPhotoCaptureOpen && (matchedItem || isNewLpn) && (selectedGrade === "B" || selectedGrade === "C")) {
-    return (
-      <NativePhotoCapture
-        lpn={matchedItem?.lpn || newLpnInput}
-        onComplete={handleNativePhotoCaptureComplete}
-        onCancel={() => setIsPhotoCaptureOpen(false)}
-      />
-    );
-  }
-
   return (
     <div className="space-y-6 animate-fade-in pb-6">
       <PageHeader
@@ -411,7 +377,7 @@ export default function RefurbishmentScan() {
       </Card>
 
       {/* 处理对话框 */}
-      <Dialog open={isProcessDialogOpen && !isPhotoCaptureOpen} onOpenChange={setIsProcessDialogOpen}>
+      <Dialog open={isProcessDialogOpen} onOpenChange={setIsProcessDialogOpen}>
         <DialogContent className="sm:max-w-2xl max-h-[90vh] overflow-hidden flex flex-col">
           <DialogHeader className="flex-shrink-0">
             <DialogTitle className="flex items-center gap-2 text-base sm:text-lg pr-8">
@@ -500,70 +466,58 @@ export default function RefurbishmentScan() {
               {/* B/C级拍照/视频 */}
               {(selectedGrade === "B" || selectedGrade === "C") && (
                 <div className="space-y-3">
-                  <div className="flex items-center justify-between">
-                    <Label className="text-sm">
-                      {selectedGrade === "B" 
-                        ? (t.refurbishment?.bGradeRequirement || "B级需要拍照记录")
-                        : (t.refurbishment?.cGradeRequirement || "C级需要拍照或录视频")}
-                    </Label>
-                    <Button
-                      type="button"
-                      variant="outline"
-                      size="sm"
-                      onClick={openMobileCapture}
-                      className="gap-2"
-                    >
-                      <Camera className="h-4 w-4" />
-                      {isMobile ? "拍摄" : "原生拍照"}
-                    </Button>
-                  </div>
+                  <Label className="text-sm">
+                    {selectedGrade === "B" 
+                      ? (t.refurbishment?.bGradeRequirement || "B级需要拍照记录")
+                      : (t.refurbishment?.cGradeRequirement || "C级需要拍照或录视频")}
+                  </Label>
 
-                  {!isMobile && (
-                    <div className="grid grid-cols-2 gap-3">
+                  <div className={cn("grid gap-3", selectedGrade === "C" ? "grid-cols-2" : "grid-cols-1")}>
+                    <div>
+                      <input
+                        ref={photoInputRef}
+                        type="file"
+                        accept="image/*"
+                        capture="environment"
+                        multiple
+                        className="hidden"
+                        onChange={handlePhotoCapture}
+                      />
+                      <Button
+                        type="button"
+                        variant="outline"
+                        className="w-full h-20 flex-col gap-2"
+                        onClick={() => photoInputRef.current?.click()}
+                        disabled={isUploading}
+                      >
+                        <Camera className="h-5 w-5" />
+                        <span className="text-xs">{t.refurbishment?.clickToPhoto || "点击拍照或选择图片"}</span>
+                      </Button>
+                    </div>
+                    {selectedGrade === "C" && (
                       <div>
                         <input
-                          ref={photoInputRef}
+                          ref={videoInputRef}
                           type="file"
-                          accept="image/*"
+                          accept="video/*"
+                          capture="environment"
                           multiple
                           className="hidden"
-                          onChange={handlePhotoCapture}
+                          onChange={handleVideoCapture}
                         />
                         <Button
                           type="button"
                           variant="outline"
                           className="w-full h-20 flex-col gap-2"
-                          onClick={() => photoInputRef.current?.click()}
+                          onClick={() => videoInputRef.current?.click()}
                           disabled={isUploading}
                         >
-                          <Camera className="h-5 w-5" />
-                          <span className="text-xs">{t.refurbishment?.clickToPhoto || "点击拍照或选择图片"}</span>
+                          <Video className="h-5 w-5" />
+                          <span className="text-xs">{t.refurbishment?.clickToVideo || "点击录制或选择视频"}</span>
                         </Button>
                       </div>
-                      {selectedGrade === "C" && (
-                        <div>
-                          <input
-                            ref={videoInputRef}
-                            type="file"
-                            accept="video/*"
-                            multiple
-                            className="hidden"
-                            onChange={handleVideoCapture}
-                          />
-                          <Button
-                            type="button"
-                            variant="outline"
-                            className="w-full h-20 flex-col gap-2"
-                            onClick={() => videoInputRef.current?.click()}
-                            disabled={isUploading}
-                          >
-                            <Video className="h-5 w-5" />
-                            <span className="text-xs">{t.refurbishment?.clickToVideo || "点击录制或选择视频"}</span>
-                          </Button>
-                        </div>
-                      )}
-                    </div>
-                  )}
+                    )}
+                  </div>
 
                   {/* 已拍摄的照片 */}
                   {capturedPhotos.length > 0 && (

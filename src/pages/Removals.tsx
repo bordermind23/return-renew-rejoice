@@ -1223,11 +1223,12 @@ export default function Removals() {
                         <TableCell>
                           <div className="flex items-center gap-2">
                             <StatusBadge status={item.status} />
+                            {/* 入库状态指示器 */}
                             {item.status !== 'shipping' && (
                               <TooltipProvider>
                                 <Tooltip>
-                                  <TooltipTrigger asChild>
-                                    <div className={`h-2 w-2 rounded-full cursor-help ${
+                                  <TooltipTrigger>
+                                    <span className={`h-2 w-2 rounded-full ${
                                       (arrivedCountByTracking[item.tracking_number] || 0) === 0 
                                         ? 'bg-red-500' 
                                         : (arrivedCountByTracking[item.tracking_number] || 0) < item.quantity 
@@ -1238,7 +1239,7 @@ export default function Removals() {
                                   <TooltipContent side="top">
                                     <span className="text-xs">
                                       {(arrivedCountByTracking[item.tracking_number] || 0) === 0 
-                                        ? '未入库 - 等待扫描处理' 
+                                        ? '未入库' 
                                         : (arrivedCountByTracking[item.tracking_number] || 0) < item.quantity 
                                           ? '部分入库' 
                                           : '已完成入库'}
@@ -1361,8 +1362,8 @@ export default function Removals() {
                               {item.status !== 'shipping' && (
                                 <TooltipProvider>
                                   <Tooltip>
-                                    <TooltipTrigger asChild>
-                                      <div className={`h-2 w-2 rounded-full cursor-help ${
+                                    <TooltipTrigger>
+                                      <span className={`h-2 w-2 rounded-full ${
                                         (arrivedCountByTracking[item.tracking_number] || 0) === 0 
                                           ? 'bg-red-500' 
                                           : (arrivedCountByTracking[item.tracking_number] || 0) < item.quantity 
@@ -1373,7 +1374,7 @@ export default function Removals() {
                                     <TooltipContent side="top">
                                       <span className="text-xs">
                                         {(arrivedCountByTracking[item.tracking_number] || 0) === 0 
-                                          ? '未入库 - 等待扫描处理' 
+                                          ? '未入库' 
                                           : (arrivedCountByTracking[item.tracking_number] || 0) < item.quantity 
                                             ? '部分入库' 
                                             : '已完成入库'}
@@ -1595,8 +1596,8 @@ export default function Removals() {
                                         {item.status !== 'shipping' && (
                                           <TooltipProvider>
                                             <Tooltip>
-                                              <TooltipTrigger asChild>
-                                                <div className={`h-2 w-2 rounded-full cursor-help ${
+                                              <TooltipTrigger>
+                                                <span className={`h-2 w-2 rounded-full ${
                                                   (arrivedCountByTracking[item.tracking_number] || 0) === 0 
                                                     ? 'bg-red-500' 
                                                     : (arrivedCountByTracking[item.tracking_number] || 0) < item.quantity 
@@ -1607,7 +1608,7 @@ export default function Removals() {
                                               <TooltipContent side="top">
                                                 <span className="text-xs">
                                                   {(arrivedCountByTracking[item.tracking_number] || 0) === 0 
-                                                    ? '未入库 - 等待扫描处理' 
+                                                    ? '未入库' 
                                                     : (arrivedCountByTracking[item.tracking_number] || 0) < item.quantity 
                                                       ? '部分入库' 
                                                       : '已完成入库'}

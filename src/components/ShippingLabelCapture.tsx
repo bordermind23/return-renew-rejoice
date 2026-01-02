@@ -44,16 +44,48 @@ export function ShippingLabelCapture({ onTrackingRecognized, onCancel }: Shippin
     setCameraError(null);
     try {
       const stream = await navigator.mediaDevices.getUserMedia({
-        video: { facingMode: "environment", width: { ideal: 1920 }, height: { ideal: 1080 } }
+        video: {
+          // 在电脑/平板上 environment 可能不可用，交给浏览器选择
+          facingMode: { ideal: "environment" },
+          width: { ideal: 1920 },
+          height: { ideal: 1080 },
+        },
       });
+
       streamRef.current = stream;
-      if (videoRef.current) {
-        videoRef.current.srcObject = stream;
+
+      const videoEl = videoRef.current;
+      if (videoEl) {
+        videoEl.srcObject = stream;
+
+        // 等待元数据加载，避免出现黑屏/尺寸为 0
+        await new Promise<void>((resolve, reject) => {
+          const timeout = window.setTimeout(() => reject(new Error("Camera timeout")), 4000);
+          videoEl.onloadedmetadata = () => {
+            window.clearTimeout(timeout);
+            resolve();
+          };
+        });
+
+        // 某些浏览器需要显式 play
+        const playPromise = videoEl.play();
+        if (playPromise) await playPromise;
       }
+
       setIsCapturing(true);
-    } catch (error) {
+    } catch (error: any) {
       console.error("Failed to start camera:", error);
-      setCameraError("无法访问摄像头，请检查权限设置");
+
+      const name = error?.name;
+      if (name === "NotFoundError" || name === "OverconstrainedError") {
+        setCameraError("未检测到可用摄像头，请改用上传照片");
+      } else if (name === "NotAllowedError") {
+        setCameraError("摄像头权限被拒绝，请在浏览器设置中允许后重试");
+      } else {
+        setCameraError("无法访问摄像头，请检查权限设置");
+      }
+
+      setIsCapturing(false);
       toast.error("无法访问摄像头");
     }
   };
@@ -116,17 +148,25 @@ export function ShippingLabelCapture({ onTrackingRecognized, onCancel }: Shippin
 
   const capturePhoto = async () => {
     if (!videoRef.current) return;
-    
+
+    // 黑屏/未就绪时 videoWidth 可能为 0
+    if (!videoRef.current.videoWidth || !videoRef.current.videoHeight) {
+      toast.error("摄像头未就绪，请稍后重试或改用上传照片");
+      setCameraError("摄像头未就绪，请改用上传照片");
+      stopCamera();
+      return;
+    }
+
     const canvas = document.createElement("canvas");
     canvas.width = videoRef.current.videoWidth;
     canvas.height = videoRef.current.videoHeight;
     const ctx = canvas.getContext("2d");
     if (ctx) {
       ctx.drawImage(videoRef.current, 0, 0);
-      const originalImage = canvas.toDataURL("image/jpeg", 0.9);
+      const originalImage = canvas.toDataURL("image/jpeg", 0.95);
       setCapturedImage(originalImage);
       stopCamera();
-      
+
       // 压缩后再识别
       const compressedImage = await compressImage(originalImage);
       recognizeTracking(compressedImage);

@@ -135,7 +135,7 @@ function MobileSidebarContent({ onClose }: { onClose: () => void }) {
       </div>
 
       {/* Navigation */}
-      <nav className="flex-1 space-y-1 px-3 py-4">
+      <nav className="flex-1 space-y-1 px-3 py-4 overflow-y-auto">
         {allNavItems.map((item) => {
           if (item.children) {
             const isChildActive = item.children.some(child => location.pathname === child.to);
@@ -210,6 +210,7 @@ function MobileSidebarContent({ onClose }: { onClose: () => void }) {
             {user.email}
           </div>
         )}
+        <LanguageSwitcher />
         <button
           onClick={handleLogout}
           className="flex w-full items-center gap-3 rounded-lg px-3 py-2 text-sm text-sidebar-foreground transition-colors hover:bg-destructive/10 hover:text-destructive"
@@ -222,7 +223,7 @@ function MobileSidebarContent({ onClose }: { onClose: () => void }) {
   );
 }
 
-// 桌面端侧边栏
+// 桌面端/平板端侧边栏
 function DesktopSidebar({ collapsed, setCollapsed }: { collapsed: boolean; setCollapsed: (v: boolean) => void }) {
   const location = useLocation();
   const navigate = useNavigate();
@@ -249,7 +250,7 @@ function DesktopSidebar({ collapsed, setCollapsed }: { collapsed: boolean; setCo
   return (
     <aside
       className={cn(
-        "fixed left-0 top-0 z-40 h-screen bg-sidebar transition-all duration-300 ease-in-out hidden lg:block",
+        "fixed left-0 top-0 z-40 h-screen bg-sidebar transition-all duration-300 ease-in-out hidden md:block",
         collapsed ? "w-16" : "w-64"
       )}
     >
@@ -274,7 +275,7 @@ function DesktopSidebar({ collapsed, setCollapsed }: { collapsed: boolean; setCo
         </div>
 
         {/* Navigation */}
-        <nav className="flex-1 space-y-1 px-3 py-4">
+        <nav className="flex-1 space-y-1 px-3 py-4 overflow-y-auto">
           {allNavItems.map((item) => {
             if (item.children) {
               const isChildActive = item.children.some(child => location.pathname === child.to);
@@ -381,7 +382,7 @@ function DesktopSidebar({ collapsed, setCollapsed }: { collapsed: boolean; setCo
   );
 }
 
-// 移动端顶部导航栏
+// 移动端顶部导航栏 (仅手机端显示)
 export function MobileHeader() {
   const [isOpen, setIsOpen] = useState(false);
   const location = useLocation();
@@ -392,7 +393,7 @@ export function MobileHeader() {
   }, [location.pathname]);
 
   return (
-    <header className="lg:hidden fixed top-0 left-0 right-0 z-50 h-14 bg-background border-b flex items-center justify-between px-4">
+    <header className="md:hidden fixed top-0 left-0 right-0 z-50 h-14 bg-background border-b flex items-center justify-between px-4">
       <div className="flex items-center">
         <Sheet open={isOpen} onOpenChange={setIsOpen}>
           <SheetTrigger asChild>

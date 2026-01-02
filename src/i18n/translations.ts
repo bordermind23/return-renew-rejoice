@@ -71,6 +71,7 @@ export const translations = {
       refurbishment: '翻新处理',
       refurbishmentScan: '翻新扫码',
       refurbishmentRecords: '翻新记录',
+      orderFindings: '退货订单发现',
     },
     // 入库扫码
     inboundScan: {
@@ -419,6 +420,7 @@ export const translations = {
       refurbishment: 'Ricondizionamento',
       refurbishmentScan: 'Scansione Ricondizionamento',
       refurbishmentRecords: 'Registri Ricondizionamento',
+      orderFindings: 'Ordini Problematici',
     },
     // 入库扫码
     inboundScan: {

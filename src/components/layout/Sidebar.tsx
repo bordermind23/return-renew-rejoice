@@ -85,6 +85,7 @@ const getNavItems = (t: ReturnType<typeof useLanguage>['t']): NavItem[] => [
   { to: "/dashboard", icon: LayoutDashboard, label: t.nav.dashboard },
   { to: "/orders", icon: ClipboardList, label: t.nav.orders },
   { to: "/removals", icon: PackageX, label: t.nav.removals },
+  { to: "/order-findings", icon: AlertTriangle, label: t.nav.orderFindings || "退货订单发现" },
   { to: "/inventory", icon: Warehouse, label: t.nav.inventory },
   { to: "/products", icon: Package, label: t.nav.products },
   { to: "/outbound", icon: PackageOpen, label: t.nav.outbound },

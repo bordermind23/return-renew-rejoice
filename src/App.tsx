@@ -23,6 +23,7 @@ import Cases from "./pages/Cases";
 import Refurbishment from "./pages/Refurbishment";
 import RefurbishmentScan from "./pages/RefurbishmentScan";
 import RefurbishmentRecords from "./pages/RefurbishmentRecords";
+import OrderFindings from "./pages/OrderFindings";
 import Auth from "./pages/Auth";
 import NotFound from "./pages/NotFound";
 
@@ -76,6 +77,16 @@ const App = () => (
               <ProtectedRoute>
                 <MainLayout>
                   <Removals />
+                </MainLayout>
+              </ProtectedRoute>
+            }
+          />
+          <Route
+            path="/order-findings"
+            element={
+              <ProtectedRoute>
+                <MainLayout>
+                  <OrderFindings />
                 </MainLayout>
               </ProtectedRoute>
             }

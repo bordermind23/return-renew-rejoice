@@ -305,20 +305,16 @@ export function InboundBatchList({ items, onDelete, onBatchDelete, enableBatchSe
                             <TableHead className="w-[50px]"></TableHead>
                           )}
                           <TableHead className="font-semibold min-w-[100px]">LPN号</TableHead>
-                          <TableHead className="font-semibold min-w-[80px] text-center">物流面单</TableHead>
                           <TableHead className="font-semibold min-w-[120px]">缺少配件</TableHead>
-                          <TableHead className="font-semibold min-w-[60px] text-center">其他照片</TableHead>
+                          <TableHead className="font-semibold min-w-[60px] text-center">照片</TableHead>
                           <TableHead className="font-semibold min-w-[130px]">处理时间</TableHead>
                           <TableHead className="font-semibold min-w-[60px] text-center">操作</TableHead>
                         </TableRow>
                       </TableHeader>
                       <TableBody>
                         {batch.items.map((item) => {
-                          const otherPhotoCount = getPhotoCount(item, true); // 排除物流面单
+                          const photoCount = getPhotoCount(item, true); // 排除物流面单
                           const isSelected = selectedIds.has(item.id);
-
-                          // 子体统一展示批次的物流面单（有些 item 可能没存到 shipping_label_photo）
-                          const shippingLabelToShow = shippingLabelPhoto || item.shipping_label_photo;
 
                           return (
                             <TableRow 
@@ -341,32 +337,13 @@ export function InboundBatchList({ items, onDelete, onBatchDelete, enableBatchSe
                                   {item.lpn}
                                 </code>
                               </TableCell>
-                              <TableCell className="text-center">
-                                {shippingLabelToShow ? (
-                                  <Button
-                                    size="sm"
-                                    variant="ghost"
-                                    className="h-7 px-2 text-primary"
-                                    onClick={(e) => {
-                                      e.stopPropagation();
-                                      // 只打开物流面单照片
-                                      setShippingLabelUrl(shippingLabelToShow);
-                                    }}
-                                  >
-                                    <Image className="h-4 w-4 mr-1" />
-                                    查看
-                                  </Button>
-                                ) : (
-                                  <span className="text-muted-foreground text-xs">-</span>
-                                )}
-                              </TableCell>
                               <TableCell className="text-muted-foreground text-sm">
                                 {item.missing_parts && item.missing_parts.length > 0
                                   ? item.missing_parts.join(", ")
                                   : "-"}
                               </TableCell>
                               <TableCell className="text-center">
-                                {otherPhotoCount > 0 ? (
+                                {photoCount > 0 ? (
                                   <Button
                                     size="sm"
                                     variant="ghost"
@@ -377,7 +354,7 @@ export function InboundBatchList({ items, onDelete, onBatchDelete, enableBatchSe
                                     }}
                                   >
                                     <Image className="h-4 w-4 mr-1" />
-                                    {otherPhotoCount}
+                                    {photoCount}
                                   </Button>
                                 ) : (
                                   <span className="text-muted-foreground text-xs">-</span>

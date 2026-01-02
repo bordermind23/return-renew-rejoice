@@ -5,6 +5,12 @@ import { Input } from "@/components/ui/input";
 import { PageHeader } from "@/components/ui/page-header";
 import { StatusBadge } from "@/components/ui/status-badge";
 import {
+  Tooltip,
+  TooltipContent,
+  TooltipProvider,
+  TooltipTrigger,
+} from "@/components/ui/tooltip";
+import {
   Dialog,
   DialogContent,
   DialogHeader,
@@ -1113,11 +1119,38 @@ export default function Removals() {
                           <span className="line-clamp-1" title={item.product_name || undefined}>{item.product_name || "-"}</span>
                         </TableCell>
                         <TableCell className="text-center">
-                          <span className="font-semibold">{item.quantity}</span>
-                          <span className="text-muted-foreground">/</span>
-                          <span className={`font-semibold ${(arrivedCountByTracking[item.tracking_number] || 0) >= item.quantity ? 'text-green-600' : 'text-amber-600'}`}>
-                            {arrivedCountByTracking[item.tracking_number] || 0}
-                          </span>
+                          <TooltipProvider>
+                            <Tooltip>
+                              <TooltipTrigger asChild>
+                                <span className="cursor-help inline-flex items-center gap-0.5">
+                                  <span className="font-semibold">{item.quantity}</span>
+                                  <span className="text-muted-foreground">/</span>
+                                  <span className={`font-semibold ${(arrivedCountByTracking[item.tracking_number] || 0) >= item.quantity ? 'text-green-600' : 'text-amber-600'}`}>
+                                    {arrivedCountByTracking[item.tracking_number] || 0}
+                                  </span>
+                                </span>
+                              </TooltipTrigger>
+                              <TooltipContent side="top" className="max-w-xs">
+                                <div className="text-xs space-y-1">
+                                  <p><span className="text-muted-foreground">申报数量：</span>{item.quantity}</p>
+                                  <p><span className="text-muted-foreground">到货数量：</span>{arrivedCountByTracking[item.tracking_number] || 0}</p>
+                                  {(arrivedCountByTracking[item.tracking_number] || 0) < item.quantity && (
+                                    <p className="text-amber-600">
+                                      差异：缺少 {item.quantity - (arrivedCountByTracking[item.tracking_number] || 0)} 件
+                                    </p>
+                                  )}
+                                  {(arrivedCountByTracking[item.tracking_number] || 0) > item.quantity && (
+                                    <p className="text-blue-600">
+                                      差异：多出 {(arrivedCountByTracking[item.tracking_number] || 0) - item.quantity} 件
+                                    </p>
+                                  )}
+                                  {(arrivedCountByTracking[item.tracking_number] || 0) === item.quantity && (
+                                    <p className="text-green-600">已全部到货</p>
+                                  )}
+                                </div>
+                              </TooltipContent>
+                            </Tooltip>
+                          </TooltipProvider>
                         </TableCell>
                         <TableCell className="text-muted-foreground text-sm">
                           {item.ship_date || "-"}
@@ -1195,11 +1228,38 @@ export default function Removals() {
                             <span className="line-clamp-1" title={item.product_name || undefined}>{item.product_name || "-"}</span>
                           </TableCell>
                           <TableCell className="text-center">
-                            <span className="font-semibold">{item.quantity}</span>
-                            <span className="text-muted-foreground">/</span>
-                            <span className={`font-semibold ${(arrivedCountByTracking[item.tracking_number] || 0) >= item.quantity ? 'text-green-600' : 'text-amber-600'}`}>
-                              {arrivedCountByTracking[item.tracking_number] || 0}
-                            </span>
+                            <TooltipProvider>
+                              <Tooltip>
+                                <TooltipTrigger asChild>
+                                  <span className="cursor-help inline-flex items-center gap-0.5">
+                                    <span className="font-semibold">{item.quantity}</span>
+                                    <span className="text-muted-foreground">/</span>
+                                    <span className={`font-semibold ${(arrivedCountByTracking[item.tracking_number] || 0) >= item.quantity ? 'text-green-600' : 'text-amber-600'}`}>
+                                      {arrivedCountByTracking[item.tracking_number] || 0}
+                                    </span>
+                                  </span>
+                                </TooltipTrigger>
+                                <TooltipContent side="top" className="max-w-xs">
+                                  <div className="text-xs space-y-1">
+                                    <p><span className="text-muted-foreground">申报数量：</span>{item.quantity}</p>
+                                    <p><span className="text-muted-foreground">到货数量：</span>{arrivedCountByTracking[item.tracking_number] || 0}</p>
+                                    {(arrivedCountByTracking[item.tracking_number] || 0) < item.quantity && (
+                                      <p className="text-amber-600">
+                                        差异：缺少 {item.quantity - (arrivedCountByTracking[item.tracking_number] || 0)} 件
+                                      </p>
+                                    )}
+                                    {(arrivedCountByTracking[item.tracking_number] || 0) > item.quantity && (
+                                      <p className="text-blue-600">
+                                        差异：多出 {(arrivedCountByTracking[item.tracking_number] || 0) - item.quantity} 件
+                                      </p>
+                                    )}
+                                    {(arrivedCountByTracking[item.tracking_number] || 0) === item.quantity && (
+                                      <p className="text-green-600">已全部到货</p>
+                                    )}
+                                  </div>
+                                </TooltipContent>
+                              </Tooltip>
+                            </TooltipProvider>
                           </TableCell>
                           <TableCell className="text-muted-foreground text-sm">
                             {item.ship_date || "-"}
@@ -1295,11 +1355,38 @@ export default function Removals() {
                             </CollapsibleTrigger>
                             <CollapsibleTrigger asChild>
                               <TableCell onClick={() => toggleGroup(group.groupKey)} className="text-center">
-                                <span className="font-semibold text-primary">{group.totalQuantity}</span>
-                                <span className="text-muted-foreground">/</span>
-                                <span className={`font-semibold ${(arrivedCountByTracking[group.trackingNumber] || 0) >= group.totalQuantity ? 'text-green-600' : 'text-amber-600'}`}>
-                                  {arrivedCountByTracking[group.trackingNumber] || 0}
-                                </span>
+                                <TooltipProvider>
+                                  <Tooltip>
+                                    <TooltipTrigger asChild>
+                                      <span className="cursor-help inline-flex items-center gap-0.5">
+                                        <span className="font-semibold text-primary">{group.totalQuantity}</span>
+                                        <span className="text-muted-foreground">/</span>
+                                        <span className={`font-semibold ${(arrivedCountByTracking[group.trackingNumber] || 0) >= group.totalQuantity ? 'text-green-600' : 'text-amber-600'}`}>
+                                          {arrivedCountByTracking[group.trackingNumber] || 0}
+                                        </span>
+                                      </span>
+                                    </TooltipTrigger>
+                                    <TooltipContent side="top" className="max-w-xs">
+                                      <div className="text-xs space-y-1">
+                                        <p><span className="text-muted-foreground">申报数量：</span>{group.totalQuantity}</p>
+                                        <p><span className="text-muted-foreground">到货数量：</span>{arrivedCountByTracking[group.trackingNumber] || 0}</p>
+                                        {(arrivedCountByTracking[group.trackingNumber] || 0) < group.totalQuantity && (
+                                          <p className="text-amber-600">
+                                            差异：缺少 {group.totalQuantity - (arrivedCountByTracking[group.trackingNumber] || 0)} 件
+                                          </p>
+                                        )}
+                                        {(arrivedCountByTracking[group.trackingNumber] || 0) > group.totalQuantity && (
+                                          <p className="text-blue-600">
+                                            差异：多出 {(arrivedCountByTracking[group.trackingNumber] || 0) - group.totalQuantity} 件
+                                          </p>
+                                        )}
+                                        {(arrivedCountByTracking[group.trackingNumber] || 0) === group.totalQuantity && (
+                                          <p className="text-green-600">已全部到货</p>
+                                        )}
+                                      </div>
+                                    </TooltipContent>
+                                  </Tooltip>
+                                </TooltipProvider>
                               </TableCell>
                             </CollapsibleTrigger>
                             <CollapsibleTrigger asChild>
@@ -1349,11 +1436,38 @@ export default function Removals() {
                                       <span className="line-clamp-1 text-sm" title={item.product_name || undefined}>{item.product_name || "-"}</span>
                                     </TableCell>
                                     <TableCell className="text-center">
-                                      <span className="font-semibold">{item.quantity}</span>
-                                      <span className="text-muted-foreground">/</span>
-                                      <span className={`font-semibold ${(arrivedCountByTracking[item.tracking_number] || 0) >= item.quantity ? 'text-green-600' : 'text-amber-600'}`}>
-                                        {arrivedCountByTracking[item.tracking_number] || 0}
-                                      </span>
+                                      <TooltipProvider>
+                                        <Tooltip>
+                                          <TooltipTrigger asChild>
+                                            <span className="cursor-help inline-flex items-center gap-0.5">
+                                              <span className="font-semibold">{item.quantity}</span>
+                                              <span className="text-muted-foreground">/</span>
+                                              <span className={`font-semibold ${(arrivedCountByTracking[item.tracking_number] || 0) >= item.quantity ? 'text-green-600' : 'text-amber-600'}`}>
+                                                {arrivedCountByTracking[item.tracking_number] || 0}
+                                              </span>
+                                            </span>
+                                          </TooltipTrigger>
+                                          <TooltipContent side="top" className="max-w-xs">
+                                            <div className="text-xs space-y-1">
+                                              <p><span className="text-muted-foreground">申报数量：</span>{item.quantity}</p>
+                                              <p><span className="text-muted-foreground">到货数量：</span>{arrivedCountByTracking[item.tracking_number] || 0}</p>
+                                              {(arrivedCountByTracking[item.tracking_number] || 0) < item.quantity && (
+                                                <p className="text-amber-600">
+                                                  差异：缺少 {item.quantity - (arrivedCountByTracking[item.tracking_number] || 0)} 件
+                                                </p>
+                                              )}
+                                              {(arrivedCountByTracking[item.tracking_number] || 0) > item.quantity && (
+                                                <p className="text-blue-600">
+                                                  差异：多出 {(arrivedCountByTracking[item.tracking_number] || 0) - item.quantity} 件
+                                                </p>
+                                              )}
+                                              {(arrivedCountByTracking[item.tracking_number] || 0) === item.quantity && (
+                                                <p className="text-green-600">已全部到货</p>
+                                              )}
+                                            </div>
+                                          </TooltipContent>
+                                        </Tooltip>
+                                      </TooltipProvider>
                                     </TableCell>
                                     <TableCell className="text-muted-foreground text-sm">
                                       {item.ship_date || "-"}

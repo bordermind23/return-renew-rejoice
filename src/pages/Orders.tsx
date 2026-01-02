@@ -1202,7 +1202,7 @@ export default function Orders() {
                     onCheckedChange={toggleSelectAll}
                   />
                 </TableHead>
-                <TableHead className="w-[120px]">
+                <TableHead className="w-[160px]">
                   <div className="flex items-center gap-2">
                     内部订单号
                     {hasGroups && (

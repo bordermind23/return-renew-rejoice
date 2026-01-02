@@ -1,7 +1,18 @@
-import { Shield, Crown, Warehouse, Eye, Users, Check, X } from "lucide-react";
+import { useState } from "react";
+import { Shield, Crown, Warehouse, Eye, Check, X, Settings2, Loader2 } from "lucide-react";
 import { PageHeader } from "@/components/ui/page-header";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
+import { Button } from "@/components/ui/button";
+import { Switch } from "@/components/ui/switch";
+import {
+  Dialog,
+  DialogContent,
+  DialogDescription,
+  DialogFooter,
+  DialogHeader,
+  DialogTitle,
+} from "@/components/ui/dialog";
 import {
   Table,
   TableBody,
@@ -12,6 +23,14 @@ import {
 } from "@/components/ui/table";
 import { Skeleton } from "@/components/ui/skeleton";
 import { useUsersWithRoles, useCurrentUserRole, type AppRole } from "@/hooks/useUserManagement";
+import {
+  useRolePermissions,
+  useBatchUpdateRolePermissions,
+  getPermissionsForRole,
+  PERMISSION_LABELS,
+  ALL_PERMISSIONS,
+  type PermissionType,
+} from "@/hooks/useRolePermissions";
 import { cn } from "@/lib/utils";
 
 interface RoleConfig {
@@ -20,10 +39,6 @@ interface RoleConfig {
   color: string;
   bgColor: string;
   description: string;
-  permissions: {
-    name: string;
-    allowed: boolean;
-  }[];
 }
 
 const ROLE_CONFIGS: Record<AppRole, RoleConfig> = {
@@ -33,18 +48,6 @@ const ROLE_CONFIGS: Record<AppRole, RoleConfig> = {
     color: "text-yellow-600",
     bgColor: "bg-yellow-100",
     description: "拥有系统的全部权限，可以管理所有功能和用户",
-    permissions: [
-      { name: "查看仪表盘", allowed: true },
-      { name: "入库扫码", allowed: true },
-      { name: "翻新处理", allowed: true },
-      { name: "查看库存", allowed: true },
-      { name: "管理产品", allowed: true },
-      { name: "管理订单", allowed: true },
-      { name: "管理案例", allowed: true },
-      { name: "删除数据", allowed: true },
-      { name: "管理用户", allowed: true },
-      { name: "管理角色", allowed: true },
-    ],
   },
   warehouse_staff: {
     label: "仓库员工",
@@ -52,18 +55,6 @@ const ROLE_CONFIGS: Record<AppRole, RoleConfig> = {
     color: "text-blue-600",
     bgColor: "bg-blue-100",
     description: "负责日常仓库操作，可以进行入库、出库等操作",
-    permissions: [
-      { name: "查看仪表盘", allowed: true },
-      { name: "入库扫码", allowed: true },
-      { name: "翻新处理", allowed: true },
-      { name: "查看库存", allowed: true },
-      { name: "管理产品", allowed: true },
-      { name: "管理订单", allowed: true },
-      { name: "管理案例", allowed: true },
-      { name: "删除数据", allowed: false },
-      { name: "管理用户", allowed: false },
-      { name: "管理角色", allowed: false },
-    ],
   },
   viewer: {
     label: "访客",
@@ -71,18 +62,6 @@ const ROLE_CONFIGS: Record<AppRole, RoleConfig> = {
     color: "text-gray-600",
     bgColor: "bg-gray-100",
     description: "只有查看权限，无法进行任何修改操作",
-    permissions: [
-      { name: "查看仪表盘", allowed: true },
-      { name: "入库扫码", allowed: false },
-      { name: "翻新处理", allowed: false },
-      { name: "查看库存", allowed: true },
-      { name: "管理产品", allowed: false },
-      { name: "管理订单", allowed: false },
-      { name: "管理案例", allowed: false },
-      { name: "删除数据", allowed: false },
-      { name: "管理用户", allowed: false },
-      { name: "管理角色", allowed: false },
-    ],
   },
 };
 
@@ -101,16 +80,53 @@ function RoleBadge({ role }: { role: AppRole }) {
 }
 
 export default function RoleManagement() {
-  const { data: users, isLoading } = useUsersWithRoles();
+  const { data: users, isLoading: usersLoading } = useUsersWithRoles();
   const { data: currentUserRole } = useCurrentUserRole();
+  const { data: permissions = [], isLoading: permissionsLoading } = useRolePermissions();
+  const batchUpdateMutation = useBatchUpdateRolePermissions();
+
+  const [editingRole, setEditingRole] = useState<AppRole | null>(null);
+  const [editingPermissions, setEditingPermissions] = useState<Record<PermissionType, boolean>>({} as Record<PermissionType, boolean>);
 
   const isAdmin = currentUserRole === "admin";
+  const isLoading = usersLoading || permissionsLoading;
 
   // 计算每个角色的用户数
   const roleCounts = ROLE_ORDER.reduce((acc, role) => {
     acc[role] = users?.filter((u) => u.role === role).length || 0;
     return acc;
   }, {} as Record<AppRole, number>);
+
+  const handleEditPermissions = (role: AppRole) => {
+    const rolePermissions = getPermissionsForRole(permissions, role);
+    setEditingPermissions(rolePermissions);
+    setEditingRole(role);
+  };
+
+  const handleTogglePermission = (permission: PermissionType) => {
+    setEditingPermissions((prev) => ({
+      ...prev,
+      [permission]: !prev[permission],
+    }));
+  };
+
+  const handleSavePermissions = () => {
+    if (!editingRole) return;
+
+    const permissionUpdates = ALL_PERMISSIONS.map((permission) => ({
+      permission,
+      allowed: editingPermissions[permission],
+    }));
+
+    batchUpdateMutation.mutate(
+      { role: editingRole, permissions: permissionUpdates },
+      {
+        onSuccess: () => {
+          setEditingRole(null);
+        },
+      }
+    );
+  };
 
   if (!isAdmin) {
     return (
@@ -172,7 +188,7 @@ export default function RoleManagement() {
             角色列表
           </CardTitle>
           <CardDescription>
-            系统内置角色及其权限配置
+            系统角色及其权限配置，点击配置按钮可以调整权限
           </CardDescription>
         </CardHeader>
         <CardContent>
@@ -182,17 +198,21 @@ export default function RoleManagement() {
                 <TableHead>角色</TableHead>
                 <TableHead>描述</TableHead>
                 <TableHead className="text-center">用户数</TableHead>
+                <TableHead className="text-center">权限数</TableHead>
+                <TableHead className="text-right">操作</TableHead>
               </TableRow>
             </TableHeader>
             <TableBody>
               {ROLE_ORDER.map((role) => {
                 const config = ROLE_CONFIGS[role];
+                const rolePermissions = getPermissionsForRole(permissions, role);
+                const allowedCount = Object.values(rolePermissions).filter(Boolean).length;
                 return (
                   <TableRow key={role}>
                     <TableCell>
                       <RoleBadge role={role} />
                     </TableCell>
-                    <TableCell className="text-muted-foreground">
+                    <TableCell className="text-muted-foreground max-w-[300px]">
                       {config.description}
                     </TableCell>
                     <TableCell className="text-center">
@@ -201,6 +221,25 @@ export default function RoleManagement() {
                       ) : (
                         <Badge variant="outline">{roleCounts[role]}</Badge>
                       )}
+                    </TableCell>
+                    <TableCell className="text-center">
+                      {permissionsLoading ? (
+                        <Skeleton className="h-6 w-12 mx-auto" />
+                      ) : (
+                        <Badge variant="secondary">
+                          {allowedCount} / {ALL_PERMISSIONS.length}
+                        </Badge>
+                      )}
+                    </TableCell>
+                    <TableCell className="text-right">
+                      <Button
+                        variant="outline"
+                        size="sm"
+                        onClick={() => handleEditPermissions(role)}
+                      >
+                        <Settings2 className="h-4 w-4 mr-1" />
+                        配置权限
+                      </Button>
                     </TableCell>
                   </TableRow>
                 );
@@ -239,14 +278,19 @@ export default function RoleManagement() {
                 </TableRow>
               </TableHeader>
               <TableBody>
-                {ROLE_CONFIGS.admin.permissions.map((permission, idx) => (
-                  <TableRow key={permission.name}>
-                    <TableCell className="font-medium">{permission.name}</TableCell>
+                {ALL_PERMISSIONS.map((permission) => (
+                  <TableRow key={permission}>
+                    <TableCell className="font-medium">
+                      {PERMISSION_LABELS[permission]}
+                    </TableCell>
                     {ROLE_ORDER.map((role) => {
-                      const allowed = ROLE_CONFIGS[role].permissions[idx].allowed;
+                      const rolePermissions = getPermissionsForRole(permissions, role);
+                      const allowed = rolePermissions[permission];
                       return (
                         <TableCell key={role} className="text-center">
-                          {allowed ? (
+                          {permissionsLoading ? (
+                            <Skeleton className="h-5 w-5 mx-auto rounded-full" />
+                          ) : allowed ? (
                             <Check className="h-5 w-5 text-green-600 mx-auto" />
                           ) : (
                             <X className="h-5 w-5 text-red-400 mx-auto" />
@@ -267,19 +311,30 @@ export default function RoleManagement() {
         {ROLE_ORDER.map((role) => {
           const config = ROLE_CONFIGS[role];
           const Icon = config.icon;
+          const rolePermissions = getPermissionsForRole(permissions, role);
+          const allowedPermissions = ALL_PERMISSIONS.filter((p) => rolePermissions[p]);
           return (
             <Card key={role}>
               <CardHeader>
-                <div className="flex items-center gap-2">
-                  <div className={cn("p-2 rounded-lg", config.bgColor)}>
-                    <Icon className={cn("h-5 w-5", config.color)} />
+                <div className="flex items-center justify-between">
+                  <div className="flex items-center gap-2">
+                    <div className={cn("p-2 rounded-lg", config.bgColor)}>
+                      <Icon className={cn("h-5 w-5", config.color)} />
+                    </div>
+                    <div>
+                      <CardTitle className="text-lg">{config.label}</CardTitle>
+                      <CardDescription className="text-xs">
+                        {roleCounts[role]} 位用户
+                      </CardDescription>
+                    </div>
                   </div>
-                  <div>
-                    <CardTitle className="text-lg">{config.label}</CardTitle>
-                    <CardDescription className="text-xs">
-                      {roleCounts[role]} 位用户
-                    </CardDescription>
-                  </div>
+                  <Button
+                    variant="ghost"
+                    size="icon"
+                    onClick={() => handleEditPermissions(role)}
+                  >
+                    <Settings2 className="h-4 w-4" />
+                  </Button>
                 </div>
               </CardHeader>
               <CardContent>
@@ -287,29 +342,93 @@ export default function RoleManagement() {
                   {config.description}
                 </p>
                 <div className="space-y-2">
-                  <h4 className="text-sm font-medium">主要权限：</h4>
-                  <ul className="text-sm space-y-1">
-                    {config.permissions
-                      .filter((p) => p.allowed)
-                      .slice(0, 5)
-                      .map((permission) => (
-                        <li key={permission.name} className="flex items-center gap-2 text-muted-foreground">
+                  <h4 className="text-sm font-medium">
+                    已开启权限 ({allowedPermissions.length}/{ALL_PERMISSIONS.length})：
+                  </h4>
+                  {permissionsLoading ? (
+                    <div className="space-y-1">
+                      {[1, 2, 3].map((i) => (
+                        <Skeleton key={i} className="h-4 w-24" />
+                      ))}
+                    </div>
+                  ) : (
+                    <ul className="text-sm space-y-1">
+                      {allowedPermissions.slice(0, 5).map((permission) => (
+                        <li
+                          key={permission}
+                          className="flex items-center gap-2 text-muted-foreground"
+                        >
                           <Check className="h-3 w-3 text-green-600" />
-                          {permission.name}
+                          {PERMISSION_LABELS[permission]}
                         </li>
                       ))}
-                    {config.permissions.filter((p) => p.allowed).length > 5 && (
-                      <li className="text-muted-foreground text-xs">
-                        +{config.permissions.filter((p) => p.allowed).length - 5} 项更多权限
-                      </li>
-                    )}
-                  </ul>
+                      {allowedPermissions.length > 5 && (
+                        <li className="text-muted-foreground text-xs">
+                          +{allowedPermissions.length - 5} 项更多权限
+                        </li>
+                      )}
+                      {allowedPermissions.length === 0 && (
+                        <li className="text-muted-foreground text-xs">无任何权限</li>
+                      )}
+                    </ul>
+                  )}
                 </div>
               </CardContent>
             </Card>
           );
         })}
       </div>
+
+      {/* Edit Permissions Dialog */}
+      <Dialog open={!!editingRole} onOpenChange={(open) => !open && setEditingRole(null)}>
+        <DialogContent className="max-w-md">
+          <DialogHeader>
+            <DialogTitle className="flex items-center gap-2">
+              <Settings2 className="h-5 w-5" />
+              配置权限 - {editingRole && ROLE_CONFIGS[editingRole].label}
+            </DialogTitle>
+            <DialogDescription>
+              开启或关闭该角色的各项权限
+            </DialogDescription>
+          </DialogHeader>
+          <div className="py-4 space-y-4 max-h-[400px] overflow-y-auto">
+            {ALL_PERMISSIONS.map((permission) => (
+              <div
+                key={permission}
+                className="flex items-center justify-between py-2 border-b last:border-0"
+              >
+                <div className="space-y-0.5">
+                  <div className="text-sm font-medium">
+                    {PERMISSION_LABELS[permission]}
+                  </div>
+                </div>
+                <Switch
+                  checked={editingPermissions[permission] || false}
+                  onCheckedChange={() => handleTogglePermission(permission)}
+                />
+              </div>
+            ))}
+          </div>
+          <DialogFooter>
+            <Button variant="outline" onClick={() => setEditingRole(null)}>
+              取消
+            </Button>
+            <Button
+              onClick={handleSavePermissions}
+              disabled={batchUpdateMutation.isPending}
+            >
+              {batchUpdateMutation.isPending ? (
+                <>
+                  <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+                  保存中...
+                </>
+              ) : (
+                "保存配置"
+              )}
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
     </div>
   );
 }

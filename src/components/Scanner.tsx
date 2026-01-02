@@ -1,5 +1,5 @@
 import { useState, useEffect, useRef } from "react";
-import { Html5Qrcode } from "html5-qrcode";
+import { Html5Qrcode, Html5QrcodeSupportedFormats } from "html5-qrcode";
 import { Button } from "@/components/ui/button";
 import { X, SwitchCamera, Scan, Focus } from "lucide-react";
 import {
@@ -20,6 +20,24 @@ interface ScannerProps {
   scanType?: "tracking" | "lpn";
 }
 
+// LPN条码常用格式 - 限制格式数量提升识别速度
+const lpnFormats = [
+  Html5QrcodeSupportedFormats.CODE_128,
+  Html5QrcodeSupportedFormats.CODE_39,
+  Html5QrcodeSupportedFormats.EAN_13,
+  Html5QrcodeSupportedFormats.EAN_8,
+  Html5QrcodeSupportedFormats.UPC_A,
+  Html5QrcodeSupportedFormats.QR_CODE,
+];
+
+// 物流追踪号常用格式
+const trackingFormats = [
+  Html5QrcodeSupportedFormats.CODE_128,
+  Html5QrcodeSupportedFormats.CODE_39,
+  Html5QrcodeSupportedFormats.QR_CODE,
+  Html5QrcodeSupportedFormats.DATA_MATRIX,
+];
+
 export function Scanner({
   onScan,
   buttonLabel = "摄像头扫码",
@@ -35,6 +53,14 @@ export function Scanner({
   const [currentCameraIndex, setCurrentCameraIndex] = useState(0);
   const scannerRef = useRef<Html5Qrcode | null>(null);
   const scannerContainerId = "scanner-container";
+
+  // 根据扫描类型选择支持的格式
+  const supportedFormats = scanType === "lpn" ? lpnFormats : trackingFormats;
+
+  // 根据扫描类型调整扫描框尺寸 - 条形码是横向的，需要更宽的框
+  const qrboxConfig = scanType === "lpn" 
+    ? { width: 280, height: 120 }  // 条形码横向比例
+    : { width: 250, height: 250 }; // QR码方形
 
   useEffect(() => {
     // Get available cameras when dialog opens
@@ -83,8 +109,10 @@ export function Scanner({
         await scannerRef.current.stop();
       }
 
+      // 创建扫描器实例，限制支持的格式以提升速度
       scannerRef.current = new Html5Qrcode(scannerContainerId, {
         verbose: false,
+        formatsToSupport: supportedFormats,
         experimentalFeatures: {
           useBarCodeDetectorIfSupported: true
         }
@@ -93,13 +121,16 @@ export function Scanner({
       await scannerRef.current.start(
         cameraId,
         {
-          fps: 15,
-          qrbox: { width: 200, height: 200 },
-          aspectRatio: 1,
-          disableFlip: false,
+          fps: 25,  // 提升FPS加快扫描速度
+          qrbox: qrboxConfig,
+          aspectRatio: scanType === "lpn" ? 1.5 : 1, // 条形码用更宽的比例
+          disableFlip: true,  // 禁用镜像翻转检测，减少处理时间
         },
         (decodedText) => {
-          // Success callback
+          // 扫描成功振动反馈
+          if ('vibrate' in navigator) {
+            try { navigator.vibrate([50, 50, 50]); } catch {}
+          }
           onScan(decodedText);
           handleClose();
         },
@@ -219,7 +250,9 @@ export function Scanner({
               {scanType === "lpn" ? "扫描LPN条码" : "扫描物流条码"}
             </DialogTitle>
             <DialogDescription>
-              请允许摄像头权限，并将条码或二维码对准取景框。
+              {scanType === "lpn" 
+                ? "将LPN条码对准取景框，支持CODE128/CODE39/EAN条码" 
+                : "请允许摄像头权限，并将条码或二维码对准取景框"}
             </DialogDescription>
           </DialogHeader>
 
@@ -253,7 +286,7 @@ export function Scanner({
                 {isScanning && (
                   <div className="flex items-center justify-between">
                     <p className="text-sm text-muted-foreground">
-                      将条码或二维码对准框内
+                      {scanType === "lpn" ? "将LPN条码对准框内" : "将条码或二维码对准框内"}
                     </p>
                     {cameras.length > 1 && (
                       <Button

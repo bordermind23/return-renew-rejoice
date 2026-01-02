@@ -371,7 +371,7 @@ export default function RefurbishmentScan() {
               <ScanLine className="mr-2 h-4 w-4" />
               {t.common.confirm}
             </Button>
-            <Scanner onScan={handleCameraScan} buttonLabel={t.common.view === "查看" ? "摄像头" : "Camera"} />
+            <Scanner onScan={handleCameraScan} buttonLabel={t.common.view === "查看" ? "摄像头" : "Camera"} scanType="lpn" />
           </div>
         </CardContent>
       </Card>

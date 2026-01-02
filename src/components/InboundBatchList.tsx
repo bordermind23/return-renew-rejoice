@@ -43,6 +43,7 @@ export function InboundBatchList({ items, onDelete, onBatchDelete, enableBatchSe
   const [expandedBatches, setExpandedBatches] = useState<Set<string>>(new Set());
   const [photoViewItem, setPhotoViewItem] = useState<InboundItem | null>(null);
   const [batchPhotoViewItem, setBatchPhotoViewItem] = useState<BatchGroup | null>(null);
+  const [shippingLabelUrl, setShippingLabelUrl] = useState<string | null>(null); // 单独查看物流面单
   const [selectedIds, setSelectedIds] = useState<Set<string>>(new Set());
 
   // 按物流跟踪号分组
@@ -348,8 +349,8 @@ export function InboundBatchList({ items, onDelete, onBatchDelete, enableBatchSe
                                     className="h-7 px-2 text-primary"
                                     onClick={(e) => {
                                       e.stopPropagation();
-                                      // 直接打开批次照片弹窗，确保能看到面单
-                                      setBatchPhotoViewItem(batch);
+                                      // 只打开物流面单照片
+                                      setShippingLabelUrl(shippingLabelToShow);
                                     }}
                                   >
                                     <Image className="h-4 w-4 mr-1" />
@@ -483,6 +484,16 @@ export function InboundBatchList({ items, onDelete, onBatchDelete, enableBatchSe
             
             return photos;
           })()}
+        />
+      )}
+
+      {/* 单独查看物流面单弹窗 */}
+      {shippingLabelUrl && (
+        <PhotoViewDialog
+          open={!!shippingLabelUrl}
+          onOpenChange={() => setShippingLabelUrl(null)}
+          title="物流面单"
+          photos={[{ key: 'shipping_label', label: '物流面单', url: shippingLabelUrl }]}
         />
       )}
     </div>

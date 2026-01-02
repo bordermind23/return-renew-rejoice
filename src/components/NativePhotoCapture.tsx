@@ -13,23 +13,57 @@ export interface PhotoStep {
   required?: boolean;
 }
 
-// 完整拍照步骤（产品破损/缺少配件时使用）
-export const FULL_PHOTO_STEPS: PhotoStep[] = [
+// 基础照片步骤（LPN + 6面包装 + 配件展示）
+const BASE_PHOTO_STEPS: PhotoStep[] = [
   { id: "lpn_label_photo", label: "LPN标签", required: true },
   { id: "packaging_photo_1", label: "产品包装图1", required: true },
-  { id: "packaging_photo_2", label: "产品包装图2" },
-  { id: "packaging_photo_3", label: "产品包装图3" },
-  { id: "packaging_photo_4", label: "产品包装图4" },
-  { id: "packaging_photo_5", label: "产品包装图5" },
-  { id: "packaging_photo_6", label: "产品包装图6" },
-  { id: "accessories_photo", label: "产品配件展示图" },
-  { id: "detail_photo", label: "产品细节图" },
+  { id: "packaging_photo_2", label: "产品包装图2", required: true },
+  { id: "packaging_photo_3", label: "产品包装图3", required: true },
+  { id: "packaging_photo_4", label: "产品包装图4", required: true },
+  { id: "packaging_photo_5", label: "产品包装图5", required: true },
+  { id: "packaging_photo_6", label: "产品包装图6", required: true },
+  { id: "accessories_photo", label: "产品配件展示图", required: true },
 ];
 
-// 简单拍照步骤（正常情况只拍1张）
+// 1. 简单模式：正常情况只拍1张配件展示图
 export const SIMPLE_PHOTO_STEPS: PhotoStep[] = [
   { id: "accessories_photo", label: "产品配件展示图", required: true },
 ];
+
+// 2. 产品破损模式：基础 + 破损详情图（可多张）
+export const DAMAGE_PHOTO_STEPS: PhotoStep[] = [
+  ...BASE_PHOTO_STEPS,
+  { id: "damage_photo_1", label: "产品破损详情图1", required: true },
+  { id: "damage_photo_2", label: "产品破损详情图2" },
+  { id: "damage_photo_3", label: "产品破损详情图3" },
+];
+
+// 3. 配件缺失模式：基础 + 包装配件同框图
+export const MISSING_PARTS_PHOTO_STEPS: PhotoStep[] = [
+  ...BASE_PHOTO_STEPS,
+  { id: "package_accessories_photo", label: "包装+产品配件同框图", required: true },
+];
+
+// 4. 产品破损+配件缺失模式：基础 + 包装配件同框 + 破损详情图
+export const DAMAGE_AND_MISSING_PHOTO_STEPS: PhotoStep[] = [
+  ...BASE_PHOTO_STEPS,
+  { id: "package_accessories_photo", label: "包装+产品配件同框图", required: true },
+  { id: "damage_photo_1", label: "产品破损详情图1", required: true },
+  { id: "damage_photo_2", label: "产品破损详情图2" },
+  { id: "damage_photo_3", label: "产品破损详情图3" },
+];
+
+// 根据状态获取拍照步骤
+export function getPhotoSteps(hasDamage: boolean, hasMissingParts: boolean): PhotoStep[] {
+  if (hasDamage && hasMissingParts) {
+    return DAMAGE_AND_MISSING_PHOTO_STEPS;
+  } else if (hasDamage) {
+    return DAMAGE_PHOTO_STEPS;
+  } else if (hasMissingParts) {
+    return MISSING_PARTS_PHOTO_STEPS;
+  }
+  return SIMPLE_PHOTO_STEPS;
+}
 
 // 默认使用简单模式
 export const DEFAULT_PHOTO_STEPS: PhotoStep[] = SIMPLE_PHOTO_STEPS;

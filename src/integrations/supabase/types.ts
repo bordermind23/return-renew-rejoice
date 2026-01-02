@@ -297,12 +297,16 @@ export type Database = {
         Row: {
           accessories_photo: string | null
           created_at: string
+          damage_photo_1: string | null
+          damage_photo_2: string | null
+          damage_photo_3: string | null
           detail_photo: string | null
           grade: string
           id: string
           lpn: string
           lpn_label_photo: string | null
           missing_parts: string[] | null
+          package_accessories_photo: string | null
           package_photo: string | null
           packaging_photo_1: string | null
           packaging_photo_2: string | null
@@ -330,12 +334,16 @@ export type Database = {
         Insert: {
           accessories_photo?: string | null
           created_at?: string
+          damage_photo_1?: string | null
+          damage_photo_2?: string | null
+          damage_photo_3?: string | null
           detail_photo?: string | null
           grade?: string
           id?: string
           lpn: string
           lpn_label_photo?: string | null
           missing_parts?: string[] | null
+          package_accessories_photo?: string | null
           package_photo?: string | null
           packaging_photo_1?: string | null
           packaging_photo_2?: string | null
@@ -363,12 +371,16 @@ export type Database = {
         Update: {
           accessories_photo?: string | null
           created_at?: string
+          damage_photo_1?: string | null
+          damage_photo_2?: string | null
+          damage_photo_3?: string | null
           detail_photo?: string | null
           grade?: string
           id?: string
           lpn?: string
           lpn_label_photo?: string | null
           missing_parts?: string[] | null
+          package_accessories_photo?: string | null
           package_photo?: string | null
           packaging_photo_1?: string | null
           packaging_photo_2?: string | null

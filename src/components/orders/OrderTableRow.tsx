@@ -57,7 +57,7 @@ export function OrderTableRow({
         </code>
       </TableCell>
       <TableCell>
-        <span className="line-clamp-2 max-w-[200px]" title={order.product_name || undefined}>
+        <span className="line-clamp-1 max-w-[200px]" title={order.product_name || undefined}>
           {order.product_name || "-"}
         </span>
       </TableCell>

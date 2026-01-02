@@ -109,35 +109,39 @@ export function Scanner({
             console.log("Available cameras:", devices);
             if (devices && devices.length > 0) {
               setCameras(devices);
-              
-              // 优先选择后置摄像头
-              const backCameraIndex = devices.findIndex(
-                (device) => {
-                  const label = device.label.toLowerCase();
-                  return label.includes("back") ||
-                         label.includes("rear") ||
-                         label.includes("environment") ||
-                         label.includes("后置") ||
-                         label.includes("facing back");
-                }
-              );
-              
-              // 如果没找到明确的后置摄像头标识，优先选择列表中最后一个（通常是后置）
-              // 移动设备和平板通常后置摄像头在列表末尾
+
+              // iPad/iPhone：优先用 facingMode=environment 让系统直接选后置
+              // （未授权前 label 往往为空，用 label 猜会失效）
               const mobile = isMobileDevice();
-              const preferredIndex = backCameraIndex >= 0 
-                ? backCameraIndex 
-                : (mobile ? devices.length - 1 : 0);
-              
-              console.log("Camera selection:", { 
-                backCameraIndex, 
-                preferredIndex, 
-                mobile,
-                selectedCamera: devices[preferredIndex]?.label 
+              if (mobile) {
+                setCurrentCameraIndex(0);
+                startScanner({ facingMode: "environment" });
+                return;
+              }
+
+              // 桌面端：按 label 选择后置/外接摄像头
+              const backCameraIndex = devices.findIndex((device) => {
+                const label = device.label.toLowerCase();
+                return (
+                  label.includes("back") ||
+                  label.includes("rear") ||
+                  label.includes("environment") ||
+                  label.includes("后置") ||
+                  label.includes("facing back")
+                );
               });
-              
+
+              const preferredIndex = backCameraIndex >= 0 ? backCameraIndex : 0;
+
+              console.log("Camera selection:", {
+                backCameraIndex,
+                preferredIndex,
+                mobile,
+                selectedCamera: devices[preferredIndex]?.label,
+              });
+
               setCurrentCameraIndex(preferredIndex);
-              startScanner(devices[preferredIndex].id);
+              startScanner({ deviceId: devices[preferredIndex].id });
             } else {
               setError("未找到摄像头设备");
             }
@@ -156,7 +160,11 @@ export function Scanner({
     };
   }, [isOpen]);
 
-  const startScanner = async (cameraId: string) => {
+  type CameraStartConfig =
+    | { deviceId: string; facingMode?: never }
+    | { deviceId?: never; facingMode: "environment" | "user" };
+
+  const startScanner = async (camera: CameraStartConfig) => {
     setError(null);
     setIsScanning(true);
 
@@ -166,7 +174,7 @@ export function Scanner({
         try {
           const state = scannerRef.current.getState();
           // 只有在扫描中或暂停状态才停止
-          if (state === 2 || state === 3) { // 2 = SCANNING, 3 = PAUSED
+          if (state === 2 || state === 3) {
             await scannerRef.current.stop();
           }
         } catch {
@@ -176,9 +184,13 @@ export function Scanner({
       }
 
       const mobile = isMobileDevice();
-      
-      // 关键修复：桌面端默认禁用 BarcodeDetector（Chrome 桌面版对 CODE_128 识别不稳定）
-      // 只有在明确开启兼容模式时才完全禁用，否则移动端可以使用原生 API
+
+      // 注意：Html5Qrcode 的 cameraConfig 对象只能包含 1 个 key（deviceId 或 facingMode）
+      const cameraConfig: MediaTrackConstraints = "deviceId" in camera
+        ? { deviceId: { exact: camera.deviceId } }
+        : { facingMode: camera.facingMode };
+
+      // 桌面端默认禁用 BarcodeDetector（Chrome 桌面版对 CODE_128 识别不稳定）
       const useBarcodeDetector = mobile && !compatMode;
 
       // 创建扫描器实例，限制支持的格式以提升速度
@@ -195,16 +207,10 @@ export function Scanner({
       const w = typeof window !== "undefined" ? window.innerWidth : 1024;
       const desktop = w >= 1024;
 
-      // 桌面端：使用更高分辨率和更慢但更稳定的帧率
-      // 移动端：保持原有配置
+      // 桌面端：更慢但更稳定的帧率
       const fps = mobile ? 25 : 15;
 
-      // 注意：Html5Qrcode 的 cameraConfig 对象只能包含 1 个 key（deviceId 或 facingMode）
-      // 分辨率等约束要放到 config.videoConstraints 里，否则会报错："found 3 keys"
-      const cameraConfig: MediaTrackConstraints = {
-        deviceId: { exact: cameraId },
-      };
-
+      // 分辨率等约束要放到 config.videoConstraints 里（不能放到 cameraConfig 里）
       const videoConstraints: MediaTrackConstraints | undefined = desktop
         ? {
             width: { ideal: 1920 },
@@ -295,7 +301,7 @@ export function Scanner({
     if (cameras.length > 1) {
       const nextIndex = (currentCameraIndex + 1) % cameras.length;
       setCurrentCameraIndex(nextIndex);
-      startScanner(cameras[nextIndex].id);
+      startScanner({ deviceId: cameras[nextIndex].id });
     }
   };
 
@@ -396,7 +402,7 @@ export function Scanner({
                   className="mt-4"
                   onClick={() => {
                     if (cameras.length > 0) {
-                      startScanner(cameras[currentCameraIndex].id);
+                      startScanner({ deviceId: cameras[currentCameraIndex].id });
                     }
                   }}
                 >
@@ -424,7 +430,7 @@ export function Scanner({
                           onClick={() => {
                             const next = !compatMode;
                             setCompatMode(next);
-                            if (cameras.length > 0) startScanner(cameras[currentCameraIndex].id);
+                            if (cameras.length > 0) startScanner({ deviceId: cameras[currentCameraIndex].id });
                           }}
                         >
                           <Focus className="mr-2 h-4 w-4" />

@@ -115,10 +115,10 @@ export default function InboundRecords() {
     // 如果删除后入库数量小于申报数量，更新货件状态
     if (remainingInbounded < totalQuantity) {
       matchedShipments.forEach(shipment => {
-        if (shipment.status === "inbound") {
+        if (shipment.status === "入库") {
           updateShipmentMutation.mutate({
             id: shipment.id,
-            status: "arrived",
+            status: "未到货",
             note: `入库记录删除：剩余入库 ${remainingInbounded} 件，申报 ${totalQuantity} 件`,
           });
         }

@@ -14,7 +14,7 @@ export interface RemovalShipment {
   product_image: string | null;
   fnsku: string;
   quantity: number;
-  status: "shipping" | "arrived" | "inbound" | "shelved";
+  status: "未到货" | "入库";
   store_name: string | null;
   country: string | null;
   ship_date: string | null;

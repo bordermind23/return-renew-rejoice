@@ -20,14 +20,9 @@ interface ScannerProps {
   scanType?: "tracking" | "lpn";
 }
 
-// LPN条码常用格式 - 限制格式数量提升识别速度
+// LPN二维码格式 - 内容为 LPNXXXXXXXXXXX
 const lpnFormats = [
-  Html5QrcodeSupportedFormats.CODE_128,
-  Html5QrcodeSupportedFormats.CODE_39,
-  Html5QrcodeSupportedFormats.EAN_13,
-  Html5QrcodeSupportedFormats.EAN_8,
-  Html5QrcodeSupportedFormats.UPC_A,
-  Html5QrcodeSupportedFormats.QR_CODE,
+  Html5QrcodeSupportedFormats.QR_CODE,  // LPN主要是二维码
 ];
 
 // 物流追踪号常用格式
@@ -37,6 +32,11 @@ const trackingFormats = [
   Html5QrcodeSupportedFormats.QR_CODE,
   Html5QrcodeSupportedFormats.DATA_MATRIX,
 ];
+
+// 验证LPN格式: LPNXXXXXXXXXXX
+const isValidLpn = (code: string): boolean => {
+  return /^LPN[A-Z0-9]+$/i.test(code.trim());
+};
 
 export function Scanner({
   onScan,
@@ -57,10 +57,10 @@ export function Scanner({
   // 根据扫描类型选择支持的格式
   const supportedFormats = scanType === "lpn" ? lpnFormats : trackingFormats;
 
-  // 根据扫描类型调整扫描框尺寸 - 条形码是横向的，需要更宽的框
+  // LPN二维码用方形扫描框，物流条码用横向框
   const qrboxConfig = scanType === "lpn" 
-    ? { width: 280, height: 120 }  // 条形码横向比例
-    : { width: 250, height: 250 }; // QR码方形
+    ? { width: 220, height: 220 }  // 二维码方形
+    : { width: 280, height: 150 }; // 条形码横向
 
   useEffect(() => {
     // Get available cameras when dialog opens
@@ -127,10 +127,16 @@ export function Scanner({
           disableFlip: true,  // 禁用镜像翻转检测，减少处理时间
         },
         (decodedText) => {
+          // LPN扫描时验证格式
+          if (scanType === "lpn" && !isValidLpn(decodedText)) {
+            console.log("Invalid LPN format:", decodedText);
+            return; // 忽略非LPN格式的扫描结果
+          }
           // 扫描成功振动反馈
           if ('vibrate' in navigator) {
             try { navigator.vibrate([50, 50, 50]); } catch {}
           }
+          console.log("Scan success:", decodedText);
           onScan(decodedText);
           handleClose();
         },
@@ -249,9 +255,9 @@ export function Scanner({
               <Scan className="h-5 w-5" />
               {scanType === "lpn" ? "扫描LPN条码" : "扫描物流条码"}
             </DialogTitle>
-            <DialogDescription>
+          <DialogDescription>
               {scanType === "lpn" 
-                ? "将LPN条码对准取景框，支持CODE128/CODE39/EAN条码" 
+                ? "将LPN二维码对准取景框，格式：LPNXXXXXXXXXXX" 
                 : "请允许摄像头权限，并将条码或二维码对准取景框"}
             </DialogDescription>
           </DialogHeader>

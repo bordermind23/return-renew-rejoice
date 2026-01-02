@@ -1,5 +1,5 @@
 import { useState, useEffect, useRef } from "react";
-import { Html5Qrcode } from "html5-qrcode";
+import { Html5Qrcode, Html5QrcodeSupportedFormats } from "html5-qrcode";
 import { Button } from "@/components/ui/button";
 import { X, SwitchCamera, Scan, Focus } from "lucide-react";
 import {
@@ -98,33 +98,48 @@ export function Scanner({
         return;
       }
 
+      // 条形码格式列表 - LPN通常使用这些格式
+      const barcodeFormats = [
+        Html5QrcodeSupportedFormats.CODE_128,
+        Html5QrcodeSupportedFormats.CODE_39,
+        Html5QrcodeSupportedFormats.CODE_93,
+        Html5QrcodeSupportedFormats.EAN_13,
+        Html5QrcodeSupportedFormats.EAN_8,
+        Html5QrcodeSupportedFormats.UPC_A,
+        Html5QrcodeSupportedFormats.UPC_E,
+        Html5QrcodeSupportedFormats.ITF,
+        Html5QrcodeSupportedFormats.CODABAR,
+        Html5QrcodeSupportedFormats.QR_CODE, // 也支持QR以备不时之需
+      ];
+
       scannerRef.current = new Html5Qrcode(scannerContainerId, {
         verbose: false,
+        formatsToSupport: barcodeFormats,
         experimentalFeatures: {
           useBarCodeDetectorIfSupported: true
         }
       });
 
-      // Calculate qrbox size based on container - iPad friendly
+      // 条形码是横向的，使用宽扁的扫描框
       const containerWidth = container.clientWidth || 280;
-      const qrboxSize = Math.min(Math.floor(containerWidth * 0.7), 250);
+      const qrboxWidth = Math.min(Math.floor(containerWidth * 0.85), 280);
+      const qrboxHeight = Math.floor(qrboxWidth * 0.4); // 宽高比约2.5:1，适合条形码
 
       await scannerRef.current.start(
         cameraId,
         {
-          fps: 10, // Lower FPS for better iPad compatibility
-          qrbox: { width: qrboxSize, height: qrboxSize },
-          aspectRatio: 1,
+          fps: 15, // 条形码需要更高帧率
+          qrbox: { width: qrboxWidth, height: qrboxHeight },
+          aspectRatio: 16 / 9, // 横向视频更适合条形码
           disableFlip: false,
           videoConstraints: {
-            facingMode: "environment", // Prefer back camera
-            width: { ideal: 1280 },
-            height: { ideal: 720 }
+            facingMode: "environment",
+            width: { ideal: 1920 },
+            height: { ideal: 1080 }
           }
         },
         (decodedText) => {
-          // Success callback
-          console.log("Scanned code:", decodedText);
+          console.log("Scanned barcode:", decodedText);
           onScan(decodedText);
           handleClose();
         },

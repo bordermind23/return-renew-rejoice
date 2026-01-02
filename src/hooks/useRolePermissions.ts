@@ -2,6 +2,7 @@ import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { supabase } from "@/integrations/supabase/client";
 import { toast } from "sonner";
 import type { AppRole } from "./useUserManagement";
+import { logOperation } from "./useOperationLogs";
 
 export type PermissionType =
   | "view_dashboard"
@@ -147,9 +148,17 @@ export function useBatchUpdateRolePermissions() {
         }
       }
     },
-    onSuccess: () => {
+    onSuccess: (_, variables) => {
       queryClient.invalidateQueries({ queryKey: ["role-permissions"] });
       queryClient.invalidateQueries({ queryKey: ["current-user-permissions"] });
+      logOperation({
+        entityType: "permission",
+        action: "permission_change",
+        details: { 
+          role: variables.role, 
+          permissions: variables.permissions.filter(p => p.allowed).map(p => p.permission),
+        },
+      });
       toast.success("权限配置已保存");
     },
     onError: (error) => {

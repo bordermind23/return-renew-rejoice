@@ -13,7 +13,8 @@ export interface PhotoStep {
   required?: boolean;
 }
 
-export const DEFAULT_PHOTO_STEPS: PhotoStep[] = [
+// 完整拍照步骤（产品破损/缺少配件时使用）
+export const FULL_PHOTO_STEPS: PhotoStep[] = [
   { id: "lpn_label_photo", label: "LPN标签", required: true },
   { id: "packaging_photo_1", label: "产品包装图1", required: true },
   { id: "packaging_photo_2", label: "产品包装图2" },
@@ -24,6 +25,14 @@ export const DEFAULT_PHOTO_STEPS: PhotoStep[] = [
   { id: "accessories_photo", label: "产品配件展示图" },
   { id: "detail_photo", label: "产品细节图" },
 ];
+
+// 简单拍照步骤（正常情况只拍1张）
+export const SIMPLE_PHOTO_STEPS: PhotoStep[] = [
+  { id: "accessories_photo", label: "产品配件展示图", required: true },
+];
+
+// 默认使用简单模式
+export const DEFAULT_PHOTO_STEPS: PhotoStep[] = SIMPLE_PHOTO_STEPS;
 
 interface UploadTask {
   stepId: string;

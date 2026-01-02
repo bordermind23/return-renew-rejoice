@@ -1,6 +1,7 @@
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { supabase } from "@/integrations/supabase/client";
 import { toast } from "sonner";
+import { logOperation } from "./useOperationLogs";
 
 export type CaseType = 'lpn_missing' | 'sku_mismatch' | 'accessory_missing' | 'product_damaged' | 'other';
 export type CaseStatus = 'pending' | 'submitted' | 'in_progress' | 'approved' | 'rejected' | 'closed';
@@ -147,8 +148,14 @@ export const useCreateCase = () => {
       if (error) throw error;
       return data as Case;
     },
-    onSuccess: () => {
+    onSuccess: (data) => {
       queryClient.invalidateQueries({ queryKey: ["cases"] });
+      logOperation({
+        entityType: "case",
+        entityId: data.id,
+        action: "create",
+        details: { caseNumber: data.case_number, caseType: data.case_type, title: data.title },
+      });
       toast.success("CASE创建成功");
     },
     onError: (error) => {
@@ -172,8 +179,14 @@ export const useUpdateCase = () => {
       if (error) throw error;
       return data as Case;
     },
-    onSuccess: () => {
+    onSuccess: (data, variables) => {
       queryClient.invalidateQueries({ queryKey: ["cases"] });
+      logOperation({
+        entityType: "case",
+        entityId: data.id,
+        action: "update",
+        details: { caseNumber: data.case_number, status: data.status },
+      });
       toast.success("CASE更新成功");
     },
     onError: (error) => {
@@ -194,8 +207,13 @@ export const useDeleteCase = () => {
 
       if (error) throw error;
     },
-    onSuccess: () => {
+    onSuccess: (_, id) => {
       queryClient.invalidateQueries({ queryKey: ["cases"] });
+      logOperation({
+        entityType: "case",
+        entityId: id,
+        action: "delete",
+      });
       toast.success("CASE删除成功");
     },
     onError: (error) => {

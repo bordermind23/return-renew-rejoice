@@ -1,5 +1,5 @@
 import { useState, useRef, useCallback } from "react";
-import { Camera, Check, X, ChevronRight, ChevronDown, Trash2, Loader2, Upload } from "lucide-react";
+import { Camera, Check, X, ChevronRight, Trash2, Loader2, Upload } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Progress } from "@/components/ui/progress";
 import { cn } from "@/lib/utils";
@@ -102,7 +102,6 @@ export function NativePhotoCapture({
   const [currentStepIndex, setCurrentStepIndex] = useState(0);
   const [capturedPhotos, setCapturedPhotos] = useState<Record<string, string>>({});
   const [uploadTasks, setUploadTasks] = useState<Record<string, UploadTask>>({});
-  const [isExpanded, setIsExpanded] = useState(false);
   const isMobile = useIsMobile();
   
   const fileInputRef = useRef<HTMLInputElement>(null);
@@ -115,13 +114,6 @@ export function NativePhotoCapture({
   // 计算上传状态
   const uploadingCount = Object.values(uploadTasks).filter(t => t.status === 'uploading' || t.status === 'pending').length;
   const hasUploadingTasks = uploadingCount > 0;
-
-  // 过滤显示的步骤：折叠时只显示当前步骤和已完成的步骤
-  const visibleSteps = isExpanded 
-    ? steps 
-    : steps.filter((step, index) => index === currentStepIndex || capturedPhotos[step.id]);
-  
-  const hiddenCount = steps.length - visibleSteps.length;
 
   // 后台上传函数
   const uploadInBackground = useCallback(async (
@@ -335,16 +327,15 @@ export function NativePhotoCapture({
           isMobile && "pb-[calc(env(safe-area-inset-bottom,12px)+100px)]"
         )}>
           <div className="space-y-2">
-            {visibleSteps.map((step) => {
-              const originalIndex = steps.findIndex(s => s.id === step.id);
+            {steps.map((step, index) => {
               const isCompleted = !!capturedPhotos[step.id];
-              const isCurrent = originalIndex === currentStepIndex;
+              const isCurrent = index === currentStepIndex;
               const uploadStatus = getStepUploadStatus(step.id);
               
               return (
                 <div
                   key={step.id}
-                  onClick={() => goToStep(originalIndex)}
+                  onClick={() => goToStep(index)}
                   className={cn(
                     "flex items-center gap-3 p-3 rounded-lg border transition-all cursor-pointer",
                     isCurrent && "border-primary bg-primary/5",
@@ -376,7 +367,7 @@ export function NativePhotoCapture({
                     ) : isCompleted && uploadStatus === 'error' ? (
                       <X className="h-3.5 w-3.5" />
                     ) : (
-                      originalIndex + 1
+                      index + 1
                     )}
                   </div>
 
@@ -436,28 +427,6 @@ export function NativePhotoCapture({
                 </div>
               );
             })}
-            
-            {/* 展开/折叠按钮 */}
-            {hiddenCount > 0 && (
-              <Button
-                variant="ghost"
-                className="w-full h-9 text-sm text-muted-foreground hover:text-foreground"
-                onClick={() => setIsExpanded(!isExpanded)}
-              >
-                <ChevronDown className={cn("h-4 w-4 mr-1 transition-transform", isExpanded && "rotate-180")} />
-                {isExpanded ? "收起" : `显示其余 ${hiddenCount} 个步骤`}
-              </Button>
-            )}
-            {isExpanded && hiddenCount === 0 && steps.length > 3 && (
-              <Button
-                variant="ghost"
-                className="w-full h-9 text-sm text-muted-foreground hover:text-foreground"
-                onClick={() => setIsExpanded(false)}
-              >
-                <ChevronDown className="h-4 w-4 mr-1 rotate-180" />
-                收起列表
-              </Button>
-            )}
           </div>
         </div>
 

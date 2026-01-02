@@ -59,6 +59,7 @@ import {
   type RemovalShipmentInsert,
   type RemovalShipmentUpdate,
 } from "@/hooks/useRemovalShipments";
+import { useInboundItems } from "@/hooks/useInboundItems";
 import { Checkbox } from "@/components/ui/checkbox";
 import { Skeleton } from "@/components/ui/skeleton";
 import { Collapsible, CollapsibleContent, CollapsibleTrigger } from "@/components/ui/collapsible";
@@ -122,12 +123,24 @@ export default function Removals() {
   });
 
   const { data: shipments, isLoading } = useRemovalShipments();
+  const { data: inboundItems } = useInboundItems();
   const createMutation = useCreateRemovalShipment();
   const updateMutation = useUpdateRemovalShipment();
   const deleteMutation = useDeleteRemovalShipment();
   const bulkCreateMutation = useBulkCreateRemovalShipments();
   const bulkDeleteMutation = useBulkDeleteRemovalShipments();
   const bulkUpdateMutation = useBulkUpdateRemovalShipments();
+
+  // 计算每个跟踪号的到货数量
+  const arrivedCountByTracking = useMemo(() => {
+    const counts: Record<string, number> = {};
+    (inboundItems || []).forEach((item) => {
+      if (item.tracking_number) {
+        counts[item.tracking_number] = (counts[item.tracking_number] || 0) + 1;
+      }
+    });
+    return counts;
+  }, [inboundItems]);
 
   // 批量选择
   const toggleSelectAll = () => {
@@ -1062,7 +1075,7 @@ export default function Removals() {
                 
                 <TableHead className="font-semibold min-w-[120px]">产品SKU</TableHead>
                 <TableHead className="font-semibold min-w-[150px]">产品名称</TableHead>
-                <TableHead className="font-semibold min-w-[80px] text-center">数量</TableHead>
+                <TableHead className="font-semibold min-w-[100px] text-center">申报/到货</TableHead>
                 <TableHead className="font-semibold min-w-[100px]">发货日期</TableHead>
                 <TableHead className="font-semibold min-w-[100px]">状态</TableHead>
                 
@@ -1101,6 +1114,10 @@ export default function Removals() {
                         </TableCell>
                         <TableCell className="text-center">
                           <span className="font-semibold">{item.quantity}</span>
+                          <span className="text-muted-foreground">/</span>
+                          <span className={`font-semibold ${(arrivedCountByTracking[item.tracking_number] || 0) >= item.quantity ? 'text-green-600' : 'text-amber-600'}`}>
+                            {arrivedCountByTracking[item.tracking_number] || 0}
+                          </span>
                         </TableCell>
                         <TableCell className="text-muted-foreground text-sm">
                           {item.ship_date || "-"}
@@ -1179,6 +1196,10 @@ export default function Removals() {
                           </TableCell>
                           <TableCell className="text-center">
                             <span className="font-semibold">{item.quantity}</span>
+                            <span className="text-muted-foreground">/</span>
+                            <span className={`font-semibold ${(arrivedCountByTracking[item.tracking_number] || 0) >= item.quantity ? 'text-green-600' : 'text-amber-600'}`}>
+                              {arrivedCountByTracking[item.tracking_number] || 0}
+                            </span>
                           </TableCell>
                           <TableCell className="text-muted-foreground text-sm">
                             {item.ship_date || "-"}
@@ -1275,6 +1296,10 @@ export default function Removals() {
                             <CollapsibleTrigger asChild>
                               <TableCell onClick={() => toggleGroup(group.groupKey)} className="text-center">
                                 <span className="font-semibold text-primary">{group.totalQuantity}</span>
+                                <span className="text-muted-foreground">/</span>
+                                <span className={`font-semibold ${(arrivedCountByTracking[group.trackingNumber] || 0) >= group.totalQuantity ? 'text-green-600' : 'text-amber-600'}`}>
+                                  {arrivedCountByTracking[group.trackingNumber] || 0}
+                                </span>
                               </TableCell>
                             </CollapsibleTrigger>
                             <CollapsibleTrigger asChild>
@@ -1325,6 +1350,10 @@ export default function Removals() {
                                     </TableCell>
                                     <TableCell className="text-center">
                                       <span className="font-semibold">{item.quantity}</span>
+                                      <span className="text-muted-foreground">/</span>
+                                      <span className={`font-semibold ${(arrivedCountByTracking[item.tracking_number] || 0) >= item.quantity ? 'text-green-600' : 'text-amber-600'}`}>
+                                        {arrivedCountByTracking[item.tracking_number] || 0}
+                                      </span>
                                     </TableCell>
                                     <TableCell className="text-muted-foreground text-sm">
                                       {item.ship_date || "-"}

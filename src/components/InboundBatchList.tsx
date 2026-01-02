@@ -88,14 +88,22 @@ export function InboundBatchList({ items, onDelete, onBatchDelete, enableBatchSe
     });
   };
 
-  const getPhotoCount = (item: InboundItem) => {
-    const photoFields = [
-      'shipping_label_photo', 'lpn_label_photo', 'packaging_photo_1', 'packaging_photo_2', 
-      'packaging_photo_3', 'packaging_photo_4', 'packaging_photo_5',
-      'packaging_photo_6', 'accessories_photo', 'detail_photo',
-      'product_photo', 'package_photo'
-    ] as const;
-    return photoFields.filter(field => item[field]).length;
+  // 获取照片数量（不含物流面单，因为物流面单单独展示）
+  const getPhotoCount = (item: InboundItem, excludeShippingLabel = false) => {
+    const photoFields = excludeShippingLabel
+      ? [
+          'lpn_label_photo', 'packaging_photo_1', 'packaging_photo_2', 
+          'packaging_photo_3', 'packaging_photo_4', 'packaging_photo_5',
+          'packaging_photo_6', 'accessories_photo', 'detail_photo',
+          'product_photo', 'package_photo'
+        ] as const
+      : [
+          'shipping_label_photo', 'lpn_label_photo', 'packaging_photo_1', 'packaging_photo_2', 
+          'packaging_photo_3', 'packaging_photo_4', 'packaging_photo_5',
+          'packaging_photo_6', 'accessories_photo', 'detail_photo',
+          'product_photo', 'package_photo'
+        ] as const;
+    return photoFields.filter(field => item[field as keyof InboundItem]).length;
   };
 
   // 获取批次的物流面单照片
@@ -106,6 +114,16 @@ export function InboundBatchList({ items, onDelete, onBatchDelete, enableBatchSe
       }
     }
     return null;
+  };
+
+  // 获取批次的级别分布
+  const getBatchGradeDistribution = (batch: BatchGroup) => {
+    const distribution: Record<string, number> = {};
+    batch.items.forEach(item => {
+      const grade = item.grade || "未知";
+      distribution[grade] = (distribution[grade] || 0) + 1;
+    });
+    return distribution;
   };
 
   // 选择相关函数
@@ -207,6 +225,7 @@ export function InboundBatchList({ items, onDelete, onBatchDelete, enableBatchSe
       {batches.map((batch) => {
         const batchSelectState = getBatchSelectState(batch);
         const shippingLabelPhoto = getBatchShippingLabelPhoto(batch);
+        const gradeDistribution = getBatchGradeDistribution(batch);
         return (
           <Collapsible
             key={batch.trackingNumber}
@@ -249,6 +268,21 @@ export function InboundBatchList({ items, onDelete, onBatchDelete, enableBatchSe
                         <Badge variant="secondary" className="flex-shrink-0">
                           {batch.totalCount} 件
                         </Badge>
+                        {/* 级别分布 */}
+                        {Object.entries(gradeDistribution).map(([grade, count]) => (
+                          <Badge 
+                            key={grade} 
+                            variant="outline" 
+                            className={cn(
+                              "flex-shrink-0",
+                              grade === "A" && "text-green-600 border-green-300",
+                              grade === "B" && "text-yellow-600 border-yellow-300",
+                              grade === "C" && "text-red-600 border-red-300"
+                            )}
+                          >
+                            {grade}级 {count}件
+                          </Badge>
+                        ))}
                         {shippingLabelPhoto && (
                           <Badge variant="outline" className="flex-shrink-0 text-primary border-primary/30">
                             <Image className="h-3 w-3 mr-1" />
@@ -295,15 +329,17 @@ export function InboundBatchList({ items, onDelete, onBatchDelete, enableBatchSe
                             <TableHead className="w-[50px]"></TableHead>
                           )}
                           <TableHead className="font-semibold min-w-[100px]">LPN号</TableHead>
+                          <TableHead className="font-semibold min-w-[60px] text-center">级别</TableHead>
+                          <TableHead className="font-semibold min-w-[80px] text-center">物流面单</TableHead>
                           <TableHead className="font-semibold min-w-[120px]">缺少配件</TableHead>
-                          <TableHead className="font-semibold min-w-[60px] text-center">照片</TableHead>
+                          <TableHead className="font-semibold min-w-[60px] text-center">其他照片</TableHead>
                           <TableHead className="font-semibold min-w-[130px]">处理时间</TableHead>
                           <TableHead className="font-semibold min-w-[60px] text-center">操作</TableHead>
                         </TableRow>
                       </TableHeader>
                       <TableBody>
                         {batch.items.map((item) => {
-                          const photoCount = getPhotoCount(item);
+                          const otherPhotoCount = getPhotoCount(item, true); // 排除物流面单
                           const isSelected = selectedIds.has(item.id);
                           return (
                             <TableRow 
@@ -326,13 +362,44 @@ export function InboundBatchList({ items, onDelete, onBatchDelete, enableBatchSe
                                   {item.lpn}
                                 </code>
                               </TableCell>
+                              <TableCell className="text-center">
+                                <Badge 
+                                  variant="outline" 
+                                  className={cn(
+                                    "text-xs",
+                                    item.grade === "A" && "text-green-600 border-green-300 bg-green-50",
+                                    item.grade === "B" && "text-yellow-600 border-yellow-300 bg-yellow-50",
+                                    item.grade === "C" && "text-red-600 border-red-300 bg-red-50"
+                                  )}
+                                >
+                                  {item.grade || "-"}
+                                </Badge>
+                              </TableCell>
+                              <TableCell className="text-center">
+                                {item.shipping_label_photo ? (
+                                  <Button
+                                    size="sm"
+                                    variant="ghost"
+                                    className="h-7 px-2 text-primary"
+                                    onClick={(e) => {
+                                      e.stopPropagation();
+                                      setPhotoViewItem(item);
+                                    }}
+                                  >
+                                    <Image className="h-4 w-4 mr-1" />
+                                    查看
+                                  </Button>
+                                ) : (
+                                  <span className="text-muted-foreground text-xs">-</span>
+                                )}
+                              </TableCell>
                               <TableCell className="text-muted-foreground text-sm">
                                 {item.missing_parts && item.missing_parts.length > 0
                                   ? item.missing_parts.join(", ")
                                   : "-"}
                               </TableCell>
                               <TableCell className="text-center">
-                                {photoCount > 0 ? (
+                                {otherPhotoCount > 0 ? (
                                   <Button
                                     size="sm"
                                     variant="ghost"
@@ -343,7 +410,7 @@ export function InboundBatchList({ items, onDelete, onBatchDelete, enableBatchSe
                                     }}
                                   >
                                     <Image className="h-4 w-4 mr-1" />
-                                    {photoCount}
+                                    {otherPhotoCount}
                                   </Button>
                                 ) : (
                                   <span className="text-muted-foreground text-xs">-</span>

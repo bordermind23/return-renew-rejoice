@@ -80,7 +80,22 @@ export function Scanner({
     try {
       // Stop existing scanner if any
       if (scannerRef.current) {
-        await scannerRef.current.stop();
+        try {
+          await scannerRef.current.stop();
+        } catch (e) {
+          console.log("Scanner already stopped");
+        }
+        scannerRef.current = null;
+      }
+
+      // Wait for container to be ready
+      await new Promise(resolve => setTimeout(resolve, 100));
+
+      const container = document.getElementById(scannerContainerId);
+      if (!container) {
+        setError("扫描容器未就绪，请重试");
+        setIsScanning(false);
+        return;
       }
 
       scannerRef.current = new Html5Qrcode(scannerContainerId, {
@@ -90,16 +105,26 @@ export function Scanner({
         }
       });
 
+      // Calculate qrbox size based on container - iPad friendly
+      const containerWidth = container.clientWidth || 280;
+      const qrboxSize = Math.min(Math.floor(containerWidth * 0.7), 250);
+
       await scannerRef.current.start(
         cameraId,
         {
-          fps: 15,
-          qrbox: { width: 200, height: 200 },
+          fps: 10, // Lower FPS for better iPad compatibility
+          qrbox: { width: qrboxSize, height: qrboxSize },
           aspectRatio: 1,
           disableFlip: false,
+          videoConstraints: {
+            facingMode: "environment", // Prefer back camera
+            width: { ideal: 1280 },
+            height: { ideal: 720 }
+          }
         },
         (decodedText) => {
           // Success callback
+          console.log("Scanned code:", decodedText);
           onScan(decodedText);
           handleClose();
         },
@@ -109,7 +134,14 @@ export function Scanner({
       );
     } catch (err) {
       console.error("启动扫描器失败:", err);
-      setError("启动摄像头失败，请重试");
+      const errorMsg = err instanceof Error ? err.message : String(err);
+      if (errorMsg.includes("Permission") || errorMsg.includes("NotAllowed")) {
+        setError("摄像头权限被拒绝，请在设置中允许访问摄像头");
+      } else if (errorMsg.includes("NotFound") || errorMsg.includes("NotReadable")) {
+        setError("无法访问摄像头，请检查设备是否有可用摄像头");
+      } else {
+        setError("启动摄像头失败，请刷新页面重试");
+      }
       setIsScanning(false);
     }
   };

@@ -285,11 +285,12 @@ export function InboundBatchList({ items, onDelete, onBatchDelete, enableBatchSe
                       className="h-8"
                       onClick={(e) => {
                         e.stopPropagation();
-                        setBatchPhotoViewItem(batch);
+                        // 只展示物流面单
+                        setShippingLabelUrl(shippingLabelPhoto);
                       }}
                     >
                       <Eye className="h-4 w-4 mr-1" />
-                      查看
+                      查看面单
                     </Button>
                   )}
                 </div>

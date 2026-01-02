@@ -17,6 +17,7 @@ import Inventory from "./pages/Inventory";
 import Orders from "./pages/Orders";
 import Outbound from "./pages/Outbound";
 import UserManagement from "./pages/UserManagement";
+import RoleManagement from "./pages/RoleManagement";
 import Cases from "./pages/Cases";
 import Refurbishment from "./pages/Refurbishment";
 import RefurbishmentScan from "./pages/RefurbishmentScan";
@@ -201,6 +202,16 @@ const App = () => (
               <ProtectedRoute>
                 <MainLayout>
                   <UserManagement />
+                </MainLayout>
+              </ProtectedRoute>
+            }
+          />
+          <Route
+            path="/roles"
+            element={
+              <ProtectedRoute>
+                <MainLayout>
+                  <RoleManagement />
                 </MainLayout>
               </ProtectedRoute>
             }

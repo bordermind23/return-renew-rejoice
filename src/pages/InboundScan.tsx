@@ -861,9 +861,6 @@ export default function InboundScan() {
                           </div>
                         </div>
                         <div className="flex items-center gap-2">
-                          <Badge variant={item.grade === "A" ? "default" : item.grade === "B" ? "secondary" : "outline"}>
-                            {item.grade}级
-                          </Badge>
                           {item.missing_parts && item.missing_parts.length > 0 && (
                             <Badge variant="destructive" className="text-xs">缺配件</Badge>
                           )}

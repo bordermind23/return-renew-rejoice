@@ -29,6 +29,11 @@ export interface InboundItem {
   packaging_photo_6: string | null;
   accessories_photo: string | null;
   detail_photo: string | null;
+  // 破损/缺配件相关照片
+  damage_photo_1: string | null;
+  damage_photo_2: string | null;
+  damage_photo_3: string | null;
+  package_accessories_photo: string | null;
   // 翻新字段
   refurbished_at: string | null;
   refurbished_by: string | null;
@@ -40,7 +45,7 @@ export interface InboundItem {
   shipping_label_photo: string | null;
 }
 
-export type InboundItemInsert = Omit<InboundItem, "id" | "created_at" | "package_photo" | "product_photo" | "lpn_label_photo" | "packaging_photo_1" | "packaging_photo_2" | "packaging_photo_3" | "packaging_photo_4" | "packaging_photo_5" | "packaging_photo_6" | "accessories_photo" | "detail_photo" | "refurbished_at" | "refurbished_by" | "refurbishment_grade" | "refurbishment_photos" | "refurbishment_videos" | "refurbishment_notes" | "shipping_label_photo"> & { 
+export type InboundItemInsert = Omit<InboundItem, "id" | "created_at" | "package_photo" | "product_photo" | "lpn_label_photo" | "packaging_photo_1" | "packaging_photo_2" | "packaging_photo_3" | "packaging_photo_4" | "packaging_photo_5" | "packaging_photo_6" | "accessories_photo" | "detail_photo" | "damage_photo_1" | "damage_photo_2" | "damage_photo_3" | "package_accessories_photo" | "refurbished_at" | "refurbished_by" | "refurbishment_grade" | "refurbishment_photos" | "refurbishment_videos" | "refurbishment_notes" | "shipping_label_photo"> & { 
   package_photo?: string | null; 
   product_photo?: string | null;
   lpn_label_photo?: string | null;
@@ -52,6 +57,10 @@ export type InboundItemInsert = Omit<InboundItem, "id" | "created_at" | "package
   packaging_photo_6?: string | null;
   accessories_photo?: string | null;
   detail_photo?: string | null;
+  damage_photo_1?: string | null;
+  damage_photo_2?: string | null;
+  damage_photo_3?: string | null;
+  package_accessories_photo?: string | null;
   refurbished_at?: string | null;
   refurbished_by?: string | null;
   refurbishment_grade?: string | null;

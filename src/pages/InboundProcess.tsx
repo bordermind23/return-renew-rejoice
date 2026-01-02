@@ -9,7 +9,7 @@ import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { ScrollArea } from "@/components/ui/scroll-area";
 import { Skeleton } from "@/components/ui/skeleton";
-import { NativePhotoCapture, SIMPLE_PHOTO_STEPS, FULL_PHOTO_STEPS } from "@/components/NativePhotoCapture";
+import { NativePhotoCapture, getPhotoSteps } from "@/components/NativePhotoCapture";
 import { TranslatedText } from "@/components/TranslatedText";
 import { useRemovalShipments, useUpdateRemovalShipment, type RemovalShipment } from "@/hooks/useRemovalShipments";
 import { useCreateInboundItem, useInboundItems } from "@/hooks/useInboundItems";
@@ -143,6 +143,10 @@ export default function InboundProcess() {
         packaging_photo_6: capturedPhotos.packaging_photo_6 || null,
         accessories_photo: capturedPhotos.accessories_photo || null,
         detail_photo: capturedPhotos.detail_photo || null,
+        damage_photo_1: capturedPhotos.damage_photo_1 || null,
+        damage_photo_2: capturedPhotos.damage_photo_2 || null,
+        damage_photo_3: capturedPhotos.damage_photo_3 || null,
+        package_accessories_photo: capturedPhotos.package_accessories_photo || null,
       },
       {
         onSuccess: () => {
@@ -358,18 +362,35 @@ export default function InboundProcess() {
 
           {/* 产品拍照 */}
           <div className="space-y-2">
-            {/* 根据是否有问题显示不同的拍照要求 */}
-            {(selectedMissingParts.length > 0 || hasProductDamage) ? (
-              <Label className="text-sm font-medium">
-                产品拍照 ({Object.keys(capturedPhotos).length}/9)
-                <span className="text-xs text-destructive ml-2">存在问题，需拍摄详细照片</span>
-              </Label>
-            ) : (
-              <Label className="text-sm font-medium">
-                产品拍照 ({Object.keys(capturedPhotos).length}/1)
-                <span className="text-xs text-muted-foreground ml-2">正常情况仅需1张</span>
-              </Label>
-            )}
+            {/* 根据状态计算需要的拍照步骤 */}
+            {(() => {
+              const photoSteps = getPhotoSteps(hasProductDamage, selectedMissingParts.length > 0);
+              const requiredCount = photoSteps.length;
+              const currentCount = Object.keys(capturedPhotos).length;
+              
+              let hintText = "";
+              if (hasProductDamage && selectedMissingParts.length > 0) {
+                hintText = "产品破损+配件缺失，需拍摄完整照片";
+              } else if (hasProductDamage) {
+                hintText = "产品破损，需拍摄破损详情";
+              } else if (selectedMissingParts.length > 0) {
+                hintText = "配件缺失，需拍摄包装配件同框";
+              } else {
+                hintText = "正常情况仅需1张";
+              }
+              
+              return (
+                <Label className="text-sm font-medium">
+                  产品拍照 ({currentCount}/{requiredCount})
+                  <span className={cn(
+                    "text-xs ml-2",
+                    (hasProductDamage || selectedMissingParts.length > 0) ? "text-destructive" : "text-muted-foreground"
+                  )}>
+                    {hintText}
+                  </span>
+                </Label>
+              );
+            })()}
             <Button
               type="button"
               variant="outline"
@@ -430,11 +451,11 @@ export default function InboundProcess() {
         </div>
       </div>
 
-      {/* 原生拍照 - 根据是否有问题选择不同的拍照步骤 */}
+      {/* 原生拍照 - 根据状态选择不同的拍照步骤 */}
       {isPhotoCaptureOpen && (
         <NativePhotoCapture
           lpn={lpn}
-          steps={(selectedMissingParts.length > 0 || hasProductDamage) ? FULL_PHOTO_STEPS : SIMPLE_PHOTO_STEPS}
+          steps={getPhotoSteps(hasProductDamage, selectedMissingParts.length > 0)}
           onComplete={(photos) => {
             setCapturedPhotos(photos);
             setIsPhotoCaptureOpen(false);

@@ -183,7 +183,7 @@ export default function InboundProcess() {
           if (totalInbounded >= matchedShipment.quantity) {
             updateShipmentMutation.mutate({
               id: matchedShipment.id,
-              status: "inbound"
+              status: "入库"
             });
             toast.success(`所有 ${matchedShipment.quantity} 件货物已全部入库！`);
           } else {

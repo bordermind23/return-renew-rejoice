@@ -612,7 +612,7 @@ export default function InboundScan() {
     matchedShipments.forEach(shipment => {
       updateShipmentMutation.mutate({
         id: shipment.id,
-        status: "inbound",
+        status: "入库",
         note: `强制完成入库：实际入库 ${totalInbounded} 件，申报 ${totalQuantity} 件，差异 ${totalQuantity - totalInbounded} 件`,
       });
     });
@@ -640,7 +640,7 @@ export default function InboundScan() {
     matchedShipments.forEach(shipment => {
       updateShipmentMutation.mutate({
         id: shipment.id,
-        status: "inbound",
+        status: "入库",
       });
     });
     

@@ -200,8 +200,8 @@ export const RemovalShipmentImportSchema = z.object({
   
   ship_date: z.string().optional().nullable(),
   
-  status: z.enum(['shipping', 'arrived', 'inbound', 'shelved'])
-    .default('shipping'),
+  status: z.enum(['未到货', '入库'])
+    .default('未到货'),
   
   note: z.string()
     .max(MAX_FIELD_LENGTHS.note)
@@ -220,8 +220,8 @@ export const validateRemovalShipmentRow = (
   rowIndex: number
 ): { valid: true; data: ValidatedRemovalShipmentImport } | { valid: false; error: string } => {
   try {
-    const statusValue = (row[12] || 'shipping').toLowerCase();
-    const validStatuses = ['shipping', 'arrived', 'inbound', 'shelved'];
+    const statusValue = (row[12] || '未到货');
+    const validStatuses = ['未到货', '入库'];
     
     const data = RemovalShipmentImportSchema.parse({
       order_id: row[0]?.trim(),
@@ -236,7 +236,7 @@ export const validateRemovalShipmentRow = (
       carrier: row[9]?.trim(),
       tracking_number: row[10]?.trim(),
       ship_date: row[11]?.trim() || null,
-      status: validStatuses.includes(statusValue) ? statusValue as 'shipping' | 'arrived' | 'inbound' | 'shelved' : 'shipping',
+      status: validStatuses.includes(statusValue) ? statusValue as '未到货' | '入库' : '未到货',
       note: row[13]?.trim() || null,
     });
     

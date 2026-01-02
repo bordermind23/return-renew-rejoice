@@ -413,7 +413,7 @@ export default function Removals() {
       createMutation.mutate(
         {
           ...submitData,
-          status: "shipping",
+          status: "未到货",
         } as RemovalShipmentInsert,
         {
           onSuccess: () => {
@@ -536,8 +536,8 @@ export default function Removals() {
     }
 
     // Status validation
-    const validStatuses = ["shipping", "arrived", "inbound", "shelved"];
-    const status = String(row[12] || "shipping").toLowerCase();
+    const validStatuses = ["未到货", "入库"];
+    const status = String(row[12] || "未到货");
     if (!validStatuses.includes(status)) {
       errors.push(`状态值无效，应为: ${validStatuses.join(", ")}`);
     }
@@ -578,7 +578,7 @@ export default function Removals() {
         carrier: sanitize(row[9], 255)!,
         tracking_number: sanitize(row[10], 255)!,
         ship_date: row[11] ? String(row[11]).trim() : null,
-        status: status as "shipping" | "arrived" | "inbound" | "shelved",
+        status: status as "未到货" | "入库",
         note: sanitize(row[13], 1000),
       }
     };
@@ -1415,7 +1415,7 @@ export default function Removals() {
                               <TableCell onClick={() => toggleGroup(group.groupKey)}>
                                 <div className="flex flex-wrap gap-1">
                                   {group.statuses.map((status, idx) => (
-                                    <StatusBadge key={idx} status={status as "shipping" | "arrived" | "inbound" | "shelved"} />
+                                    <StatusBadge key={idx} status={status as "未到货" | "入库"} />
                                   ))}
                                 </div>
                               </TableCell>

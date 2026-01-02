@@ -1,13 +1,13 @@
-import { useState, useEffect, useRef } from "react";
+import { useEffect, useMemo, useRef, useState } from "react";
 import { Html5Qrcode, Html5QrcodeSupportedFormats } from "html5-qrcode";
+import { Scan, SwitchCamera, X, Focus } from "lucide-react";
 import { Button } from "@/components/ui/button";
-import { X, SwitchCamera, Scan, Focus } from "lucide-react";
 import {
   Dialog,
   DialogContent,
+  DialogDescription,
   DialogHeader,
   DialogTitle,
-  DialogDescription,
 } from "@/components/ui/dialog";
 import { cn } from "@/lib/utils";
 
@@ -20,14 +20,13 @@ interface ScannerProps {
   scanType?: "tracking" | "lpn";
 }
 
-// LPN 常见是条形码（CODE128/CODE39）或二维码，内容形如 LPNXXXXXXXXXXX
+// LPN 常见是条形码（CODE128/CODE39）或二维码
 const lpnFormats = [
   Html5QrcodeSupportedFormats.CODE_128,
   Html5QrcodeSupportedFormats.CODE_39,
   Html5QrcodeSupportedFormats.QR_CODE,
 ];
 
-// 物流追踪号常用格式
 const trackingFormats = [
   Html5QrcodeSupportedFormats.CODE_128,
   Html5QrcodeSupportedFormats.CODE_39,
@@ -35,30 +34,79 @@ const trackingFormats = [
   Html5QrcodeSupportedFormats.DATA_MATRIX,
 ];
 
-// 验证/清洗 LPN：有些设备会读出空格、换行或其他分隔符
-const normalizeCode = (code: string) => {
-  return code
-    .trim()
-    .toUpperCase()
-    .replace(/[^A-Z0-9]/g, "");
-};
+const normalizeCode = (code: string) =>
+  code.trim().toUpperCase().replace(/[^A-Z0-9]/g, "");
 
-// 验证LPN格式: LPNXXXXXXXXXXX（允许中间带分隔符，normalize 后校验）
 const isValidLpn = (code: string): boolean => {
   const normalized = normalizeCode(code);
   return /^LPN[A-Z0-9]+$/.test(normalized);
 };
 
-// 检测是否是平板设备（屏幕宽度 >= 768px）
-const isTablet = (): boolean => {
-  return typeof window !== 'undefined' && window.innerWidth >= 768;
+const isMobileLike = (): boolean => {
+  if (typeof navigator === "undefined") return false;
+  return /Android|webOS|iPhone|iPad|iPod|BlackBerry|IEMobile|Opera Mini/i.test(
+    navigator.userAgent
+  );
 };
 
-// 检测是否是移动设备（通过 userAgent）
-const isMobileDevice = (): boolean => {
-  if (typeof navigator === 'undefined') return false;
-  return /Android|webOS|iPhone|iPad|iPod|BlackBerry|IEMobile|Opera Mini/i.test(navigator.userAgent);
+const isTablet = (): boolean => {
+  return typeof window !== "undefined" && window.innerWidth >= 768;
 };
+
+const SCANNING_STATE = 2;
+const PAUSED_STATE = 3;
+
+async function safeStopScanner(scanner: Html5Qrcode | null) {
+  if (!scanner) return;
+  try {
+    const state = scanner.getState?.();
+    if (state === SCANNING_STATE || state === PAUSED_STATE) {
+      await scanner.stop();
+    }
+  } catch {
+    // ignore
+  }
+}
+
+/**
+ * iPad/Safari 常见问题：
+ * - 未授权前 enumerateDevices label 为空，无法靠 label 选后置
+ * - facingMode: "environment" 有时会被忽略而打开前置
+ *
+ * 这里策略：
+ * 1) 先用 getUserMedia 强行申请后置（exact），拿到真实 track settings.deviceId
+ * 2) 立刻关闭这条 stream
+ * 3) 再用 html5-qrcode 用 deviceId 精确启动
+ */
+async function resolveBackCameraDeviceId(): Promise<string | null> {
+  if (!navigator.mediaDevices?.getUserMedia) return null;
+
+  const tryConstraints: MediaStreamConstraints[] = [
+    { video: { facingMode: { exact: "environment" } }, audio: false },
+    { video: { facingMode: "environment" }, audio: false },
+  ];
+
+  for (const constraints of tryConstraints) {
+    let stream: MediaStream | null = null;
+    try {
+      stream = await navigator.mediaDevices.getUserMedia(constraints);
+      const track = stream.getVideoTracks?.()[0];
+      const settings = track?.getSettings?.();
+      const deviceId = settings?.deviceId;
+      // cleanup ASAP
+      stream.getTracks().forEach((t) => t.stop());
+      stream = null;
+
+      if (deviceId) return deviceId;
+    } catch {
+      if (stream) {
+        stream.getTracks().forEach((t) => t.stop());
+      }
+    }
+  }
+
+  return null;
+}
 
 export function Scanner({
   onScan,
@@ -71,177 +119,73 @@ export function Scanner({
   const [isOpen, setIsOpen] = useState(false);
   const [isScanning, setIsScanning] = useState(false);
   const [error, setError] = useState<string | null>(null);
-  const [cameras, setCameras] = useState<{ id: string; label: string }[]>([]);
-  const [currentCameraIndex, setCurrentCameraIndex] = useState(0);
+  const [lastScanHint, setLastScanHint] = useState<string | null>(null);
   const [compatMode, setCompatMode] = useState(false);
-  const [lastScanError, setLastScanError] = useState<string | null>(null);
+
   const scannerRef = useRef<Html5Qrcode | null>(null);
-  const enforcingBackCameraRef = useRef(false);
   const scannerContainerId = "scanner-container";
 
-  const getActiveVideoTrackSettings = () => {
-    const video = document.querySelector(
-      `#${scannerContainerId} video`
-    ) as HTMLVideoElement | null;
+  const supportedFormats = useMemo(
+    () => (scanType === "lpn" ? lpnFormats : trackingFormats),
+    [scanType]
+  );
 
-    const stream = (video?.srcObject ?? null) as MediaStream | null;
-    const track = stream?.getVideoTracks?.()?.[0];
-    return track?.getSettings?.();
-  };
-
-  // 根据扫描类型选择支持的格式
-  const supportedFormats = scanType === "lpn" ? lpnFormats : trackingFormats;
-
-  // 根据设备类型和扫描类型动态调整扫描框大小
-  // 平板设备使用更大的扫描框以适应更大的屏幕和更远的扫描距离
   const getQrboxConfig = () => {
     const w = typeof window !== "undefined" ? window.innerWidth : 1024;
     const tablet = isTablet();
     const desktop = w >= 1024;
 
     if (scanType === "lpn") {
-      // LPN多为横向条形码：桌面端通常距离更远，给更大的扫描框
       if (desktop) return { width: 640, height: 260 };
       return tablet ? { width: 420, height: 200 } : { width: 320, height: 160 };
     }
 
-    // 物流追踪号兼容条码/二维码
     if (desktop) return { width: 560, height: 280 };
     return tablet ? { width: 380, height: 220 } : { width: 280, height: 180 };
   };
 
-  useEffect(() => {
-    // Get available cameras when dialog opens
-    if (isOpen) {
-      enforcingBackCameraRef.current = false;
-      // 延迟启动以确保对话框完全渲染
-      const timer = setTimeout(() => {
-        Html5Qrcode.getCameras()
-          .then((devices) => {
-            console.log("Available cameras:", devices);
-            if (devices && devices.length > 0) {
-              setCameras(devices);
-
-              // iPad/iPhone：优先用 facingMode=environment 让系统直接选后置
-              // （未授权前 label 往往为空，用 label 猜会失效）
-              const mobile = isMobileDevice();
-              if (mobile) {
-                setCurrentCameraIndex(0);
-                startScanner({ facingMode: "environment" });
-                return;
-              }
-
-              // 桌面端：按 label 选择后置/外接摄像头
-              const backCameraIndex = devices.findIndex((device) => {
-                const label = device.label.toLowerCase();
-                return (
-                  label.includes("back") ||
-                  label.includes("rear") ||
-                  label.includes("environment") ||
-                  label.includes("后置") ||
-                  label.includes("facing back")
-                );
-              });
-
-              const preferredIndex = backCameraIndex >= 0 ? backCameraIndex : 0;
-
-              console.log("Camera selection:", {
-                backCameraIndex,
-                preferredIndex,
-                mobile,
-                selectedCamera: devices[preferredIndex]?.label,
-              });
-
-              setCurrentCameraIndex(preferredIndex);
-              startScanner({ deviceId: devices[preferredIndex].id });
-            } else {
-              setError("未找到摄像头设备");
-            }
-          })
-          .catch((err) => {
-            console.error("获取摄像头失败:", err);
-            setError("无法访问摄像头，请确保已授权摄像头权限");
-          });
-      }, 100);
-
-      return () => clearTimeout(timer);
-    }
-
-    return () => {
-      stopScanner();
-    };
-  }, [isOpen]);
-
-  type CameraStartConfig =
-    | { deviceId: string; facingMode?: never }
-    | { deviceId?: never; facingMode: "environment" | "user" };
-
-  const startScanner = async (camera: CameraStartConfig) => {
+  const start = async () => {
     setError(null);
     setIsScanning(true);
+    setLastScanHint(null);
+
+    const mobile = isMobileLike();
+    const w = typeof window !== "undefined" ? window.innerWidth : 1024;
+    const desktop = w >= 1024;
 
     try {
-      // Stop existing scanner if any - 检查扫描器状态避免 "cannot stop" 错误
+      // clean previous
       if (scannerRef.current) {
-        try {
-          const state = scannerRef.current.getState();
-          // 只有在扫描中或暂停状态才停止
-          if (state === 2 || state === 3) {
-            await scannerRef.current.stop();
-          }
-        } catch {
-          // 忽略获取状态或停止时的错误
-        }
+        await safeStopScanner(scannerRef.current);
         scannerRef.current = null;
       }
 
-      const mobile = isMobileDevice();
+      // iPad/iPhone：强制拿到后置 deviceId
+      let forcedDeviceId: string | null = null;
+      if (mobile) {
+        forcedDeviceId = await resolveBackCameraDeviceId();
+      }
 
-      // 注意：Html5Qrcode 的 cameraConfig 对象只能包含 1 个 key（deviceId 或 facingMode）
-      const cameraConfig: MediaTrackConstraints = "deviceId" in camera
-        ? { deviceId: { exact: camera.deviceId } }
-        : { facingMode: camera.facingMode };
-
-      // 桌面端默认禁用 BarcodeDetector（Chrome 桌面版对 CODE_128 识别不稳定）
-      const useBarcodeDetector = mobile && !compatMode;
-
-      // 创建扫描器实例，限制支持的格式以提升速度
       scannerRef.current = new Html5Qrcode(scannerContainerId, {
         verbose: false,
         formatsToSupport: supportedFormats,
         experimentalFeatures: {
-          useBarCodeDetectorIfSupported: useBarcodeDetector,
+          // 桌面端禁用（不稳定），移动端可用；兼容模式=全禁
+          useBarCodeDetectorIfSupported: mobile && !compatMode,
         },
       });
 
-      // 获取当前设备适配的扫描框配置
       const qrboxConfig = getQrboxConfig();
-      const w = typeof window !== "undefined" ? window.innerWidth : 1024;
-      const desktop = w >= 1024;
-
-      // 桌面端：更慢但更稳定的帧率
       const fps = mobile ? 25 : 15;
 
-      // 分辨率等约束要放到 config.videoConstraints 里（不能放到 cameraConfig 里）
+      // html5-qrcode 要求 cameraConfig 对象只能 1 个 key
+      const cameraConfig: MediaTrackConstraints = forcedDeviceId
+        ? { deviceId: { exact: forcedDeviceId } }
+        : { facingMode: "environment" };
+
       const videoConstraints: MediaTrackConstraints | undefined = desktop
-        ? {
-            width: { ideal: 1920 },
-            height: { ideal: 1080 },
-          }
+        ? { width: { ideal: 1920 }, height: { ideal: 1080 } }
         : undefined;
-
-      console.log("Starting scanner with config:", {
-        scanType,
-        mobile,
-        desktop,
-        qrboxConfig,
-        compatMode,
-        useBarcodeDetector,
-        fps,
-        videoConstraints,
-      });
-
-      setLastScanError(null);
 
       await scannerRef.current.start(
         cameraConfig,
@@ -255,102 +199,59 @@ export function Scanner({
         (decodedText) => {
           const normalized = normalizeCode(decodedText);
 
-          // LPN扫描时验证格式（先清洗，避免因空格/换行导致误判）
-          if (scanType === "lpn" && !isValidLpn(decodedText)) {
-            console.log("Invalid LPN format:", { raw: decodedText, normalized });
-            return; // 忽略非LPN格式的扫描结果
-          }
+          if (scanType === "lpn" && !isValidLpn(decodedText)) return;
 
-          // 扫描成功振动反馈
           if ("vibrate" in navigator) {
             try {
               navigator.vibrate([50, 50, 50]);
-            } catch {}
+            } catch {
+              // ignore
+            }
           }
-          console.log("Scan success:", { raw: decodedText, normalized });
+
           onScan(scanType === "lpn" ? normalized : decodedText.trim());
-          handleClose();
+          void handleClose();
         },
         (err) => {
-          // 捕获少量错误用于诊断（避免刷屏）
-          if (!lastScanError) {
-            setLastScanError(typeof err === "string" ? err : "识别中...");
+          if (!lastScanHint) {
+            setLastScanHint(typeof err === "string" ? err : "识别中...");
           }
         }
       );
-
-      // iPad/iPhone：有些浏览器会忽略 facingMode=environment，导致仍然打开前置
-      // 这里在启动后读取实际视频 track 的 facingMode，如果不是后置，则自动重启为后置 deviceId（仅尝试一次）
-      if (
-        mobile &&
-        "facingMode" in camera &&
-        camera.facingMode === "environment" &&
-        !enforcingBackCameraRef.current
-      ) {
-        enforcingBackCameraRef.current = true;
-
-        window.setTimeout(() => {
-          const settings = getActiveVideoTrackSettings();
-          const actualFacing = (settings as MediaTrackSettings | undefined)?.facingMode;
-
-          if (actualFacing && actualFacing !== "environment") {
-            const backIndex = cameras.findIndex((d) => {
-              const label = (d.label || "").toLowerCase();
-              return (
-                label.includes("back") ||
-                label.includes("rear") ||
-                label.includes("environment") ||
-                label.includes("后置")
-              );
-            });
-
-            if (backIndex >= 0) {
-              setCurrentCameraIndex(backIndex);
-              startScanner({ deviceId: cameras[backIndex].id });
-            }
-          }
-        }, 700);
-      }
-    } catch (err) {
-      console.error("启动扫描器失败:", err);
-      const msg = err instanceof Error ? err.message : String(err);
+    } catch (e) {
+      const msg = e instanceof Error ? e.message : String(e);
       setError(`启动摄像头失败：${msg}`);
       setIsScanning(false);
     }
   };
 
-  const stopScanner = async () => {
+  const stop = async () => {
     if (scannerRef.current) {
-      try {
-        const state = scannerRef.current.getState();
-        // 只有在扫描中或暂停状态才停止
-        if (state === 2 || state === 3) { // 2 = SCANNING, 3 = PAUSED
-          await scannerRef.current.stop();
-        }
-      } catch (err) {
-        // 忽略停止时的错误
-        console.log("Scanner stop skipped:", err);
-      }
+      await safeStopScanner(scannerRef.current);
       scannerRef.current = null;
     }
     setIsScanning(false);
   };
 
-  const handleClose = () => {
-    stopScanner();
+  const handleClose = async () => {
+    await stop();
     setIsOpen(false);
     setError(null);
   };
 
-  const switchCamera = () => {
-    if (cameras.length > 1) {
-      const nextIndex = (currentCameraIndex + 1) % cameras.length;
-      setCurrentCameraIndex(nextIndex);
-      startScanner({ deviceId: cameras[nextIndex].id });
-    }
-  };
+  useEffect(() => {
+    if (!isOpen) return;
+    const t = window.setTimeout(() => {
+      void start();
+    }, 50);
 
-  // 判断是否是大按钮模式（无文字的扫描按钮）
+    return () => {
+      window.clearTimeout(t);
+      void stop();
+    };
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [isOpen, scanType, compatMode]);
+
   const isLargeIconMode = !buttonLabel && buttonSize === "lg";
 
   return (
@@ -362,21 +263,6 @@ export function Scanner({
         onClick={(e) => {
           e.preventDefault();
           e.stopPropagation();
-          console.log("Scanner button clicked, scanType:", scanType);
-          // 振动反馈
-          if ('vibrate' in navigator) {
-            try { navigator.vibrate(50); } catch {}
-          }
-          setIsOpen(true);
-        }}
-        onTouchEnd={(e) => {
-          // 平板/触摸设备专用处理
-          e.preventDefault();
-          e.stopPropagation();
-          console.log("Scanner button touched, scanType:", scanType);
-          if ('vibrate' in navigator) {
-            try { navigator.vibrate(50); } catch {}
-          }
           setIsOpen(true);
         }}
         className={cn(
@@ -385,26 +271,17 @@ export function Scanner({
         )}
       >
         {isLargeIconMode ? (
-          // 精美的扫描图标设计
           <div className="relative flex items-center justify-center">
-            {/* 外层四角框 */}
             <div className="absolute inset-0 flex items-center justify-center">
-              {/* 左上角 */}
               <div className="absolute top-3 left-3 w-5 h-5 border-l-3 border-t-3 border-white/80 rounded-tl-md" />
-              {/* 右上角 */}
               <div className="absolute top-3 right-3 w-5 h-5 border-r-3 border-t-3 border-white/80 rounded-tr-md" />
-              {/* 左下角 */}
               <div className="absolute bottom-3 left-3 w-5 h-5 border-l-3 border-b-3 border-white/80 rounded-bl-md" />
-              {/* 右下角 */}
               <div className="absolute bottom-3 right-3 w-5 h-5 border-r-3 border-b-3 border-white/80 rounded-br-md" />
             </div>
-            {/* 中心扫描线动画 */}
             <div className="absolute inset-x-6 top-1/2 -translate-y-1/2 h-0.5 bg-gradient-to-r from-transparent via-white/90 to-transparent animate-pulse" />
-            {/* 中心图标 */}
             <Scan className="h-10 w-10 text-white drop-shadow-lg" strokeWidth={1.5} />
           </div>
         ) : (
-          // 普通按钮模式
           <>
             <Scan className={buttonLabel ? "mr-2 h-4 w-4" : "h-6 w-6"} />
             {buttonLabel}
@@ -412,8 +289,8 @@ export function Scanner({
         )}
       </Button>
 
-      <Dialog open={isOpen} onOpenChange={handleClose} modal={true}>
-        <DialogContent 
+      <Dialog open={isOpen} onOpenChange={() => void handleClose()} modal>
+        <DialogContent
           className={cn(
             "max-w-[90vw] sm:max-w-md w-full mx-auto z-[110]",
             scanType === "lpn" && "border-t-4 border-t-info"
@@ -421,16 +298,18 @@ export function Scanner({
           onPointerDownOutside={(e) => e.preventDefault()}
         >
           <DialogHeader>
-            <DialogTitle className={cn(
-              "flex items-center gap-2",
-              scanType === "lpn" ? "text-info" : "text-primary"
-            )}>
+            <DialogTitle
+              className={cn(
+                "flex items-center gap-2",
+                scanType === "lpn" ? "text-info" : "text-primary"
+              )}
+            >
               <Scan className="h-5 w-5" />
               {scanType === "lpn" ? "扫描LPN条码" : "扫描物流条码"}
             </DialogTitle>
-          <DialogDescription>
-              {scanType === "lpn" 
-                ? "将LPN条形码/二维码对准取景框（例如：LPNHK347025163）" 
+            <DialogDescription>
+              {scanType === "lpn"
+                ? "将LPN条形码/二维码对准取景框（例如：LPNHK347025163）"
                 : "请允许摄像头权限，并将条码或二维码对准取景框"}
             </DialogDescription>
           </DialogHeader>
@@ -442,15 +321,7 @@ export function Scanner({
                   <X className="h-6 w-6 text-destructive" />
                 </div>
                 <p className="text-sm text-destructive">{error}</p>
-                <Button
-                  variant="outline"
-                  className="mt-4"
-                  onClick={() => {
-                    if (cameras.length > 0) {
-                      startScanner({ deviceId: cameras[currentCameraIndex].id });
-                    }
-                  }}
-                >
+                <Button variant="outline" className="mt-4" onClick={() => void start()}>
                   重试
                 </Button>
               </div>
@@ -472,28 +343,16 @@ export function Scanner({
                         <Button
                           variant="ghost"
                           size="sm"
-                          onClick={() => {
-                            const next = !compatMode;
-                            setCompatMode(next);
-                            if (cameras.length > 0) startScanner({ deviceId: cameras[currentCameraIndex].id });
-                          }}
+                          onClick={() => setCompatMode((v) => !v)}
                         >
                           <Focus className="mr-2 h-4 w-4" />
                           {compatMode ? "兼容模式: 开" : "兼容模式"}
                         </Button>
-                        {cameras.length > 1 && (
-                          <Button variant="ghost" size="sm" onClick={switchCamera}>
-                            <SwitchCamera className="mr-2 h-4 w-4" />
-                            切换摄像头
-                          </Button>
-                        )}
                       </div>
                     </div>
 
-                    {lastScanError && (
-                      <p className="text-xs text-muted-foreground">
-                        识别提示：{lastScanError}
-                      </p>
+                    {lastScanHint && (
+                      <p className="text-xs text-muted-foreground">识别提示：{lastScanHint}</p>
                     )}
                   </div>
                 )}

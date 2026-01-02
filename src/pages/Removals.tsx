@@ -1047,10 +1047,8 @@ export default function Removals() {
           </SelectTrigger>
           <SelectContent>
             <SelectItem value="all">全部状态</SelectItem>
-            <SelectItem value="shipping">发货中</SelectItem>
-            <SelectItem value="arrived">到货</SelectItem>
-            <SelectItem value="inbound">入库</SelectItem>
-            <SelectItem value="shelved">上架</SelectItem>
+            <SelectItem value="未到货">未到货</SelectItem>
+            <SelectItem value="入库">入库</SelectItem>
           </SelectContent>
         </Select>
         {/* 重复筛选 */}

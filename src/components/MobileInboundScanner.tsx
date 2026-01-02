@@ -476,7 +476,9 @@ export function MobileInboundScanner({ initialTracking }: MobileInboundScannerPr
     playSuccess();
     toast.success(`已强制完成入库！实际入库 ${totalInbounded} 件，申报 ${totalQuantity} 件`);
     setIsForceCompleteOpen(false);
+    // 重置状态后直接进入扫描新物流面单
     handleReset();
+    startScanning();
   };
 
   // 完成包裹
@@ -503,7 +505,9 @@ export function MobileInboundScanner({ initialTracking }: MobileInboundScannerPr
     setTimeout(() => vibrateSuccess(), 200);
     playSuccess();
     toast.success(`包裹入库完成！共 ${totalInbounded} 件货物`);
+    // 重置状态后直接进入扫描新物流面单
     handleReset();
+    startScanning();
   };
 
   // 空闲状态 - 显示主界面

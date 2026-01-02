@@ -229,8 +229,8 @@ export function Scanner({
 
       <Dialog open={isOpen} onOpenChange={handleClose}>
         <DialogContent className={cn(
-          "max-w-[90vw] sm:max-w-md w-full mx-auto z-[110]",
-          scanType === "lpn" && "border-t-4 border-t-info"
+          "max-w-[95vw] w-full mx-auto z-[110]",
+          scanType === "lpn" ? "sm:max-w-2xl border-t-4 border-t-info" : "sm:max-w-md"
         )}>
           <DialogHeader>
             <DialogTitle className={cn(
@@ -241,7 +241,9 @@ export function Scanner({
               {scanType === "lpn" ? "扫描LPN条码" : "扫描物流条码"}
             </DialogTitle>
             <DialogDescription>
-              请允许摄像头权限，并将条码或二维码对准取景框。
+              {scanType === "lpn" 
+                ? "请将条形码横向对准扫描区域" 
+                : "请允许摄像头权限，并将条码或二维码对准取景框"}
             </DialogDescription>
           </DialogHeader>
 
@@ -268,14 +270,19 @@ export function Scanner({
               <>
                 <div
                   id={scannerContainerId}
-                  className="relative w-full overflow-hidden rounded-lg bg-muted flex items-center justify-center"
-                  style={{ minHeight: "250px", maxHeight: "60vh" }}
+                  className={cn(
+                    "relative w-full overflow-hidden rounded-lg bg-muted flex items-center justify-center",
+                    scanType === "lpn" 
+                      ? "aspect-[16/9]" // 横向比例适合条形码
+                      : "aspect-square sm:aspect-[4/3]"
+                  )}
+                  style={{ maxHeight: "60vh" }}
                 />
 
                 {isScanning && (
                   <div className="flex items-center justify-between">
                     <p className="text-sm text-muted-foreground">
-                      将条码或二维码对准框内
+                      {scanType === "lpn" ? "将条形码横向对准框内" : "将条码或二维码对准框内"}
                     </p>
                     {cameras.length > 1 && (
                       <Button

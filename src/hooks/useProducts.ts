@@ -1,6 +1,7 @@
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { supabase } from "@/integrations/supabase/client";
 import { Tables, TablesInsert, TablesUpdate } from "@/integrations/supabase/types";
+import { logOperation } from "./useOperationLogs";
 
 export type Product = Tables<"products">;
 export type ProductPart = Tables<"product_parts">;
@@ -94,8 +95,14 @@ export function useCreateProduct() {
       if (error) throw error;
       return data;
     },
-    onSuccess: () => {
+    onSuccess: (data) => {
       queryClient.invalidateQueries({ queryKey: ["products"] });
+      logOperation({
+        entityType: "product",
+        entityId: data.id,
+        action: "create",
+        details: { sku: data.sku, name: data.name },
+      });
     },
   });
 }
@@ -116,8 +123,14 @@ export function useUpdateProduct() {
       if (error) throw error;
       return data;
     },
-    onSuccess: () => {
+    onSuccess: (data) => {
       queryClient.invalidateQueries({ queryKey: ["products"] });
+      logOperation({
+        entityType: "product",
+        entityId: data.id,
+        action: "update",
+        details: { sku: data.sku, name: data.name },
+      });
     },
   });
 }
@@ -129,8 +142,13 @@ export function useDeleteProduct() {
       const { error } = await supabase.from("products").delete().eq("id", id);
       if (error) throw error;
     },
-    onSuccess: () => {
+    onSuccess: (_, id) => {
       queryClient.invalidateQueries({ queryKey: ["products"] });
+      logOperation({
+        entityType: "product",
+        entityId: id,
+        action: "delete",
+      });
     },
   });
 }

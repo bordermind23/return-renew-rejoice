@@ -2,6 +2,7 @@ import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { supabase } from "@/integrations/supabase/client";
 import { toast } from "sonner";
 import { mapDatabaseError } from "@/lib/errorHandler";
+import { logOperation } from "./useOperationLogs";
 
 export interface InventoryItem {
   id: string;
@@ -50,8 +51,14 @@ export const useCreateInventoryItem = () => {
       if (error) throw error;
       return data;
     },
-    onSuccess: () => {
+    onSuccess: (data) => {
       queryClient.invalidateQueries({ queryKey: ["inventory_items"] });
+      logOperation({
+        entityType: "inventory",
+        entityId: data.id,
+        action: "create",
+        details: { sku: data.sku, productName: data.product_name },
+      });
       toast.success("库存创建成功");
     },
     onError: (error) => {
@@ -75,8 +82,14 @@ export const useUpdateInventoryItem = () => {
       if (error) throw error;
       return data;
     },
-    onSuccess: () => {
+    onSuccess: (data) => {
       queryClient.invalidateQueries({ queryKey: ["inventory_items"] });
+      logOperation({
+        entityType: "inventory",
+        entityId: data.id,
+        action: "update",
+        details: { sku: data.sku },
+      });
       toast.success("库存更新成功");
     },
     onError: (error) => {
@@ -97,8 +110,13 @@ export const useDeleteInventoryItem = () => {
 
       if (error) throw error;
     },
-    onSuccess: () => {
+    onSuccess: (_, id) => {
       queryClient.invalidateQueries({ queryKey: ["inventory_items"] });
+      logOperation({
+        entityType: "inventory",
+        entityId: id,
+        action: "delete",
+      });
       toast.success("库存删除成功");
     },
     onError: (error) => {

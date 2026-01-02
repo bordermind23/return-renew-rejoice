@@ -2,6 +2,7 @@ import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { supabase } from "@/integrations/supabase/client";
 import { toast } from "sonner";
 import { mapDatabaseError } from "@/lib/errorHandler";
+import { logOperation } from "./useOperationLogs";
 
 export interface InboundItem {
   id: string;
@@ -100,8 +101,14 @@ export const useCreateInboundItem = () => {
       if (error) throw error;
       return data;
     },
-    onSuccess: () => {
+    onSuccess: (data) => {
       queryClient.invalidateQueries({ queryKey: ["inbound_items"] });
+      logOperation({
+        entityType: "inbound_item",
+        entityId: data.id,
+        action: "inbound",
+        details: { lpn: data.lpn, sku: data.product_sku, grade: data.grade },
+      });
       toast.success("入库记录创建成功");
     },
     onError: (error) => {
@@ -125,8 +132,21 @@ export const useUpdateInboundItem = () => {
       if (error) throw error;
       return data;
     },
-    onSuccess: () => {
+    onSuccess: (data, variables) => {
       queryClient.invalidateQueries({ queryKey: ["inbound_items"] });
+      // 检查是否是翻新操作
+      if (variables.refurbishment_grade) {
+        logOperation({
+          entityType: "refurbishment",
+          entityId: data.id,
+          action: "refurbish",
+          details: { 
+            lpn: data.lpn, 
+            sku: data.product_sku, 
+            refurbishmentGrade: variables.refurbishment_grade,
+          },
+        });
+      }
       toast.success("入库记录更新成功");
     },
     onError: (error) => {
@@ -295,10 +315,16 @@ export const useDeleteInboundItem = () => {
 
       return { lpn, deletedFiles: filesToDelete.length + shippingLabelFilesToDelete.length };
     },
-    onSuccess: (data) => {
+    onSuccess: (data, id) => {
       queryClient.invalidateQueries({ queryKey: ["inbound_items"] });
       queryClient.invalidateQueries({ queryKey: ["orders"] });
       queryClient.invalidateQueries({ queryKey: ["removal_shipments"] });
+      logOperation({
+        entityType: "inbound_item",
+        entityId: id,
+        action: "delete",
+        details: { lpn: data.lpn },
+      });
       const fileMsg = data.deletedFiles > 0 ? `，已清理 ${data.deletedFiles} 个存储文件` : '';
       toast.success(`入库记录已删除，订单状态已更新${fileMsg}`);
     },
@@ -393,9 +419,15 @@ export const useClearRefurbishment = () => {
 
       return { lpn, deletedFiles: filesToDelete.length };
     },
-    onSuccess: (data) => {
+    onSuccess: (data, id) => {
       queryClient.invalidateQueries({ queryKey: ["inbound_items"] });
       queryClient.invalidateQueries({ queryKey: ["orders"] });
+      logOperation({
+        entityType: "refurbishment",
+        entityId: id,
+        action: "delete",
+        details: { lpn: data.lpn },
+      });
       const fileMsg = data.deletedFiles > 0 ? `，已清理 ${data.deletedFiles} 个文件` : '';
       toast.success(`翻新记录已删除${fileMsg}`);
     },

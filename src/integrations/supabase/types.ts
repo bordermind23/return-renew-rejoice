@@ -871,7 +871,7 @@ export type Database = {
         | "accessory_missing"
         | "product_damaged"
         | "other"
-      order_status: "未到货" | "到货" | "出库" | "待同步"
+      order_status: "未到货" | "到货" | "出库" | "待同步" | "入库"
       permission_type:
         | "view_dashboard"
         | "inbound_scan"
@@ -1026,7 +1026,7 @@ export const Constants = {
         "product_damaged",
         "other",
       ],
-      order_status: ["未到货", "到货", "出库", "待同步"],
+      order_status: ["未到货", "到货", "出库", "待同步", "入库"],
       permission_type: [
         "view_dashboard",
         "inbound_scan",

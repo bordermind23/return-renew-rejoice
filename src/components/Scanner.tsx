@@ -86,16 +86,19 @@ export function Scanner({
       const timer = setTimeout(() => {
         Html5Qrcode.getCameras()
           .then((devices) => {
+            console.log("Available cameras:", devices);
             if (devices && devices.length > 0) {
               setCameras(devices);
-              // 优先选择后置摄像头
+              const tablet = isTablet();
+              // 优先选择后置摄像头（iPad 等设备在未授权前 label 可能为空）
               const backCameraIndex = devices.findIndex(
-                (device) => device.label.toLowerCase().includes("back") || 
+                (device) => device.label.toLowerCase().includes("back") ||
                             device.label.toLowerCase().includes("rear") ||
                             device.label.toLowerCase().includes("environment") ||
                             device.label.includes("后置")
               );
-              const preferredIndex = backCameraIndex >= 0 ? backCameraIndex : 0;
+              const fallbackIndex = tablet ? devices.length - 1 : 0;
+              const preferredIndex = backCameraIndex >= 0 ? backCameraIndex : fallbackIndex;
               setCurrentCameraIndex(preferredIndex);
               startScanner(devices[preferredIndex].id);
             } else {
@@ -131,21 +134,38 @@ export function Scanner({
         verbose: false,
         formatsToSupport: supportedFormats,
         experimentalFeatures: {
-          useBarCodeDetectorIfSupported: true
-        }
+          useBarCodeDetectorIfSupported: true,
+        },
       });
 
       // 获取当前设备适配的扫描框配置
       const qrboxConfig = getQrboxConfig();
-      console.log("Starting scanner with qrbox:", qrboxConfig, "isTablet:", isTablet());
+      const tablet = isTablet();
+
+      // 平板优先请求更高分辨率，提升二维码识别成功率（尤其是远距离/大屏幕）
+      const cameraConfig: any = tablet
+        ? {
+            deviceId: { exact: cameraId },
+            facingMode: "environment",
+            width: { ideal: 1920 },
+            height: { ideal: 1080 },
+          }
+        : cameraId;
+
+      console.log("Starting scanner with config:", {
+        scanType,
+        tablet,
+        qrboxConfig,
+        cameraConfig: tablet ? "mediaTrackConstraints" : "cameraId",
+      });
 
       await scannerRef.current.start(
-        cameraId,
+        cameraConfig,
         {
-          fps: 25,  // 提升FPS加快扫描速度
+          fps: 25,
           qrbox: qrboxConfig,
-          aspectRatio: scanType === "lpn" ? 1 : 1.5, // 二维码用1:1，条形码用更宽的比例
-          disableFlip: true,  // 禁用镜像翻转检测，减少处理时间
+          aspectRatio: scanType === "lpn" ? 1 : 1.5,
+          disableFlip: true,
         },
         (decodedText) => {
           // LPN扫描时验证格式

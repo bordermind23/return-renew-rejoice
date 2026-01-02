@@ -66,8 +66,8 @@ export function ShippingLabelCapture({ onTrackingRecognized, onCancel }: Shippin
     setIsCapturing(false);
   }, []);
 
-  // 压缩图片以加快识别速度
-  const compressImage = (imageData: string, maxWidth: number = 1200, quality: number = 0.7): Promise<string> => {
+  // 优化压缩图片 - 提高识别准确率
+  const compressImage = (imageData: string, maxWidth: number = 1600, quality: number = 0.85): Promise<string> => {
     return new Promise((resolve) => {
       const img = new Image();
       img.onload = () => {
@@ -75,23 +75,41 @@ export function ShippingLabelCapture({ onTrackingRecognized, onCancel }: Shippin
         let width = img.width;
         let height = img.height;
         
-        // 如果图片过大，按比例缩小
+        // 如果图片过大，按比例缩小（保持较高分辨率以提高OCR准确率）
         if (width > maxWidth) {
           height = Math.round((height * maxWidth) / width);
           width = maxWidth;
         }
         
+        // 确保尺寸是偶数（某些编码器要求）
+        width = Math.floor(width / 2) * 2;
+        height = Math.floor(height / 2) * 2;
+        
         canvas.width = width;
         canvas.height = height;
         const ctx = canvas.getContext("2d");
         if (ctx) {
+          // 使用高质量缩放
+          ctx.imageSmoothingEnabled = true;
+          ctx.imageSmoothingQuality = "high";
           ctx.drawImage(img, 0, 0, width, height);
-          resolve(canvas.toDataURL("image/jpeg", quality));
+          
+          // 生成标准格式的 base64（确保格式正确）
+          const result = canvas.toDataURL("image/jpeg", quality);
+          console.log("Image compressed:", { 
+            originalSize: Math.round(imageData.length / 1024), 
+            compressedSize: Math.round(result.length / 1024),
+            dimensions: `${width}x${height}`
+          });
+          resolve(result);
         } else {
           resolve(imageData);
         }
       };
-      img.onerror = () => resolve(imageData);
+      img.onerror = () => {
+        console.error("Failed to load image for compression");
+        resolve(imageData);
+      };
       img.src = imageData;
     });
   };

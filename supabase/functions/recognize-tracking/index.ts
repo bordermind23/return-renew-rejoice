@@ -23,7 +23,37 @@ serve(async (req) => {
       );
     }
 
-    console.log("Received image for tracking number recognition");
+    // 验证和清理图片数据
+    let cleanImageUrl = imageBase64;
+    
+    // 检查是否是有效的 data URL
+    if (imageBase64.startsWith("data:")) {
+      // 验证 data URL 格式
+      const dataUrlRegex = /^data:image\/(jpeg|jpg|png|gif|webp);base64,/;
+      if (!dataUrlRegex.test(imageBase64)) {
+        console.error("Invalid data URL format");
+        return new Response(
+          JSON.stringify({ error: "Invalid image format" }),
+          { status: 400, headers: { ...corsHeaders, "Content-Type": "application/json" } }
+        );
+      }
+      cleanImageUrl = imageBase64;
+    } else {
+      // 如果是纯 base64，添加前缀
+      cleanImageUrl = `data:image/jpeg;base64,${imageBase64}`;
+    }
+
+    // 验证 base64 数据长度
+    const base64Part = cleanImageUrl.split(",")[1];
+    if (!base64Part || base64Part.length < 100) {
+      console.error("Image data too small or invalid");
+      return new Response(
+        JSON.stringify({ error: "Image data invalid" }),
+        { status: 400, headers: { ...corsHeaders, "Content-Type": "application/json" } }
+      );
+    }
+
+    console.log("Received image for tracking recognition, size:", Math.round(base64Part.length / 1024), "KB");
 
     // Use Lovable AI gateway with Gemini model for OCR
     const response = await fetch("https://ai.gateway.lovable.dev/v1/chat/completions", {
@@ -63,7 +93,7 @@ serve(async (req) => {
               {
                 type: "image_url",
                 image_url: {
-                  url: imageBase64.startsWith("data:") ? imageBase64 : `data:image/jpeg;base64,${imageBase64}`
+                  url: cleanImageUrl
                 }
               }
             ]

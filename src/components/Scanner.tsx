@@ -144,9 +144,18 @@ export function Scanner({
     setIsScanning(true);
 
     try {
-      // Stop existing scanner if any
+      // Stop existing scanner if any - 检查扫描器状态避免 "cannot stop" 错误
       if (scannerRef.current) {
-        await scannerRef.current.stop();
+        try {
+          const state = scannerRef.current.getState();
+          // 只有在扫描中或暂停状态才停止
+          if (state === 2 || state === 3) { // 2 = SCANNING, 3 = PAUSED
+            await scannerRef.current.stop();
+          }
+        } catch {
+          // 忽略获取状态或停止时的错误
+        }
+        scannerRef.current = null;
       }
 
       const mobile = isMobileDevice();
@@ -241,11 +250,16 @@ export function Scanner({
   const stopScanner = async () => {
     if (scannerRef.current) {
       try {
-        await scannerRef.current.stop();
-        scannerRef.current = null;
+        const state = scannerRef.current.getState();
+        // 只有在扫描中或暂停状态才停止
+        if (state === 2 || state === 3) { // 2 = SCANNING, 3 = PAUSED
+          await scannerRef.current.stop();
+        }
       } catch (err) {
-        console.error("停止扫描器失败:", err);
+        // 忽略停止时的错误
+        console.log("Scanner stop skipped:", err);
       }
+      scannerRef.current = null;
     }
     setIsScanning(false);
   };

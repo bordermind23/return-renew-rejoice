@@ -5,6 +5,7 @@ import { Progress } from "@/components/ui/progress";
 import { cn } from "@/lib/utils";
 import { supabase } from "@/integrations/supabase/client";
 import { toast } from "sonner";
+import { useIsMobile } from "@/hooks/use-mobile";
 
 export interface PhotoStep {
   id: string;
@@ -101,6 +102,7 @@ export function NativePhotoCapture({
   const [currentStepIndex, setCurrentStepIndex] = useState(0);
   const [capturedPhotos, setCapturedPhotos] = useState<Record<string, string>>({});
   const [uploadTasks, setUploadTasks] = useState<Record<string, UploadTask>>({});
+  const isMobile = useIsMobile();
   
   const fileInputRef = useRef<HTMLInputElement>(null);
   const uploadQueueRef = useRef<Map<string, AbortController>>(new Map());
@@ -268,191 +270,211 @@ export function NativePhotoCapture({
   };
 
   return (
-    <div className="flex flex-col h-full w-full bg-background fixed inset-0 z-50">
-      {/* 隐藏的文件输入，使用原生相机 */}
-      <input
-        ref={fileInputRef}
-        type="file"
-        accept="image/*"
-        capture="environment"
-        onChange={handleFileChange}
-        className="hidden"
-      />
+    <div className={cn(
+      "fixed inset-0 z-50 bg-black/60 flex items-center justify-center",
+      isMobile && "bg-background"
+    )}>
+      <div className={cn(
+        "flex flex-col bg-background",
+        // 桌面端：居中弹窗样式
+        !isMobile && "w-full max-w-lg max-h-[85vh] rounded-xl shadow-2xl border overflow-hidden",
+        // 移动端：全屏样式
+        isMobile && "h-full w-full"
+      )}>
+        {/* 隐藏的文件输入，使用原生相机 */}
+        <input
+          ref={fileInputRef}
+          type="file"
+          accept="image/*"
+          capture="environment"
+          onChange={handleFileChange}
+          className="hidden"
+        />
 
-      {/* 顶部进度和标题 */}
-      <div className="bg-background border-b p-4 space-y-3 pt-[calc(env(safe-area-inset-top,12px)+12px)]">
-        <div className="flex items-center justify-between gap-2">
-          <div className="flex items-center gap-2 min-w-0 flex-1">
-            <span className="text-sm text-muted-foreground flex-shrink-0">
-              {currentStepIndex + 1}/{steps.length}
-            </span>
-            <span className="font-medium truncate">{currentStep?.label}</span>
-            {currentStep?.required && (
-              <span className="text-xs text-destructive flex-shrink-0">*必填</span>
-            )}
+        {/* 顶部进度和标题 */}
+        <div className={cn(
+          "bg-background border-b p-4 space-y-3",
+          isMobile && "pt-[calc(env(safe-area-inset-top,12px)+12px)]"
+        )}>
+          <div className="flex items-center justify-between gap-2">
+            <div className="flex items-center gap-2 min-w-0 flex-1">
+              <span className="text-sm text-muted-foreground flex-shrink-0">
+                {currentStepIndex + 1}/{steps.length}
+              </span>
+              <span className="font-medium truncate">{currentStep?.label}</span>
+              {currentStep?.required && (
+                <span className="text-xs text-destructive flex-shrink-0">*必填</span>
+              )}
+            </div>
+            <div className="flex items-center gap-2">
+              {hasUploadingTasks && (
+                <div className="flex items-center gap-1 text-xs text-muted-foreground bg-muted px-2 py-1 rounded-full">
+                  <Loader2 className="h-3 w-3 animate-spin" />
+                  <span>上传中 {uploadingCount}</span>
+                </div>
+              )}
+              <Button variant="ghost" size="icon" className="h-8 w-8 flex-shrink-0" onClick={onCancel}>
+                <X className="h-4 w-4" />
+              </Button>
+            </div>
           </div>
-          <div className="flex items-center gap-2">
-            {hasUploadingTasks && (
-              <div className="flex items-center gap-1 text-xs text-muted-foreground bg-muted px-2 py-1 rounded-full">
-                <Loader2 className="h-3 w-3 animate-spin" />
-                <span>上传中 {uploadingCount}</span>
-              </div>
-            )}
-            <Button variant="ghost" size="icon" className="h-8 w-8 flex-shrink-0" onClick={onCancel}>
-              <X className="h-4 w-4" />
-            </Button>
-          </div>
+          <Progress value={progress} className="h-2" />
         </div>
-        <Progress value={progress} className="h-2" />
-      </div>
 
-      {/* 步骤列表 */}
-      <div className="flex-1 overflow-y-auto p-4 pb-[calc(env(safe-area-inset-bottom,12px)+100px)]">
-        <div className="space-y-2">
-          {steps.map((step, index) => {
-            const isCompleted = !!capturedPhotos[step.id];
-            const isCurrent = index === currentStepIndex;
-            const uploadStatus = getStepUploadStatus(step.id);
-            
-            return (
-              <div
-                key={step.id}
-                onClick={() => goToStep(index)}
-                className={cn(
-                  "flex items-center gap-3 p-3 rounded-lg border transition-all cursor-pointer",
-                  isCurrent && "border-primary bg-primary/5",
-                  isCompleted && !isCurrent && uploadStatus === 'success' && "border-green-500 bg-green-50 dark:bg-green-950/20",
-                  isCompleted && !isCurrent && uploadStatus === 'uploading' && "border-blue-500 bg-blue-50 dark:bg-blue-950/20",
-                  isCompleted && !isCurrent && uploadStatus === 'error' && "border-red-500 bg-red-50 dark:bg-red-950/20",
-                  !isCurrent && !isCompleted && "border-muted hover:border-primary/50"
-                )}
-              >
-                {/* 步骤序号或状态图标 */}
+        {/* 步骤列表 */}
+        <div className={cn(
+          "flex-1 overflow-y-auto p-4",
+          isMobile && "pb-[calc(env(safe-area-inset-bottom,12px)+100px)]"
+        )}>
+          <div className="space-y-2">
+            {steps.map((step, index) => {
+              const isCompleted = !!capturedPhotos[step.id];
+              const isCurrent = index === currentStepIndex;
+              const uploadStatus = getStepUploadStatus(step.id);
+              
+              return (
                 <div
+                  key={step.id}
+                  onClick={() => goToStep(index)}
                   className={cn(
-                    "h-8 w-8 rounded-full flex items-center justify-center text-sm font-medium flex-shrink-0",
-                    isCompleted && uploadStatus === 'success'
-                      ? "bg-green-500 text-white"
-                      : isCompleted && uploadStatus === 'uploading'
-                      ? "bg-blue-500 text-white"
-                      : isCompleted && uploadStatus === 'error'
-                      ? "bg-red-500 text-white"
-                      : isCurrent
-                      ? "bg-primary text-primary-foreground"
-                      : "bg-muted text-muted-foreground"
+                    "flex items-center gap-3 p-3 rounded-lg border transition-all cursor-pointer",
+                    isCurrent && "border-primary bg-primary/5",
+                    isCompleted && !isCurrent && uploadStatus === 'success' && "border-green-500 bg-green-50 dark:bg-green-950/20",
+                    isCompleted && !isCurrent && uploadStatus === 'uploading' && "border-blue-500 bg-blue-50 dark:bg-blue-950/20",
+                    isCompleted && !isCurrent && uploadStatus === 'error' && "border-red-500 bg-red-50 dark:bg-red-950/20",
+                    !isCurrent && !isCompleted && "border-muted hover:border-primary/50"
                   )}
                 >
-                  {isCompleted && uploadStatus === 'success' ? (
-                    <Check className="h-4 w-4" />
-                  ) : isCompleted && uploadStatus === 'uploading' ? (
-                    <Loader2 className="h-4 w-4 animate-spin" />
-                  ) : isCompleted && uploadStatus === 'error' ? (
-                    <X className="h-4 w-4" />
-                  ) : (
-                    index + 1
-                  )}
-                </div>
-
-                {/* 步骤信息 */}
-                <div className="flex-1 min-w-0">
-                  <div className="flex items-center gap-2">
-                    <span className="font-medium">{step.label}</span>
-                    {step.required && (
-                      <span className="text-xs text-destructive">*必填</span>
+                  {/* 步骤序号或状态图标 */}
+                  <div
+                    className={cn(
+                      "h-7 w-7 rounded-full flex items-center justify-center text-sm font-medium flex-shrink-0",
+                      isCompleted && uploadStatus === 'success'
+                        ? "bg-green-500 text-white"
+                        : isCompleted && uploadStatus === 'uploading'
+                        ? "bg-blue-500 text-white"
+                        : isCompleted && uploadStatus === 'error'
+                        ? "bg-red-500 text-white"
+                        : isCurrent
+                        ? "bg-primary text-primary-foreground"
+                        : "bg-muted text-muted-foreground"
+                    )}
+                  >
+                    {isCompleted && uploadStatus === 'success' ? (
+                      <Check className="h-3.5 w-3.5" />
+                    ) : isCompleted && uploadStatus === 'uploading' ? (
+                      <Loader2 className="h-3.5 w-3.5 animate-spin" />
+                    ) : isCompleted && uploadStatus === 'error' ? (
+                      <X className="h-3.5 w-3.5" />
+                    ) : (
+                      index + 1
                     )}
                   </div>
-                  {isCompleted && (
-                    <span className={cn(
-                      "text-xs",
-                      uploadStatus === 'success' && "text-green-600 dark:text-green-400",
-                      uploadStatus === 'uploading' && "text-blue-600 dark:text-blue-400",
-                      uploadStatus === 'error' && "text-red-600 dark:text-red-400"
-                    )}>
-                      {uploadStatus === 'success' && "已上传"}
-                      {uploadStatus === 'uploading' && "上传中..."}
-                      {uploadStatus === 'error' && "上传失败，请重新拍摄"}
-                      {!uploadStatus && "处理中..."}
-                    </span>
-                  )}
-                </div>
 
-                {/* 缩略图或操作 */}
-                {isCompleted ? (
-                  <div className="flex items-center gap-2">
-                    <div className="relative w-12 h-12 rounded overflow-hidden border">
-                      <img
-                        src={capturedPhotos[step.id]}
-                        alt={step.label}
-                        className="w-full h-full object-cover"
-                      />
-                      {uploadStatus === 'uploading' && (
-                        <div className="absolute inset-0 bg-black/30 flex items-center justify-center">
-                          <Upload className="h-4 w-4 text-white animate-pulse" />
-                        </div>
+                  {/* 步骤信息 */}
+                  <div className="flex-1 min-w-0">
+                    <div className="flex items-center gap-2">
+                      <span className="font-medium text-sm">{step.label}</span>
+                      {step.required && (
+                        <span className="text-xs text-destructive">*必填</span>
                       )}
                     </div>
-                    <Button
-                      variant="ghost"
-                      size="icon"
-                      className="h-8 w-8 text-destructive hover:text-destructive"
-                      onClick={(e) => {
-                        e.stopPropagation();
-                        deletePhoto(step.id);
-                      }}
-                    >
-                      <Trash2 className="h-4 w-4" />
-                    </Button>
+                    {isCompleted && (
+                      <span className={cn(
+                        "text-xs",
+                        uploadStatus === 'success' && "text-green-600 dark:text-green-400",
+                        uploadStatus === 'uploading' && "text-blue-600 dark:text-blue-400",
+                        uploadStatus === 'error' && "text-red-600 dark:text-red-400"
+                      )}>
+                        {uploadStatus === 'success' && "已上传"}
+                        {uploadStatus === 'uploading' && "上传中..."}
+                        {uploadStatus === 'error' && "上传失败，请重新拍摄"}
+                        {!uploadStatus && "处理中..."}
+                      </span>
+                    )}
                   </div>
-                ) : (
-                  <ChevronRight className="h-4 w-4 text-muted-foreground" />
-                )}
-              </div>
-            );
-          })}
-        </div>
-      </div>
 
-      {/* 底部操作按钮 */}
-      <div className="fixed bottom-0 left-0 right-0 bg-background border-t p-4 pb-[calc(env(safe-area-inset-bottom,12px)+12px)]">
-        <div className="flex gap-3">
-          {!currentStep?.required && !capturedPhotos[currentStep?.id || ""] && (
-            <Button variant="outline" onClick={skipStep} className="h-12 px-4">
-              跳过
-            </Button>
-          )}
-          <Button
-            className="flex-1 h-12 gradient-primary"
-            onClick={triggerCamera}
-          >
-            {capturedPhotos[currentStep?.id || ""] ? (
-              <>
-                <Camera className="mr-2 h-5 w-5" />
-                重新拍摄
-              </>
-            ) : (
-              <>
-                <Camera className="mr-2 h-5 w-5" />
-                拍照
-              </>
+                  {/* 缩略图或操作 */}
+                  {isCompleted ? (
+                    <div className="flex items-center gap-2">
+                      <div className="relative w-10 h-10 rounded overflow-hidden border">
+                        <img
+                          src={capturedPhotos[step.id]}
+                          alt={step.label}
+                          className="w-full h-full object-cover"
+                        />
+                        {uploadStatus === 'uploading' && (
+                          <div className="absolute inset-0 bg-black/30 flex items-center justify-center">
+                            <Upload className="h-3 w-3 text-white animate-pulse" />
+                          </div>
+                        )}
+                      </div>
+                      <Button
+                        variant="ghost"
+                        size="icon"
+                        className="h-7 w-7 text-destructive hover:text-destructive"
+                        onClick={(e) => {
+                          e.stopPropagation();
+                          deletePhoto(step.id);
+                        }}
+                      >
+                        <Trash2 className="h-3.5 w-3.5" />
+                      </Button>
+                    </div>
+                  ) : (
+                    <ChevronRight className="h-4 w-4 text-muted-foreground" />
+                  )}
+                </div>
+              );
+            })}
+          </div>
+        </div>
+
+        {/* 底部操作按钮 */}
+        <div className={cn(
+          "bg-background border-t p-4",
+          isMobile && "fixed bottom-0 left-0 right-0 pb-[calc(env(safe-area-inset-bottom,12px)+12px)]"
+        )}>
+          <div className="flex gap-2">
+            {!currentStep?.required && !capturedPhotos[currentStep?.id || ""] && (
+              <Button variant="outline" onClick={skipStep} className="h-10 px-3 text-sm">
+                跳过
+              </Button>
             )}
-          </Button>
-          {completedCount > 0 && (
-            <Button 
-              variant="secondary" 
-              onClick={finishCapture} 
-              className="h-12 px-4"
-              disabled={hasUploadingTasks}
+            <Button
+              className="flex-1 h-10 gradient-primary text-sm"
+              onClick={triggerCamera}
             >
-              {hasUploadingTasks ? (
+              {capturedPhotos[currentStep?.id || ""] ? (
                 <>
-                  <Loader2 className="mr-1 h-4 w-4 animate-spin" />
-                  上传中
+                  <Camera className="mr-1.5 h-4 w-4" />
+                  重新拍摄
                 </>
               ) : (
-                `完成 (${completedCount})`
+                <>
+                  <Camera className="mr-1.5 h-4 w-4" />
+                  拍照
+                </>
               )}
             </Button>
-          )}
+            {completedCount > 0 && (
+              <Button 
+                variant="secondary" 
+                onClick={finishCapture} 
+                className="h-10 px-3 text-sm"
+                disabled={hasUploadingTasks}
+              >
+                {hasUploadingTasks ? (
+                  <>
+                    <Loader2 className="mr-1 h-3.5 w-3.5 animate-spin" />
+                    上传中
+                  </>
+                ) : (
+                  `完成 (${completedCount})`
+                )}
+              </Button>
+            )}
+          </div>
         </div>
       </div>
     </div>

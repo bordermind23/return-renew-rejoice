@@ -116,15 +116,6 @@ export function InboundBatchList({ items, onDelete, onBatchDelete, enableBatchSe
     return null;
   };
 
-  // 获取批次的级别分布
-  const getBatchGradeDistribution = (batch: BatchGroup) => {
-    const distribution: Record<string, number> = {};
-    batch.items.forEach(item => {
-      const grade = item.grade || "未知";
-      distribution[grade] = (distribution[grade] || 0) + 1;
-    });
-    return distribution;
-  };
 
   // 选择相关函数
   const toggleSelectItem = (id: string) => {
@@ -225,7 +216,6 @@ export function InboundBatchList({ items, onDelete, onBatchDelete, enableBatchSe
       {batches.map((batch) => {
         const batchSelectState = getBatchSelectState(batch);
         const shippingLabelPhoto = getBatchShippingLabelPhoto(batch);
-        const gradeDistribution = getBatchGradeDistribution(batch);
         return (
           <Collapsible
             key={batch.trackingNumber}
@@ -268,21 +258,6 @@ export function InboundBatchList({ items, onDelete, onBatchDelete, enableBatchSe
                         <Badge variant="secondary" className="flex-shrink-0">
                           {batch.totalCount} 件
                         </Badge>
-                        {/* 级别分布 */}
-                        {Object.entries(gradeDistribution).map(([grade, count]) => (
-                          <Badge 
-                            key={grade} 
-                            variant="outline" 
-                            className={cn(
-                              "flex-shrink-0",
-                              grade === "A" && "text-green-600 border-green-300",
-                              grade === "B" && "text-yellow-600 border-yellow-300",
-                              grade === "C" && "text-red-600 border-red-300"
-                            )}
-                          >
-                            {grade}级 {count}件
-                          </Badge>
-                        ))}
                         {shippingLabelPhoto && (
                           <Badge variant="outline" className="flex-shrink-0 text-primary border-primary/30">
                             <Image className="h-3 w-3 mr-1" />
@@ -329,7 +304,6 @@ export function InboundBatchList({ items, onDelete, onBatchDelete, enableBatchSe
                             <TableHead className="w-[50px]"></TableHead>
                           )}
                           <TableHead className="font-semibold min-w-[100px]">LPN号</TableHead>
-                          <TableHead className="font-semibold min-w-[60px] text-center">级别</TableHead>
                           <TableHead className="font-semibold min-w-[80px] text-center">物流面单</TableHead>
                           <TableHead className="font-semibold min-w-[120px]">缺少配件</TableHead>
                           <TableHead className="font-semibold min-w-[60px] text-center">其他照片</TableHead>
@@ -341,6 +315,10 @@ export function InboundBatchList({ items, onDelete, onBatchDelete, enableBatchSe
                         {batch.items.map((item) => {
                           const otherPhotoCount = getPhotoCount(item, true); // 排除物流面单
                           const isSelected = selectedIds.has(item.id);
+
+                          // 子体统一展示批次的物流面单（有些 item 可能没存到 shipping_label_photo）
+                          const shippingLabelToShow = shippingLabelPhoto || item.shipping_label_photo;
+
                           return (
                             <TableRow 
                               key={item.id} 
@@ -363,27 +341,15 @@ export function InboundBatchList({ items, onDelete, onBatchDelete, enableBatchSe
                                 </code>
                               </TableCell>
                               <TableCell className="text-center">
-                                <Badge 
-                                  variant="outline" 
-                                  className={cn(
-                                    "text-xs",
-                                    item.grade === "A" && "text-green-600 border-green-300 bg-green-50",
-                                    item.grade === "B" && "text-yellow-600 border-yellow-300 bg-yellow-50",
-                                    item.grade === "C" && "text-red-600 border-red-300 bg-red-50"
-                                  )}
-                                >
-                                  {item.grade || "-"}
-                                </Badge>
-                              </TableCell>
-                              <TableCell className="text-center">
-                                {item.shipping_label_photo ? (
+                                {shippingLabelToShow ? (
                                   <Button
                                     size="sm"
                                     variant="ghost"
                                     className="h-7 px-2 text-primary"
                                     onClick={(e) => {
                                       e.stopPropagation();
-                                      setPhotoViewItem(item);
+                                      // 直接打开批次照片弹窗，确保能看到面单
+                                      setBatchPhotoViewItem(batch);
                                     }}
                                   >
                                     <Image className="h-4 w-4 mr-1" />

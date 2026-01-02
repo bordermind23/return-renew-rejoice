@@ -120,23 +120,16 @@ export function Scanner({
         }
       });
 
-      // 扩大扫描区域 - 让条形码更容易被识别
-      const containerWidth = container.clientWidth || 320;
-      // 使用更大的扫描区域，几乎覆盖整个视频画面
-      const qrboxWidth = Math.min(Math.floor(containerWidth * 0.95), 350);
-      const qrboxHeight = Math.floor(qrboxWidth * 0.6); // 更高的扫描框，容错性更好
-
+      // 不限制扫描区域 - 整个画面都能识别条形码
       await scannerRef.current.start(
         cameraId,
         {
-          fps: 20, // 更高帧率提升识别速度
-          qrbox: { width: qrboxWidth, height: qrboxHeight },
-          aspectRatio: 4 / 3, // 更接近正方形的视频比例，扫描区域更大
+          fps: 30, // 高帧率快速抓取
           disableFlip: false,
           videoConstraints: {
             facingMode: "environment",
-            width: { min: 640, ideal: 1280, max: 1920 },
-            height: { min: 480, ideal: 720, max: 1080 }
+            width: { ideal: 1280 },
+            height: { ideal: 720 }
           } as MediaTrackConstraints
         },
         (decodedText) => {
@@ -144,9 +137,7 @@ export function Scanner({
           onScan(decodedText);
           handleClose();
         },
-        () => {
-          // Error callback - ignore scan errors
-        }
+        () => {}
       );
     } catch (err) {
       console.error("启动扫描器失败:", err);

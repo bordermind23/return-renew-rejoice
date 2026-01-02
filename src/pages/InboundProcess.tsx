@@ -9,7 +9,7 @@ import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { ScrollArea } from "@/components/ui/scroll-area";
 import { Skeleton } from "@/components/ui/skeleton";
-import { NativePhotoCapture } from "@/components/NativePhotoCapture";
+import { NativePhotoCapture, SIMPLE_PHOTO_STEPS, FULL_PHOTO_STEPS } from "@/components/NativePhotoCapture";
 import { TranslatedText } from "@/components/TranslatedText";
 import { useRemovalShipments, useUpdateRemovalShipment, type RemovalShipment } from "@/hooks/useRemovalShipments";
 import { useCreateInboundItem, useInboundItems } from "@/hooks/useInboundItems";
@@ -358,7 +358,18 @@ export default function InboundProcess() {
 
           {/* 产品拍照 */}
           <div className="space-y-2">
-            <Label className="text-sm font-medium">产品拍照 ({Object.keys(capturedPhotos).length}/9)</Label>
+            {/* 根据是否有问题显示不同的拍照要求 */}
+            {(selectedMissingParts.length > 0 || hasProductDamage) ? (
+              <Label className="text-sm font-medium">
+                产品拍照 ({Object.keys(capturedPhotos).length}/9)
+                <span className="text-xs text-destructive ml-2">存在问题，需拍摄详细照片</span>
+              </Label>
+            ) : (
+              <Label className="text-sm font-medium">
+                产品拍照 ({Object.keys(capturedPhotos).length}/1)
+                <span className="text-xs text-muted-foreground ml-2">正常情况仅需1张</span>
+              </Label>
+            )}
             <Button
               type="button"
               variant="outline"
@@ -370,7 +381,7 @@ export default function InboundProcess() {
                 <span className="mt-2 block text-sm text-muted-foreground">
                   {Object.keys(capturedPhotos).length > 0 
                     ? `已拍摄 ${Object.keys(capturedPhotos).length} 张，点击继续` 
-                    : "点击开始顺序拍照"}
+                    : "点击开始拍照"}
                 </span>
               </div>
             </Button>
@@ -419,10 +430,11 @@ export default function InboundProcess() {
         </div>
       </div>
 
-      {/* 原生拍照 */}
+      {/* 原生拍照 - 根据是否有问题选择不同的拍照步骤 */}
       {isPhotoCaptureOpen && (
         <NativePhotoCapture
           lpn={lpn}
+          steps={(selectedMissingParts.length > 0 || hasProductDamage) ? FULL_PHOTO_STEPS : SIMPLE_PHOTO_STEPS}
           onComplete={(photos) => {
             setCapturedPhotos(photos);
             setIsPhotoCaptureOpen(false);

@@ -101,6 +101,7 @@ export default function Removals() {
   const fileInputRef = useRef<HTMLInputElement>(null);
   const [viewMode, setViewMode] = useState<"grouped" | "list">("list");
   const [duplicateFilter, setDuplicateFilter] = useState<"all" | "duplicate" | "unconfirmed">("all");
+  const [inboundStatusFilter, setInboundStatusFilter] = useState<"all" | "no_inbound" | "partial" | "complete">("all");
   
   // 分页状态
   const [currentPage, setCurrentPage] = useState(1);
@@ -248,9 +249,21 @@ export default function Removals() {
         (duplicateFilter === "duplicate" && isDuplicate) ||
         (duplicateFilter === "unconfirmed" && isDuplicate && !item.duplicate_confirmed);
 
-      return matchesSearch && matchesStatus && matchesDuplicate;
+      // 入库状态筛选
+      const arrivedCount = arrivedCountByTracking[item.tracking_number] || 0;
+      const isNoInbound = arrivedCount === 0;
+      const isPartial = arrivedCount > 0 && arrivedCount < item.quantity;
+      const isComplete = arrivedCount >= item.quantity;
+      
+      const matchesInboundStatus = 
+        inboundStatusFilter === "all" ||
+        (inboundStatusFilter === "no_inbound" && isNoInbound) ||
+        (inboundStatusFilter === "partial" && isPartial) ||
+        (inboundStatusFilter === "complete" && isComplete);
+
+      return matchesSearch && matchesStatus && matchesDuplicate && matchesInboundStatus;
     });
-  }, [shipments, searchTerm, statusFilter, duplicateFilter, duplicateInfo]);
+  }, [shipments, searchTerm, statusFilter, duplicateFilter, duplicateInfo, inboundStatusFilter, arrivedCountByTracking]);
 
   // 分页计算
   const totalCount = filteredData.length;
@@ -265,7 +278,7 @@ export default function Removals() {
   // 重置页码当筛选条件变化时
   useEffect(() => {
     setCurrentPage(1);
-  }, [searchTerm, statusFilter, duplicateFilter]);
+  }, [searchTerm, statusFilter, duplicateFilter, inboundStatusFilter]);
 
   // 按移除订单号 + 跟踪号分组
   interface OrderTrackingGroup {
@@ -1065,6 +1078,34 @@ export default function Removals() {
             <SelectItem value="unconfirmed">未确认重复</SelectItem>
           </SelectContent>
         </Select>
+        {/* 入库状态筛选 */}
+        <Select value={inboundStatusFilter} onValueChange={(v) => setInboundStatusFilter(v as any)}>
+          <SelectTrigger className="w-full sm:w-40">
+            <Package className="mr-2 h-4 w-4" />
+            <SelectValue placeholder="入库状态" />
+          </SelectTrigger>
+          <SelectContent>
+            <SelectItem value="all">全部入库状态</SelectItem>
+            <SelectItem value="no_inbound">
+              <span className="flex items-center gap-2">
+                <span className="h-2 w-2 rounded-full bg-red-500" />
+                未入库
+              </span>
+            </SelectItem>
+            <SelectItem value="partial">
+              <span className="flex items-center gap-2">
+                <span className="h-2 w-2 rounded-full bg-amber-500" />
+                部分入库
+              </span>
+            </SelectItem>
+            <SelectItem value="complete">
+              <span className="flex items-center gap-2">
+                <span className="h-2 w-2 rounded-full bg-green-500" />
+                已完成
+              </span>
+            </SelectItem>
+          </SelectContent>
+        </Select>
         {/* 视图切换 */}
         <div className="flex items-center border rounded-lg p-1 bg-muted/30">
           <Button
@@ -1180,7 +1221,34 @@ export default function Removals() {
                           {item.ship_date || "-"}
                         </TableCell>
                         <TableCell>
-                          <StatusBadge status={item.status} />
+                          <div className="flex items-center gap-2">
+                            <StatusBadge status={item.status} />
+                            {/* 入库状态指示器 */}
+                            {item.status !== 'shipping' && (
+                              <TooltipProvider>
+                                <Tooltip>
+                                  <TooltipTrigger>
+                                    <span className={`h-2 w-2 rounded-full ${
+                                      (arrivedCountByTracking[item.tracking_number] || 0) === 0 
+                                        ? 'bg-red-500' 
+                                        : (arrivedCountByTracking[item.tracking_number] || 0) < item.quantity 
+                                          ? 'bg-amber-500' 
+                                          : 'bg-green-500'
+                                    }`} />
+                                  </TooltipTrigger>
+                                  <TooltipContent side="top">
+                                    <span className="text-xs">
+                                      {(arrivedCountByTracking[item.tracking_number] || 0) === 0 
+                                        ? '未入库' 
+                                        : (arrivedCountByTracking[item.tracking_number] || 0) < item.quantity 
+                                          ? '部分入库' 
+                                          : '已完成入库'}
+                                    </span>
+                                  </TooltipContent>
+                                </Tooltip>
+                              </TooltipProvider>
+                            )}
+                          </div>
                         </TableCell>
                         <TableCell>
                           <div className="flex justify-center gap-1">
@@ -1289,7 +1357,33 @@ export default function Removals() {
                             {item.ship_date || "-"}
                           </TableCell>
                           <TableCell>
-                            <StatusBadge status={item.status} />
+                            <div className="flex items-center gap-2">
+                              <StatusBadge status={item.status} />
+                              {item.status !== 'shipping' && (
+                                <TooltipProvider>
+                                  <Tooltip>
+                                    <TooltipTrigger>
+                                      <span className={`h-2 w-2 rounded-full ${
+                                        (arrivedCountByTracking[item.tracking_number] || 0) === 0 
+                                          ? 'bg-red-500' 
+                                          : (arrivedCountByTracking[item.tracking_number] || 0) < item.quantity 
+                                            ? 'bg-amber-500' 
+                                            : 'bg-green-500'
+                                      }`} />
+                                    </TooltipTrigger>
+                                    <TooltipContent side="top">
+                                      <span className="text-xs">
+                                        {(arrivedCountByTracking[item.tracking_number] || 0) === 0 
+                                          ? '未入库' 
+                                          : (arrivedCountByTracking[item.tracking_number] || 0) < item.quantity 
+                                            ? '部分入库' 
+                                            : '已完成入库'}
+                                      </span>
+                                    </TooltipContent>
+                                  </Tooltip>
+                                </TooltipProvider>
+                              )}
+                            </div>
                           </TableCell>
                           <TableCell>
                             <div className="flex justify-center gap-1">
@@ -1497,7 +1591,33 @@ export default function Removals() {
                                       {item.ship_date || "-"}
                                     </TableCell>
                                     <TableCell>
-                                      <StatusBadge status={item.status} />
+                                      <div className="flex items-center gap-2">
+                                        <StatusBadge status={item.status} />
+                                        {item.status !== 'shipping' && (
+                                          <TooltipProvider>
+                                            <Tooltip>
+                                              <TooltipTrigger>
+                                                <span className={`h-2 w-2 rounded-full ${
+                                                  (arrivedCountByTracking[item.tracking_number] || 0) === 0 
+                                                    ? 'bg-red-500' 
+                                                    : (arrivedCountByTracking[item.tracking_number] || 0) < item.quantity 
+                                                      ? 'bg-amber-500' 
+                                                      : 'bg-green-500'
+                                                }`} />
+                                              </TooltipTrigger>
+                                              <TooltipContent side="top">
+                                                <span className="text-xs">
+                                                  {(arrivedCountByTracking[item.tracking_number] || 0) === 0 
+                                                    ? '未入库' 
+                                                    : (arrivedCountByTracking[item.tracking_number] || 0) < item.quantity 
+                                                      ? '部分入库' 
+                                                      : '已完成入库'}
+                                                </span>
+                                              </TooltipContent>
+                                            </Tooltip>
+                                          </TooltipProvider>
+                                        )}
+                                      </div>
                                     </TableCell>
                                     <TableCell>
                                       <div className="flex justify-center gap-1">

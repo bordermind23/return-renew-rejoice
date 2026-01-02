@@ -152,12 +152,26 @@ export function Scanner({
         onClick={(e) => {
           e.preventDefault();
           e.stopPropagation();
-          console.log("Scanner button clicked, opening dialog");
+          console.log("Scanner button clicked, scanType:", scanType);
+          // 振动反馈
+          if ('vibrate' in navigator) {
+            try { navigator.vibrate(50); } catch {}
+          }
+          setIsOpen(true);
+        }}
+        onTouchEnd={(e) => {
+          // 平板/触摸设备专用处理
+          e.preventDefault();
+          e.stopPropagation();
+          console.log("Scanner button touched, scanType:", scanType);
+          if ('vibrate' in navigator) {
+            try { navigator.vibrate(50); } catch {}
+          }
           setIsOpen(true);
         }}
         className={cn(
           buttonClassName,
-          isLargeIconMode && "relative overflow-hidden"
+          isLargeIconMode && "relative overflow-hidden touch-manipulation"
         )}
       >
         {isLargeIconMode ? (
@@ -188,11 +202,14 @@ export function Scanner({
         )}
       </Button>
 
-      <Dialog open={isOpen} onOpenChange={handleClose}>
-        <DialogContent className={cn(
-          "max-w-[90vw] sm:max-w-md w-full mx-auto z-[110]",
-          scanType === "lpn" && "border-t-4 border-t-info"
-        )}>
+      <Dialog open={isOpen} onOpenChange={handleClose} modal={true}>
+        <DialogContent 
+          className={cn(
+            "max-w-[90vw] sm:max-w-md w-full mx-auto z-[110]",
+            scanType === "lpn" && "border-t-4 border-t-info"
+          )}
+          onPointerDownOutside={(e) => e.preventDefault()}
+        >
           <DialogHeader>
             <DialogTitle className={cn(
               "flex items-center gap-2",

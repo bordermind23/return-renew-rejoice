@@ -1,6 +1,7 @@
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { supabase } from "@/integrations/supabase/client";
 import { toast } from "sonner";
+import { logOperation } from "./useOperationLogs";
 
 export type AppRole = "admin" | "warehouse_staff" | "viewer";
 
@@ -73,8 +74,14 @@ export function useUpdateUserRole() {
         if (error) throw error;
       }
     },
-    onSuccess: () => {
+    onSuccess: (_, variables) => {
       queryClient.invalidateQueries({ queryKey: ["users-with-roles"] });
+      logOperation({
+        entityType: "user",
+        entityId: variables.userId,
+        action: "role_change",
+        details: { newRole: variables.newRole },
+      });
       toast.success("用户角色已更新");
     },
     onError: (error) => {
@@ -110,8 +117,14 @@ export function useCreateUser() {
 
       return data;
     },
-    onSuccess: () => {
+    onSuccess: (data, variables) => {
       queryClient.invalidateQueries({ queryKey: ["users-with-roles"] });
+      logOperation({
+        entityType: "user",
+        entityId: data?.user?.id,
+        action: "create",
+        details: { username: variables.username, role: variables.role },
+      });
       toast.success("用户创建成功");
     },
     onError: (error) => {
@@ -138,8 +151,13 @@ export function useDeleteUser() {
 
       return data;
     },
-    onSuccess: () => {
+    onSuccess: (_, userId) => {
       queryClient.invalidateQueries({ queryKey: ["users-with-roles"] });
+      logOperation({
+        entityType: "user",
+        entityId: userId,
+        action: "delete",
+      });
       toast.success("用户已删除");
     },
     onError: (error) => {

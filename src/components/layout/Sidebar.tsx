@@ -21,6 +21,7 @@ import {
   AlertTriangle,
   Wrench,
   Shield,
+  History as HistoryIcon,
 } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { Button } from "@/components/ui/button";
@@ -92,6 +93,7 @@ const getNavItems = (t: ReturnType<typeof useLanguage>['t']): NavItem[] => [
 const getAdminNavItems = (t: ReturnType<typeof useLanguage>['t']): NavItem[] => [
   { to: "/users", icon: Users, label: t.nav.users },
   { to: "/roles", icon: Shield, label: t.nav.roles || "角色管理" },
+  { to: "/logs", icon: HistoryIcon, label: t.nav.logs || "操作日志" },
 ];
 
 // 移动端侧边栏内容

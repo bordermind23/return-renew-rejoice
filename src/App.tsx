@@ -18,6 +18,7 @@ import Orders from "./pages/Orders";
 import Outbound from "./pages/Outbound";
 import UserManagement from "./pages/UserManagement";
 import RoleManagement from "./pages/RoleManagement";
+import OperationLogs from "./pages/OperationLogs";
 import Cases from "./pages/Cases";
 import Refurbishment from "./pages/Refurbishment";
 import RefurbishmentScan from "./pages/RefurbishmentScan";
@@ -212,6 +213,16 @@ const App = () => (
               <ProtectedRoute>
                 <MainLayout>
                   <RoleManagement />
+                </MainLayout>
+              </ProtectedRoute>
+            }
+          />
+          <Route
+            path="/logs"
+            element={
+              <ProtectedRoute>
+                <MainLayout>
+                  <OperationLogs />
                 </MainLayout>
               </ProtectedRoute>
             }

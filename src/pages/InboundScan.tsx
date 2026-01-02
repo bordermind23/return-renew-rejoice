@@ -39,7 +39,7 @@ import { useProducts, useProductParts } from "@/hooks/useProducts";
 import { Skeleton } from "@/components/ui/skeleton";
 import { toast } from "sonner";
 import { Scanner } from "@/components/Scanner";
-import { SequentialPhotoCapture } from "@/components/SequentialPhotoCapture";
+import { NativePhotoCapture } from "@/components/NativePhotoCapture";
 import { MobileInboundScanner } from "@/components/MobileInboundScanner";
 import { ShippingLabelCapture } from "@/components/ShippingLabelCapture";
 import { TranslatedText } from "@/components/TranslatedText";
@@ -1232,9 +1232,9 @@ export default function InboundScan() {
         </AlertDialogContent>
       </AlertDialog>
 
-      {/* 顺序拍照弹窗 */}
+      {/* 原生拍照弹窗 */}
       {isPhotoCaptureOpen && (
-        <SequentialPhotoCapture
+        <NativePhotoCapture
           lpn={currentLpn}
           onComplete={(photos) => {
             setCapturedPhotos(photos);

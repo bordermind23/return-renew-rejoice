@@ -38,6 +38,11 @@ const isValidLpn = (code: string): boolean => {
   return /^LPN[A-Z0-9]+$/i.test(code.trim());
 };
 
+// 检测是否是平板设备（屏幕宽度 >= 768px）
+const isTablet = (): boolean => {
+  return typeof window !== 'undefined' && window.innerWidth >= 768;
+};
+
 export function Scanner({
   onScan,
   buttonLabel = "摄像头扫码",
@@ -57,10 +62,22 @@ export function Scanner({
   // 根据扫描类型选择支持的格式
   const supportedFormats = scanType === "lpn" ? lpnFormats : trackingFormats;
 
-  // LPN二维码用方形扫描框，物流条码用横向框
-  const qrboxConfig = scanType === "lpn" 
-    ? { width: 220, height: 220 }  // 二维码方形
-    : { width: 280, height: 150 }; // 条形码横向
+  // 根据设备类型和扫描类型动态调整扫描框大小
+  // 平板设备使用更大的扫描框以适应更大的屏幕和更远的扫描距离
+  const getQrboxConfig = () => {
+    const tablet = isTablet();
+    if (scanType === "lpn") {
+      // LPN二维码用方形扫描框，平板用更大的框
+      return tablet 
+        ? { width: 320, height: 320 }  // 平板：更大的扫描区域
+        : { width: 220, height: 220 }; // 手机：标准大小
+    } else {
+      // 物流条码用横向框
+      return tablet
+        ? { width: 380, height: 200 }  // 平板
+        : { width: 280, height: 150 }; // 手机
+    }
+  };
 
   useEffect(() => {
     // Get available cameras when dialog opens
@@ -118,12 +135,16 @@ export function Scanner({
         }
       });
 
+      // 获取当前设备适配的扫描框配置
+      const qrboxConfig = getQrboxConfig();
+      console.log("Starting scanner with qrbox:", qrboxConfig, "isTablet:", isTablet());
+
       await scannerRef.current.start(
         cameraId,
         {
           fps: 25,  // 提升FPS加快扫描速度
           qrbox: qrboxConfig,
-          aspectRatio: scanType === "lpn" ? 1.5 : 1, // 条形码用更宽的比例
+          aspectRatio: scanType === "lpn" ? 1 : 1.5, // 二维码用1:1，条形码用更宽的比例
           disableFlip: true,  // 禁用镜像翻转检测，减少处理时间
         },
         (decodedText) => {

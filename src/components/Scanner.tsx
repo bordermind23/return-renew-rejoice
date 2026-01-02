@@ -67,6 +67,8 @@ export function Scanner({
   const [error, setError] = useState<string | null>(null);
   const [cameras, setCameras] = useState<{ id: string; label: string }[]>([]);
   const [currentCameraIndex, setCurrentCameraIndex] = useState(0);
+  const [compatMode, setCompatMode] = useState(false);
+  const [lastScanError, setLastScanError] = useState<string | null>(null);
   const scannerRef = useRef<Html5Qrcode | null>(null);
   const scannerContainerId = "scanner-container";
 
@@ -142,35 +144,44 @@ export function Scanner({
       }
 
       // 创建扫描器实例，限制支持的格式以提升速度
+      // 某些桌面端浏览器的 BarcodeDetector 对 CODE_128 识别不稳定，提供兼容模式可关闭它
       scannerRef.current = new Html5Qrcode(scannerContainerId, {
         verbose: false,
         formatsToSupport: supportedFormats,
         experimentalFeatures: {
-          useBarCodeDetectorIfSupported: true,
+          useBarCodeDetectorIfSupported: !compatMode,
         },
       });
 
       // 获取当前设备适配的扫描框配置
       const qrboxConfig = getQrboxConfig();
-      const tablet = isTablet();
+      const w = typeof window !== "undefined" ? window.innerWidth : 1024;
+      const desktop = w >= 1024;
 
-      // 平板上某些浏览器对 width/height/facingMode 约束兼容性较差，会导致 start() 直接抛错。
-      // 这里优先使用最稳妥的 deviceId 约束，只锁定摄像头本身。
-      const cameraConfig: any = tablet
-        ? { deviceId: { exact: cameraId } }
-        : cameraId;
+      // 统一使用 deviceId 约束（桌面/平板/移动端都更稳定），桌面端额外请求更高分辨率
+      const cameraConfig: MediaTrackConstraints = {
+        deviceId: { exact: cameraId },
+        ...(desktop
+          ? {
+              width: { ideal: 1920 },
+              height: { ideal: 1080 },
+            }
+          : {}),
+      };
 
       console.log("Starting scanner with config:", {
         scanType,
-        tablet,
+        desktop,
         qrboxConfig,
-        cameraConfig: tablet ? "mediaTrackConstraints" : "cameraId",
+        compatMode,
       });
+
+      setLastScanError(null);
 
       await scannerRef.current.start(
         cameraConfig,
         {
-          fps: 25,
+          fps: compatMode ? 12 : 25,
           qrbox: qrboxConfig,
           aspectRatio: qrboxConfig.width / qrboxConfig.height,
           disableFlip: true,
@@ -194,8 +205,11 @@ export function Scanner({
           onScan(scanType === "lpn" ? normalized : decodedText.trim());
           handleClose();
         },
-        () => {
-          // Error callback - ignore scan errors
+        (err) => {
+          // 捕获少量错误用于诊断（避免刷屏）
+          if (!lastScanError) {
+            setLastScanError(typeof err === "string" ? err : "识别中...");
+          }
         }
       );
     } catch (err) {
@@ -345,19 +359,37 @@ export function Scanner({
                 />
 
                 {isScanning && (
-                  <div className="flex items-center justify-between">
-                    <p className="text-sm text-muted-foreground">
-                      {scanType === "lpn" ? "将LPN条码对准框内" : "将条码或二维码对准框内"}
-                    </p>
-                    {cameras.length > 1 && (
-                      <Button
-                        variant="ghost"
-                        size="sm"
-                        onClick={switchCamera}
-                      >
-                        <SwitchCamera className="mr-2 h-4 w-4" />
-                        切换摄像头
-                      </Button>
+                  <div className="space-y-2">
+                    <div className="flex items-center justify-between">
+                      <p className="text-sm text-muted-foreground">
+                        {scanType === "lpn" ? "将LPN条码对准框内" : "将条码或二维码对准框内"}
+                      </p>
+                      <div className="flex items-center gap-1">
+                        <Button
+                          variant="ghost"
+                          size="sm"
+                          onClick={() => {
+                            const next = !compatMode;
+                            setCompatMode(next);
+                            if (cameras.length > 0) startScanner(cameras[currentCameraIndex].id);
+                          }}
+                        >
+                          <Focus className="mr-2 h-4 w-4" />
+                          {compatMode ? "兼容模式: 开" : "兼容模式"}
+                        </Button>
+                        {cameras.length > 1 && (
+                          <Button variant="ghost" size="sm" onClick={switchCamera}>
+                            <SwitchCamera className="mr-2 h-4 w-4" />
+                            切换摄像头
+                          </Button>
+                        )}
+                      </div>
+                    </div>
+
+                    {lastScanError && (
+                      <p className="text-xs text-muted-foreground">
+                        识别提示：{lastScanError}
+                      </p>
                     )}
                   </div>
                 )}

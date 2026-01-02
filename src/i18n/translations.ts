@@ -58,7 +58,7 @@ export const translations = {
       inbound: '入库处理',
       inboundScan: '入库扫码',
       inboundRecords: '入库记录',
-      inboundDiscrepancy: '差异包裹',
+      inboundDiscrepancy: '差异入库',
       inventory: '库存管理',
       outbound: '出库管理',
       products: '产品管理',
@@ -137,7 +137,7 @@ export const translations = {
     },
     // 差异包裹
     discrepancy: {
-      title: '差异包裹',
+      title: '差异入库',
       description: '查看入库差异情况，创建索赔CASE',
       totalDiscrepancy: '差异总数',
       quantityLess: '数量少于申报',

@@ -36,7 +36,7 @@ export function OrderTableRow({
         ${isGroupChild ? "bg-muted/20 hover:bg-muted/30 border-l-2 border-l-primary/50" : "hover:bg-muted/30"}
       `}
     >
-      <TableCell className="w-[40px]">
+      <TableCell className="w-[36px]">
         <Checkbox checked={isSelected} onCheckedChange={onSelect} />
       </TableCell>
       <TableCell>

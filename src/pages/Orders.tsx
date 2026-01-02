@@ -1196,34 +1196,34 @@ export default function Orders() {
           <Table>
             <TableHeader>
               <TableRow className="bg-muted/50 hover:bg-muted/50">
-                <TableHead className="w-[40px]">
+                <TableHead className="w-[36px]">
                   <Checkbox
                     checked={orders.length > 0 && selectedIds.length === orders.length}
                     onCheckedChange={toggleSelectAll}
                   />
                 </TableHead>
-                <TableHead className="w-[160px]">
-                  <div className="flex items-center gap-2">
+                <TableHead className="w-[140px]">
+                  <div className="flex items-center gap-1">
                     内部订单号
                     {hasGroups && (
-                      <Button variant="ghost" size="icon" className="h-6 w-6" onClick={toggleAllGroups}>
+                      <Button variant="ghost" size="icon" className="h-5 w-5" onClick={toggleAllGroups}>
                         {expandedGroups.size === groupedOrders.length ? (
-                          <ChevronUp className="h-4 w-4" />
+                          <ChevronUp className="h-3 w-3" />
                         ) : (
-                          <ChevronDown className="h-4 w-4" />
+                          <ChevronDown className="h-3 w-3" />
                         )}
                       </Button>
                     )}
                   </div>
                 </TableHead>
-                <TableHead className="text-center w-[90px]">状态</TableHead>
-                <TableHead className="w-[130px]">LPN</TableHead>
-                <TableHead className="min-w-[180px]">产品名称</TableHead>
-                <TableHead className="w-[120px]">SKU</TableHead>
-                <TableHead className="w-[100px]">等级</TableHead>
-                <TableHead className="text-center w-[60px]">数量</TableHead>
-                <TableHead className="w-[140px]">订单号</TableHead>
-                <TableHead className="text-center w-[90px]">操作</TableHead>
+                <TableHead className="text-center w-[70px]">状态</TableHead>
+                <TableHead className="w-[120px]">LPN</TableHead>
+                <TableHead className="w-[200px]">产品名称</TableHead>
+                <TableHead className="w-[100px]">SKU</TableHead>
+                <TableHead className="w-[70px]">等级</TableHead>
+                <TableHead className="text-center w-[50px]">数量</TableHead>
+                <TableHead className="w-[120px]">订单号</TableHead>
+                <TableHead className="text-center w-[70px]">操作</TableHead>
               </TableRow>
             </TableHeader>
             <TableBody>

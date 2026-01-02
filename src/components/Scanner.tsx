@@ -35,9 +35,18 @@ const trackingFormats = [
   Html5QrcodeSupportedFormats.DATA_MATRIX,
 ];
 
-// 验证LPN格式: LPNXXXXXXXXXXX
+// 验证/清洗 LPN：有些设备会读出空格、换行或其他分隔符
+const normalizeCode = (code: string) => {
+  return code
+    .trim()
+    .toUpperCase()
+    .replace(/[^A-Z0-9]/g, "");
+};
+
+// 验证LPN格式: LPNXXXXXXXXXXX（允许中间带分隔符，normalize 后校验）
 const isValidLpn = (code: string): boolean => {
-  return /^LPN[A-Z0-9]+$/i.test(code.trim());
+  const normalized = normalizeCode(code);
+  return /^LPN[A-Z0-9]+$/.test(normalized);
 };
 
 // 检测是否是平板设备（屏幕宽度 >= 768px）
@@ -67,18 +76,19 @@ export function Scanner({
   // 根据设备类型和扫描类型动态调整扫描框大小
   // 平板设备使用更大的扫描框以适应更大的屏幕和更远的扫描距离
   const getQrboxConfig = () => {
+    const w = typeof window !== "undefined" ? window.innerWidth : 1024;
     const tablet = isTablet();
+    const desktop = w >= 1024;
+
     if (scanType === "lpn") {
-      // LPN多为横向条形码，使用更宽的扫描框（同时也能扫二维码）
-      return tablet
-        ? { width: 420, height: 200 }
-        : { width: 320, height: 160 };
+      // LPN多为横向条形码：桌面端通常距离更远，给更大的扫描框
+      if (desktop) return { width: 640, height: 260 };
+      return tablet ? { width: 420, height: 200 } : { width: 320, height: 160 };
     }
 
     // 物流追踪号兼容条码/二维码
-    return tablet
-      ? { width: 380, height: 220 }
-      : { width: 280, height: 180 };
+    if (desktop) return { width: 560, height: 280 };
+    return tablet ? { width: 380, height: 220 } : { width: 280, height: 180 };
   };
 
   useEffect(() => {
@@ -162,21 +172,26 @@ export function Scanner({
         {
           fps: 25,
           qrbox: qrboxConfig,
-          aspectRatio: scanType === "lpn" ? 1.7 : 1.1,
+          aspectRatio: qrboxConfig.width / qrboxConfig.height,
           disableFlip: true,
         },
         (decodedText) => {
-          // LPN扫描时验证格式
+          const normalized = normalizeCode(decodedText);
+
+          // LPN扫描时验证格式（先清洗，避免因空格/换行导致误判）
           if (scanType === "lpn" && !isValidLpn(decodedText)) {
-            console.log("Invalid LPN format:", decodedText);
+            console.log("Invalid LPN format:", { raw: decodedText, normalized });
             return; // 忽略非LPN格式的扫描结果
           }
+
           // 扫描成功振动反馈
-          if ('vibrate' in navigator) {
-            try { navigator.vibrate([50, 50, 50]); } catch {}
+          if ("vibrate" in navigator) {
+            try {
+              navigator.vibrate([50, 50, 50]);
+            } catch {}
           }
-          console.log("Scan success:", decodedText);
-          onScan(decodedText);
+          console.log("Scan success:", { raw: decodedText, normalized });
+          onScan(scanType === "lpn" ? normalized : decodedText.trim());
           handleClose();
         },
         () => {

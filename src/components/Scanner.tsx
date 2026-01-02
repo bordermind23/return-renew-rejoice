@@ -76,7 +76,18 @@ export function Scanner({
   const [compatMode, setCompatMode] = useState(false);
   const [lastScanError, setLastScanError] = useState<string | null>(null);
   const scannerRef = useRef<Html5Qrcode | null>(null);
+  const enforcingBackCameraRef = useRef(false);
   const scannerContainerId = "scanner-container";
+
+  const getActiveVideoTrackSettings = () => {
+    const video = document.querySelector(
+      `#${scannerContainerId} video`
+    ) as HTMLVideoElement | null;
+
+    const stream = (video?.srcObject ?? null) as MediaStream | null;
+    const track = stream?.getVideoTracks?.()?.[0];
+    return track?.getSettings?.();
+  };
 
   // 根据扫描类型选择支持的格式
   const supportedFormats = scanType === "lpn" ? lpnFormats : trackingFormats;
@@ -102,6 +113,7 @@ export function Scanner({
   useEffect(() => {
     // Get available cameras when dialog opens
     if (isOpen) {
+      enforcingBackCameraRef.current = false;
       // 延迟启动以确保对话框完全渲染
       const timer = setTimeout(() => {
         Html5Qrcode.getCameras()
@@ -266,6 +278,39 @@ export function Scanner({
           }
         }
       );
+
+      // iPad/iPhone：有些浏览器会忽略 facingMode=environment，导致仍然打开前置
+      // 这里在启动后读取实际视频 track 的 facingMode，如果不是后置，则自动重启为后置 deviceId（仅尝试一次）
+      if (
+        mobile &&
+        "facingMode" in camera &&
+        camera.facingMode === "environment" &&
+        !enforcingBackCameraRef.current
+      ) {
+        enforcingBackCameraRef.current = true;
+
+        window.setTimeout(() => {
+          const settings = getActiveVideoTrackSettings();
+          const actualFacing = (settings as MediaTrackSettings | undefined)?.facingMode;
+
+          if (actualFacing && actualFacing !== "environment") {
+            const backIndex = cameras.findIndex((d) => {
+              const label = (d.label || "").toLowerCase();
+              return (
+                label.includes("back") ||
+                label.includes("rear") ||
+                label.includes("environment") ||
+                label.includes("后置")
+              );
+            });
+
+            if (backIndex >= 0) {
+              setCurrentCameraIndex(backIndex);
+              startScanner({ deviceId: cameras[backIndex].id });
+            }
+          }
+        }, 700);
+      }
     } catch (err) {
       console.error("启动扫描器失败:", err);
       const msg = err instanceof Error ? err.message : String(err);

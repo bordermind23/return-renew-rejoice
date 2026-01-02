@@ -400,7 +400,6 @@ export function InboundBatchList({ items, onDelete, onBatchDelete, enableBatchSe
           onOpenChange={() => setPhotoViewItem(null)}
           title={`入库照片 - ${photoViewItem.lpn}`}
           photos={[
-            { key: 'shipping_label_photo', label: '物流面单' },
             { key: 'lpn_label_photo', label: 'LPN标签' },
             { key: 'packaging_photo_1', label: '包装照片1' },
             { key: 'packaging_photo_2', label: '包装照片2' },

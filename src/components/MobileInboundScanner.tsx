@@ -882,10 +882,13 @@ export function MobileInboundScanner({ initialTracking }: MobileInboundScannerPr
             <div className="relative mb-4">
               <div className="absolute inset-0 bg-info/20 rounded-2xl blur-xl pointer-events-none scale-110" />
               <Scanner 
-                onScan={handleLpnScan} 
+                onScan={(code) => {
+                  console.log("LPN scanned:", code);
+                  handleLpnScan(code);
+                }} 
                 buttonLabel=""
                 buttonSize="lg"
-                buttonClassName="h-28 w-28 rounded-2xl gradient-lpn shadow-xl"
+                buttonClassName="h-28 w-28 rounded-2xl gradient-lpn shadow-xl touch-manipulation"
                 scanType="lpn"
               />
             </div>

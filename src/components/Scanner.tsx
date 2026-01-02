@@ -120,23 +120,24 @@ export function Scanner({
         }
       });
 
-      // 条形码是横向的，使用宽扁的扫描框
-      const containerWidth = container.clientWidth || 280;
-      const qrboxWidth = Math.min(Math.floor(containerWidth * 0.85), 280);
-      const qrboxHeight = Math.floor(qrboxWidth * 0.4); // 宽高比约2.5:1，适合条形码
+      // 扩大扫描区域 - 让条形码更容易被识别
+      const containerWidth = container.clientWidth || 320;
+      // 使用更大的扫描区域，几乎覆盖整个视频画面
+      const qrboxWidth = Math.min(Math.floor(containerWidth * 0.95), 350);
+      const qrboxHeight = Math.floor(qrboxWidth * 0.6); // 更高的扫描框，容错性更好
 
       await scannerRef.current.start(
         cameraId,
         {
-          fps: 15, // 条形码需要更高帧率
+          fps: 20, // 更高帧率提升识别速度
           qrbox: { width: qrboxWidth, height: qrboxHeight },
-          aspectRatio: 16 / 9, // 横向视频更适合条形码
+          aspectRatio: 4 / 3, // 更接近正方形的视频比例，扫描区域更大
           disableFlip: false,
           videoConstraints: {
             facingMode: "environment",
-            width: { ideal: 1920 },
-            height: { ideal: 1080 }
-          }
+            width: { min: 640, ideal: 1280, max: 1920 },
+            height: { min: 480, ideal: 720, max: 1080 }
+          } as MediaTrackConstraints
         },
         (decodedText) => {
           console.log("Scanned barcode:", decodedText);

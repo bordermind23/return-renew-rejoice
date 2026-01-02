@@ -20,9 +20,11 @@ interface ScannerProps {
   scanType?: "tracking" | "lpn";
 }
 
-// LPN二维码格式 - 内容为 LPNXXXXXXXXXXX
+// LPN 常见是条形码（CODE128/CODE39）或二维码，内容形如 LPNXXXXXXXXXXX
 const lpnFormats = [
-  Html5QrcodeSupportedFormats.QR_CODE,  // LPN主要是二维码
+  Html5QrcodeSupportedFormats.CODE_128,
+  Html5QrcodeSupportedFormats.CODE_39,
+  Html5QrcodeSupportedFormats.QR_CODE,
 ];
 
 // 物流追踪号常用格式
@@ -67,16 +69,16 @@ export function Scanner({
   const getQrboxConfig = () => {
     const tablet = isTablet();
     if (scanType === "lpn") {
-      // LPN二维码用方形扫描框，平板用更大的框
-      return tablet 
-        ? { width: 320, height: 320 }  // 平板：更大的扫描区域
-        : { width: 220, height: 220 }; // 手机：标准大小
-    } else {
-      // 物流条码用横向框
+      // LPN多为横向条形码，使用更宽的扫描框（同时也能扫二维码）
       return tablet
-        ? { width: 380, height: 200 }  // 平板
-        : { width: 280, height: 150 }; // 手机
+        ? { width: 420, height: 200 }
+        : { width: 320, height: 160 };
     }
+
+    // 物流追踪号兼容条码/二维码
+    return tablet
+      ? { width: 380, height: 220 }
+      : { width: 280, height: 180 };
   };
 
   useEffect(() => {
@@ -160,7 +162,7 @@ export function Scanner({
         {
           fps: 25,
           qrbox: qrboxConfig,
-          aspectRatio: scanType === "lpn" ? 1 : 1.5,
+          aspectRatio: scanType === "lpn" ? 1.7 : 1.1,
           disableFlip: true,
         },
         (decodedText) => {
@@ -295,7 +297,7 @@ export function Scanner({
             </DialogTitle>
           <DialogDescription>
               {scanType === "lpn" 
-                ? "将LPN二维码对准取景框，格式：LPNXXXXXXXXXXX" 
+                ? "将LPN条形码/二维码对准取景框（例如：LPNHK347025163）" 
                 : "请允许摄像头权限，并将条码或二维码对准取景框"}
             </DialogDescription>
           </DialogHeader>

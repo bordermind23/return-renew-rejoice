@@ -1,13 +1,7 @@
-import { useState, useRef, useCallback, useEffect } from "react";
-import { Camera, Upload, Loader2, X, RefreshCw, CheckCircle } from "lucide-react";
+import { useState, useRef } from "react";
+import { Camera, Upload, Loader2, RefreshCw, CheckCircle } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent } from "@/components/ui/card";
-import {
-  Dialog,
-  DialogContent,
-  DialogHeader,
-  DialogTitle,
-} from "@/components/ui/dialog";
 import { supabase } from "@/integrations/supabase/client";
 import { toast } from "sonner";
 import { Badge } from "@/components/ui/badge";
@@ -18,85 +12,15 @@ interface ShippingLabelCaptureProps {
 }
 
 export function ShippingLabelCapture({ onTrackingRecognized, onCancel }: ShippingLabelCaptureProps) {
-  const [isCapturing, setIsCapturing] = useState(false);
   const [capturedImage, setCapturedImage] = useState<string | null>(null);
   const [isRecognizing, setIsRecognizing] = useState(false);
   const [recognizedNumbers, setRecognizedNumbers] = useState<string[]>([]);
   const [matchedNumbers, setMatchedNumbers] = useState<string[]>([]);
   const [showSelection, setShowSelection] = useState(false);
   const [isUploading, setIsUploading] = useState(false);
-  const [cameraError, setCameraError] = useState<string | null>(null);
-  const videoRef = useRef<HTMLVideoElement>(null);
-  const streamRef = useRef<MediaStream | null>(null);
+  
+  const cameraInputRef = useRef<HTMLInputElement>(null);
   const fileInputRef = useRef<HTMLInputElement>(null);
-
-  // 页面加载时自动启动摄像头
-  useEffect(() => {
-    startCamera();
-    return () => {
-      if (streamRef.current) {
-        streamRef.current.getTracks().forEach(track => track.stop());
-      }
-    };
-  }, []);
-
-  const startCamera = async () => {
-    setCameraError(null);
-    try {
-      const stream = await navigator.mediaDevices.getUserMedia({
-        video: {
-          // 在电脑/平板上 environment 可能不可用，交给浏览器选择
-          facingMode: { ideal: "environment" },
-          width: { ideal: 1920 },
-          height: { ideal: 1080 },
-        },
-      });
-
-      streamRef.current = stream;
-
-      const videoEl = videoRef.current;
-      if (videoEl) {
-        videoEl.srcObject = stream;
-
-        // 等待元数据加载，避免出现黑屏/尺寸为 0
-        await new Promise<void>((resolve, reject) => {
-          const timeout = window.setTimeout(() => reject(new Error("Camera timeout")), 4000);
-          videoEl.onloadedmetadata = () => {
-            window.clearTimeout(timeout);
-            resolve();
-          };
-        });
-
-        // 某些浏览器需要显式 play
-        const playPromise = videoEl.play();
-        if (playPromise) await playPromise;
-      }
-
-      setIsCapturing(true);
-    } catch (error: any) {
-      console.error("Failed to start camera:", error);
-
-      const name = error?.name;
-      if (name === "NotFoundError" || name === "OverconstrainedError") {
-        setCameraError("未检测到可用摄像头，请改用上传照片");
-      } else if (name === "NotAllowedError") {
-        setCameraError("摄像头权限被拒绝，请在浏览器设置中允许后重试");
-      } else {
-        setCameraError("无法访问摄像头，请检查权限设置");
-      }
-
-      setIsCapturing(false);
-      toast.error("无法访问摄像头");
-    }
-  };
-
-  const stopCamera = useCallback(() => {
-    if (streamRef.current) {
-      streamRef.current.getTracks().forEach(track => track.stop());
-      streamRef.current = null;
-    }
-    setIsCapturing(false);
-  }, []);
 
   // 优化压缩图片 - 提高识别准确率
   const compressImage = (imageData: string, maxWidth: number = 1600, quality: number = 0.85): Promise<string> => {
@@ -146,34 +70,8 @@ export function ShippingLabelCapture({ onTrackingRecognized, onCancel }: Shippin
     });
   };
 
-  const capturePhoto = async () => {
-    if (!videoRef.current) return;
-
-    // 黑屏/未就绪时 videoWidth 可能为 0
-    if (!videoRef.current.videoWidth || !videoRef.current.videoHeight) {
-      toast.error("摄像头未就绪，请稍后重试或改用上传照片");
-      setCameraError("摄像头未就绪，请改用上传照片");
-      stopCamera();
-      return;
-    }
-
-    const canvas = document.createElement("canvas");
-    canvas.width = videoRef.current.videoWidth;
-    canvas.height = videoRef.current.videoHeight;
-    const ctx = canvas.getContext("2d");
-    if (ctx) {
-      ctx.drawImage(videoRef.current, 0, 0);
-      const originalImage = canvas.toDataURL("image/jpeg", 0.95);
-      setCapturedImage(originalImage);
-      stopCamera();
-
-      // 压缩后再识别
-      const compressedImage = await compressImage(originalImage);
-      recognizeTracking(compressedImage);
-    }
-  };
-
-  const handleFileUpload = async (event: React.ChangeEvent<HTMLInputElement>) => {
+  // 处理拍照或上传的图片
+  const handleImageCapture = async (event: React.ChangeEvent<HTMLInputElement>) => {
     const file = event.target.files?.[0];
     if (!file) return;
 
@@ -187,6 +85,9 @@ export function ShippingLabelCapture({ onTrackingRecognized, onCancel }: Shippin
       recognizeTracking(compressedImage);
     };
     reader.readAsDataURL(file);
+    
+    // 重置 input 以便可以重复选择同一文件
+    event.target.value = "";
   };
 
   const recognizeTracking = async (imageData: string) => {
@@ -240,7 +141,7 @@ export function ShippingLabelCapture({ onTrackingRecognized, onCancel }: Shippin
           await uploadPhotoAndConfirm(trackingNumbers[0], imageData);
         }
       } else {
-        toast.warning("未能识别到物流跟踪号，请确保照片清晰或手动输入");
+        toast.warning("未能识别到物流跟踪号，请确保照片清晰或重新拍摄");
         setIsRecognizing(false);
       }
     } catch (error) {
@@ -306,7 +207,6 @@ export function ShippingLabelCapture({ onTrackingRecognized, onCancel }: Shippin
   };
 
   const handleCancel = () => {
-    stopCamera();
     setCapturedImage(null);
     setRecognizedNumbers([]);
     setMatchedNumbers([]);
@@ -324,109 +224,60 @@ export function ShippingLabelCapture({ onTrackingRecognized, onCancel }: Shippin
           <div>
             <h2 className="text-lg font-semibold">拍摄物流面单</h2>
             <p className="text-sm text-muted-foreground">
-              将摄像头对准物流面单，点击拍摄按钮
+              点击下方按钮拍摄或上传物流面单照片
             </p>
           </div>
 
-          {/* 摄像头视图 - 默认显示 */}
-          {isCapturing && !capturedImage && (
-            <div className="space-y-4">
-              <div className="relative aspect-video max-w-lg mx-auto rounded-lg overflow-hidden bg-black">
-                <video
-                  ref={videoRef}
-                  autoPlay
-                  playsInline
-                  muted
-                  className="w-full h-full object-cover"
-                />
-                {/* 取景框提示 */}
-                <div className="absolute inset-4 border-2 border-white/50 border-dashed rounded-lg pointer-events-none" />
-              </div>
-              <div className="flex gap-3 justify-center">
-                <Button onClick={capturePhoto} className="gradient-primary h-14 px-10 text-lg">
-                  <Camera className="mr-2 h-6 w-6" />
-                  拍摄
-                </Button>
-              </div>
-              <p className="text-xs text-muted-foreground">
-                或者 <button 
-                  className="text-primary underline" 
-                  onClick={() => fileInputRef.current?.click()}
-                >
-                  上传照片
-                </button>
-              </p>
-              <input
-                ref={fileInputRef}
-                type="file"
-                accept="image/*"
-                className="hidden"
-                onChange={handleFileUpload}
-              />
-            </div>
-          )}
+          {/* 隐藏的文件输入 - 原生相机 */}
+          <input
+            ref={cameraInputRef}
+            type="file"
+            accept="image/*"
+            capture="environment"
+            className="hidden"
+            onChange={handleImageCapture}
+          />
+          
+          {/* 隐藏的文件输入 - 相册上传 */}
+          <input
+            ref={fileInputRef}
+            type="file"
+            accept="image/*"
+            className="hidden"
+            onChange={handleImageCapture}
+          />
 
-          {/* 摄像头错误时的备用选项 - 优先显示上传 */}
-          {cameraError && !capturedImage && (
+          {/* 未拍照时显示拍摄/上传按钮 */}
+          {!capturedImage && !isRecognizing && (
             <div className="space-y-4">
               <div className="relative aspect-video max-w-lg mx-auto rounded-lg overflow-hidden bg-muted/50 border-2 border-dashed border-muted-foreground/30 flex items-center justify-center">
                 <div className="text-center p-6">
-                  <Upload className="h-12 w-12 mx-auto mb-3 text-muted-foreground" />
-                  <p className="text-sm text-muted-foreground mb-1">摄像头不可用</p>
-                  <p className="text-xs text-muted-foreground">请上传物流面单照片</p>
+                  <Camera className="h-12 w-12 mx-auto mb-3 text-muted-foreground" />
+                  <p className="text-sm text-muted-foreground">点击下方按钮开始拍摄</p>
                 </div>
               </div>
+              
               <div className="flex flex-col gap-3 max-w-md mx-auto">
                 <Button 
                   className="gradient-primary h-14 px-8 text-lg"
+                  onClick={() => cameraInputRef.current?.click()}
+                >
+                  <Camera className="mr-2 h-5 w-5" />
+                  拍摄照片
+                </Button>
+                <Button 
+                  variant="outline"
+                  className="h-12"
                   onClick={() => fileInputRef.current?.click()}
                 >
-                  <Upload className="mr-2 h-5 w-5" />
-                  上传照片
+                  <Upload className="mr-2 h-4 w-4" />
+                  从相册选择
                 </Button>
-                <Button onClick={startCamera} variant="ghost" className="h-10 text-muted-foreground">
-                  <RefreshCw className="mr-2 h-4 w-4" />
-                  重试摄像头
-                </Button>
-                <input
-                  ref={fileInputRef}
-                  type="file"
-                  accept="image/*"
-                  className="hidden"
-                  onChange={handleFileUpload}
-                />
               </div>
             </div>
           )}
 
-          {/* 加载摄像头中 */}
-          {!isCapturing && !capturedImage && !cameraError && (
-            <div className="space-y-4">
-              <div className="relative aspect-video max-w-lg mx-auto rounded-lg overflow-hidden bg-muted flex items-center justify-center">
-                <div className="text-center">
-                  <Loader2 className="h-8 w-8 animate-spin mx-auto mb-2 text-muted-foreground" />
-                  <p className="text-sm text-muted-foreground">正在启动摄像头...</p>
-                </div>
-              </div>
-              {/* 在加载中也提供上传选项作为备选 */}
-              <p className="text-xs text-muted-foreground text-center">
-                或者 <button 
-                  className="text-primary underline" 
-                  onClick={() => fileInputRef.current?.click()}
-                >
-                  直接上传照片
-                </button>
-              </p>
-              <input
-                ref={fileInputRef}
-                type="file"
-                accept="image/*"
-                className="hidden"
-                onChange={handleFileUpload}
-              />
-            </div>
-          )}
-
+          {/* 已拍照，显示预览和识别状态 */}
           {capturedImage && (
             <div className="space-y-4">
               <div className="relative aspect-video max-w-lg mx-auto rounded-lg overflow-hidden">
@@ -486,7 +337,7 @@ export function ShippingLabelCapture({ onTrackingRecognized, onCancel }: Shippin
                   </Button>
                   <Button 
                     variant="outline" 
-                    onClick={() => recognizeTracking(capturedImage)}
+                    onClick={() => capturedImage && recognizeTracking(capturedImage)}
                     className="h-10"
                   >
                     <RefreshCw className="mr-2 h-4 w-4" />

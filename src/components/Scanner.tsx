@@ -109,16 +109,33 @@ export function Scanner({
             console.log("Available cameras:", devices);
             if (devices && devices.length > 0) {
               setCameras(devices);
-              const tablet = isTablet();
-              // 优先选择后置摄像头（iPad 等设备在未授权前 label 可能为空）
+              
+              // 优先选择后置摄像头
               const backCameraIndex = devices.findIndex(
-                (device) => device.label.toLowerCase().includes("back") ||
-                            device.label.toLowerCase().includes("rear") ||
-                            device.label.toLowerCase().includes("environment") ||
-                            device.label.includes("后置")
+                (device) => {
+                  const label = device.label.toLowerCase();
+                  return label.includes("back") ||
+                         label.includes("rear") ||
+                         label.includes("environment") ||
+                         label.includes("后置") ||
+                         label.includes("facing back");
+                }
               );
-              const fallbackIndex = tablet ? devices.length - 1 : 0;
-              const preferredIndex = backCameraIndex >= 0 ? backCameraIndex : fallbackIndex;
+              
+              // 如果没找到明确的后置摄像头标识，优先选择列表中最后一个（通常是后置）
+              // 移动设备和平板通常后置摄像头在列表末尾
+              const mobile = isMobileDevice();
+              const preferredIndex = backCameraIndex >= 0 
+                ? backCameraIndex 
+                : (mobile ? devices.length - 1 : 0);
+              
+              console.log("Camera selection:", { 
+                backCameraIndex, 
+                preferredIndex, 
+                mobile,
+                selectedCamera: devices[preferredIndex]?.label 
+              });
+              
               setCurrentCameraIndex(preferredIndex);
               startScanner(devices[preferredIndex].id);
             } else {

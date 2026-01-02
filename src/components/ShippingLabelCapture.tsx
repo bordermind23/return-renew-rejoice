@@ -99,8 +99,8 @@ export function ShippingLabelCapture({ onTrackingRecognized, onCancel }: Shippin
     });
   }, []);
 
-  // 优化压缩图片 - 提高识别准确率
-  const compressImage = (imageData: string, maxWidth: number = 1600, quality: number = 0.85): Promise<string> => {
+  // 优化压缩图片 - 平衡速度和识别准确率
+  const compressImage = (imageData: string, maxWidth: number = 1200, quality: number = 0.75): Promise<string> => {
     return new Promise((resolve) => {
       const img = new Image();
       img.onload = () => {
@@ -108,7 +108,7 @@ export function ShippingLabelCapture({ onTrackingRecognized, onCancel }: Shippin
         let width = img.width;
         let height = img.height;
         
-        // 如果图片过大，按比例缩小（保持较高分辨率以提高OCR准确率）
+        // 减小尺寸加快上传和识别速度
         if (width > maxWidth) {
           height = Math.round((height * maxWidth) / width);
           width = maxWidth;
@@ -122,12 +122,11 @@ export function ShippingLabelCapture({ onTrackingRecognized, onCancel }: Shippin
         canvas.height = height;
         const ctx = canvas.getContext("2d");
         if (ctx) {
-          // 使用高质量缩放
           ctx.imageSmoothingEnabled = true;
           ctx.imageSmoothingQuality = "high";
           ctx.drawImage(img, 0, 0, width, height);
           
-          // 生成标准格式的 base64（确保格式正确）
+          // 使用适中质量平衡速度和准确率
           const result = canvas.toDataURL("image/jpeg", quality);
           console.log("Image compressed:", { 
             originalSize: Math.round(imageData.length / 1024), 

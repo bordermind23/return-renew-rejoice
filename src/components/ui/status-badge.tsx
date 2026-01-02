@@ -1,6 +1,6 @@
 import { cn } from "@/lib/utils";
 
-type StatusType = "shipping" | "arrived" | "inbound" | "shelved" | "pending" | "completed";
+type StatusType = "shipping" | "arrived" | "inbound" | "shelved" | "pending" | "completed" | "未到货" | "入库";
 
 interface StatusBadgeProps {
   status: StatusType;
@@ -32,6 +32,14 @@ const statusConfig: Record<StatusType, { label: string; className: string }> = {
     label: "已完成",
     className: "bg-success/10 text-success border-success/20",
   },
+  "未到货": {
+    label: "未到货",
+    className: "bg-warning/10 text-warning border-warning/20",
+  },
+  "入库": {
+    label: "入库",
+    className: "bg-success/10 text-success border-success/20",
+  },
 };
 
 export function StatusBadge({ status, className }: StatusBadgeProps) {
@@ -41,11 +49,11 @@ export function StatusBadge({ status, className }: StatusBadgeProps) {
     <span
       className={cn(
         "inline-flex items-center rounded-full border px-2.5 py-0.5 text-xs font-medium",
-        config.className,
+        config?.className,
         className
       )}
     >
-      {config.label}
+      {config?.label || status}
     </span>
   );
 }

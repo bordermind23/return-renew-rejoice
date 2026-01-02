@@ -182,16 +182,18 @@ export function Scanner({
       // 移动端：保持原有配置
       const fps = mobile ? 25 : 15;
 
-      // 统一使用 deviceId 约束
+      // 注意：Html5Qrcode 的 cameraConfig 对象只能包含 1 个 key（deviceId 或 facingMode）
+      // 分辨率等约束要放到 config.videoConstraints 里，否则会报错："found 3 keys"
       const cameraConfig: MediaTrackConstraints = {
         deviceId: { exact: cameraId },
-        ...(desktop
-          ? {
-              width: { ideal: 1920 },
-              height: { ideal: 1080 },
-            }
-          : {}),
       };
+
+      const videoConstraints: MediaTrackConstraints | undefined = desktop
+        ? {
+            width: { ideal: 1920 },
+            height: { ideal: 1080 },
+          }
+        : undefined;
 
       console.log("Starting scanner with config:", {
         scanType,
@@ -201,6 +203,7 @@ export function Scanner({
         compatMode,
         useBarcodeDetector,
         fps,
+        videoConstraints,
       });
 
       setLastScanError(null);
@@ -212,6 +215,7 @@ export function Scanner({
           qrbox: qrboxConfig,
           aspectRatio: qrboxConfig.width / qrboxConfig.height,
           disableFlip: true,
+          videoConstraints,
         },
         (decodedText) => {
           const normalized = normalizeCode(decodedText);

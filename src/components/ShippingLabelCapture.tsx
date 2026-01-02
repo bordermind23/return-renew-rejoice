@@ -308,23 +308,27 @@ export function ShippingLabelCapture({ onTrackingRecognized, onCancel }: Shippin
             </div>
           )}
 
-          {/* 摄像头错误时的备用选项 */}
-          {cameraError && !capturedImage && !isCapturing && (
+          {/* 摄像头错误时的备用选项 - 优先显示上传 */}
+          {cameraError && !capturedImage && (
             <div className="space-y-4">
-              <div className="p-4 rounded-lg bg-destructive/10 text-destructive">
-                <p className="text-sm">{cameraError}</p>
+              <div className="relative aspect-video max-w-lg mx-auto rounded-lg overflow-hidden bg-muted/50 border-2 border-dashed border-muted-foreground/30 flex items-center justify-center">
+                <div className="text-center p-6">
+                  <Upload className="h-12 w-12 mx-auto mb-3 text-muted-foreground" />
+                  <p className="text-sm text-muted-foreground mb-1">摄像头不可用</p>
+                  <p className="text-xs text-muted-foreground">请上传物流面单照片</p>
+                </div>
               </div>
               <div className="flex flex-col gap-3 max-w-md mx-auto">
-                <Button onClick={startCamera} variant="outline" className="h-12">
-                  <RefreshCw className="mr-2 h-4 w-4" />
-                  重试摄像头
-                </Button>
                 <Button 
-                  className="gradient-primary h-12 px-6"
+                  className="gradient-primary h-14 px-8 text-lg"
                   onClick={() => fileInputRef.current?.click()}
                 >
                   <Upload className="mr-2 h-5 w-5" />
                   上传照片
+                </Button>
+                <Button onClick={startCamera} variant="ghost" className="h-10 text-muted-foreground">
+                  <RefreshCw className="mr-2 h-4 w-4" />
+                  重试摄像头
                 </Button>
                 <input
                   ref={fileInputRef}
@@ -346,6 +350,22 @@ export function ShippingLabelCapture({ onTrackingRecognized, onCancel }: Shippin
                   <p className="text-sm text-muted-foreground">正在启动摄像头...</p>
                 </div>
               </div>
+              {/* 在加载中也提供上传选项作为备选 */}
+              <p className="text-xs text-muted-foreground text-center">
+                或者 <button 
+                  className="text-primary underline" 
+                  onClick={() => fileInputRef.current?.click()}
+                >
+                  直接上传照片
+                </button>
+              </p>
+              <input
+                ref={fileInputRef}
+                type="file"
+                accept="image/*"
+                className="hidden"
+                onChange={handleFileUpload}
+              />
             </div>
           )}
 

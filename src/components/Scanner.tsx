@@ -54,6 +54,12 @@ const isTablet = (): boolean => {
   return typeof window !== 'undefined' && window.innerWidth >= 768;
 };
 
+// 检测是否是移动设备（通过 userAgent）
+const isMobileDevice = (): boolean => {
+  if (typeof navigator === 'undefined') return false;
+  return /Android|webOS|iPhone|iPad|iPod|BlackBerry|IEMobile|Opera Mini/i.test(navigator.userAgent);
+};
+
 export function Scanner({
   onScan,
   buttonLabel = "摄像头扫码",
@@ -143,13 +149,18 @@ export function Scanner({
         await scannerRef.current.stop();
       }
 
+      const mobile = isMobileDevice();
+      
+      // 关键修复：桌面端默认禁用 BarcodeDetector（Chrome 桌面版对 CODE_128 识别不稳定）
+      // 只有在明确开启兼容模式时才完全禁用，否则移动端可以使用原生 API
+      const useBarcodeDetector = mobile && !compatMode;
+
       // 创建扫描器实例，限制支持的格式以提升速度
-      // 某些桌面端浏览器的 BarcodeDetector 对 CODE_128 识别不稳定，提供兼容模式可关闭它
       scannerRef.current = new Html5Qrcode(scannerContainerId, {
         verbose: false,
         formatsToSupport: supportedFormats,
         experimentalFeatures: {
-          useBarCodeDetectorIfSupported: !compatMode,
+          useBarCodeDetectorIfSupported: useBarcodeDetector,
         },
       });
 
@@ -158,7 +169,11 @@ export function Scanner({
       const w = typeof window !== "undefined" ? window.innerWidth : 1024;
       const desktop = w >= 1024;
 
-      // 统一使用 deviceId 约束（桌面/平板/移动端都更稳定），桌面端额外请求更高分辨率
+      // 桌面端：使用更高分辨率和更慢但更稳定的帧率
+      // 移动端：保持原有配置
+      const fps = mobile ? 25 : 15;
+
+      // 统一使用 deviceId 约束
       const cameraConfig: MediaTrackConstraints = {
         deviceId: { exact: cameraId },
         ...(desktop
@@ -171,9 +186,12 @@ export function Scanner({
 
       console.log("Starting scanner with config:", {
         scanType,
+        mobile,
         desktop,
         qrboxConfig,
         compatMode,
+        useBarcodeDetector,
+        fps,
       });
 
       setLastScanError(null);
@@ -181,7 +199,7 @@ export function Scanner({
       await scannerRef.current.start(
         cameraConfig,
         {
-          fps: compatMode ? 12 : 25,
+          fps,
           qrbox: qrboxConfig,
           aspectRatio: qrboxConfig.width / qrboxConfig.height,
           disableFlip: true,

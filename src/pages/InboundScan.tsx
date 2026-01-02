@@ -39,7 +39,7 @@ import { useProducts, useProductParts } from "@/hooks/useProducts";
 import { Skeleton } from "@/components/ui/skeleton";
 import { toast } from "sonner";
 import { Scanner } from "@/components/Scanner";
-import { NativePhotoCapture } from "@/components/NativePhotoCapture";
+import { NativePhotoCapture, getPhotoSteps } from "@/components/NativePhotoCapture";
 import { MobileInboundScanner } from "@/components/MobileInboundScanner";
 import { ShippingLabelCapture } from "@/components/ShippingLabelCapture";
 import { TranslatedText } from "@/components/TranslatedText";
@@ -503,30 +503,34 @@ export default function InboundScan() {
 
     const matchingShipmentBySku = matchedShipments.find(s => s.product_sku === orderSku) || matchedShipment;
 
-    createMutation.mutate(
-      {
-        lpn: currentLpn,
-        removal_order_id: matchingShipmentBySku.order_id,
-        product_sku: orderSku,
-        product_name: orderProductName,
-        return_reason: null,
-        grade: "A" as "A" | "B" | "C" | "new",
-        missing_parts: missingPartsLabels.length > 0 ? missingPartsLabels : null,
-        processed_at: new Date().toISOString(),
-        processed_by: "操作员",
-        tracking_number: matchedShipment.tracking_number,
-        shipment_id: matchingShipmentBySku.id,
-        lpn_label_photo: capturedPhotos.lpn_label_photo || null,
-        packaging_photo_1: capturedPhotos.packaging_photo_1 || null,
-        packaging_photo_2: capturedPhotos.packaging_photo_2 || null,
-        packaging_photo_3: capturedPhotos.packaging_photo_3 || null,
-        packaging_photo_4: capturedPhotos.packaging_photo_4 || null,
-        packaging_photo_5: capturedPhotos.packaging_photo_5 || null,
-        packaging_photo_6: capturedPhotos.packaging_photo_6 || null,
-        accessories_photo: capturedPhotos.accessories_photo || null,
-        detail_photo: capturedPhotos.detail_photo || null,
-        shipping_label_photo: shippingLabelPhoto || null,
-      },
+      createMutation.mutate(
+        {
+          lpn: currentLpn,
+          removal_order_id: matchingShipmentBySku.order_id,
+          product_sku: orderSku,
+          product_name: orderProductName,
+          return_reason: null,
+          grade: "A" as "A" | "B" | "C" | "new",
+          missing_parts: missingPartsLabels.length > 0 ? missingPartsLabels : null,
+          processed_at: new Date().toISOString(),
+          processed_by: "操作员",
+          tracking_number: matchedShipment.tracking_number,
+          shipment_id: matchingShipmentBySku.id,
+          lpn_label_photo: capturedPhotos.lpn_label_photo || null,
+          packaging_photo_1: capturedPhotos.packaging_photo_1 || null,
+          packaging_photo_2: capturedPhotos.packaging_photo_2 || null,
+          packaging_photo_3: capturedPhotos.packaging_photo_3 || null,
+          packaging_photo_4: capturedPhotos.packaging_photo_4 || null,
+          packaging_photo_5: capturedPhotos.packaging_photo_5 || null,
+          packaging_photo_6: capturedPhotos.packaging_photo_6 || null,
+          accessories_photo: capturedPhotos.accessories_photo || null,
+          detail_photo: capturedPhotos.detail_photo || null,
+          damage_photo_1: capturedPhotos.damage_photo_1 || null,
+          damage_photo_2: capturedPhotos.damage_photo_2 || null,
+          damage_photo_3: capturedPhotos.damage_photo_3 || null,
+          package_accessories_photo: capturedPhotos.package_accessories_photo || null,
+          shipping_label_photo: shippingLabelPhoto || null,
+        },
       {
         onSuccess: () => {
           updateInventoryMutation.mutate({
@@ -1236,6 +1240,7 @@ export default function InboundScan() {
       {isPhotoCaptureOpen && (
         <NativePhotoCapture
           lpn={currentLpn}
+          steps={getPhotoSteps(hasProductDamage, selectedMissingParts.length > 0)}
           onComplete={(photos) => {
             setCapturedPhotos(photos);
             setIsPhotoCaptureOpen(false);

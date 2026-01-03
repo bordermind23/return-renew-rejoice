@@ -26,6 +26,9 @@ const statusConfig: Record<CaseStatus, { className: string }> = {
   closed: {
     className: 'bg-purple-100 text-purple-800 dark:bg-purple-900/30 dark:text-purple-400',
   },
+  voided: {
+    className: 'bg-gray-200 text-gray-500 dark:bg-gray-700/50 dark:text-gray-500 line-through',
+  },
 };
 
 export function CaseStatusBadge({ status, className }: CaseStatusBadgeProps) {

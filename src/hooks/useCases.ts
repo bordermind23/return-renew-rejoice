@@ -4,7 +4,7 @@ import { toast } from "sonner";
 import { logOperation } from "./useOperationLogs";
 
 export type CaseType = 'lpn_missing' | 'sku_mismatch' | 'accessory_missing' | 'product_damaged' | 'other';
-export type CaseStatus = 'pending' | 'submitted' | 'in_progress' | 'approved' | 'rejected' | 'closed';
+export type CaseStatus = 'pending' | 'submitted' | 'in_progress' | 'approved' | 'rejected' | 'closed' | 'voided';
 
 export interface Case {
   id: string;
@@ -60,6 +60,7 @@ export const caseStatusLabels: Record<CaseStatus, string> = {
   approved: '已通过',
   rejected: '已拒绝',
   closed: '已关闭',
+  voided: '已作废',
 };
 
 export const useCases = () => {

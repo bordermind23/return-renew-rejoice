@@ -1292,7 +1292,7 @@ export default function Orders() {
                         {/* 展开后的子行 */}
                         {isExpanded && group.orders.map((item) => {
                           const inboundItem = inboundByLpn[item.lpn];
-                          const displayGrade = item.grade || inboundItem?.grade;
+                          const displayGrade = item.grade || inboundItem?.refurbishment_grade;
 
                           return (
                             <OrderTableRow
@@ -1304,7 +1304,7 @@ export default function Orders() {
                               onDelete={() => setDeleteId(item.id)}
                               onEditGrade={() => setGradeEditOrder(item)}
                               displayGrade={displayGrade}
-                              hasInboundItem={!!inboundItem}
+                              hasInboundItem={!!inboundItem?.refurbishment_grade}
                               isGroupChild
                             />
                           );
@@ -1316,7 +1316,7 @@ export default function Orders() {
                   {/* 单个LPN订单 */}
                   {singleOrders.map((item) => {
                     const inboundItem = inboundByLpn[item.lpn];
-                    const displayGrade = item.grade || inboundItem?.grade;
+                    const displayGrade = item.grade || inboundItem?.refurbishment_grade;
 
                     return (
                       <OrderTableRow
@@ -1328,7 +1328,7 @@ export default function Orders() {
                         onDelete={() => setDeleteId(item.id)}
                         onEditGrade={() => setGradeEditOrder(item)}
                         displayGrade={displayGrade}
-                        hasInboundItem={!!inboundItem}
+                        hasInboundItem={!!inboundItem?.refurbishment_grade}
                       />
                     );
                   })}

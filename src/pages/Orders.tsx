@@ -1260,9 +1260,6 @@ export default function Orders() {
         onStatusFilterChange={handleStatusFilterChange}
         gradeFilter={gradeFilter}
         onGradeFilterChange={handleGradeFilterChange}
-        storeFilter={storeFilter}
-        onStoreFilterChange={handleStoreFilterChange}
-        stores={stores}
         hasActiveFilters={hasActiveFilters}
         onClearFilters={clearAllFilters}
       />

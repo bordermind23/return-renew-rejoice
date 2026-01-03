@@ -5,6 +5,7 @@ import { TableCell, TableRow } from "@/components/ui/table";
 import { GradeBadge } from "@/components/ui/grade-badge";
 import { OrderStatusBadge } from "@/components/ui/order-status-badge";
 import type { Order } from "@/hooks/useOrders";
+import { format } from "date-fns";
 
 interface OrderTableRowProps {
   order: Order;
@@ -17,6 +18,15 @@ interface OrderTableRowProps {
   hasInboundItem: boolean;
   isGroupChild?: boolean;
 }
+
+const formatDateTime = (dateStr: string | null) => {
+  if (!dateStr) return "-";
+  try {
+    return format(new Date(dateStr), "MM-dd HH:mm");
+  } catch {
+    return "-";
+  }
+};
 
 export function OrderTableRow({
   order,
@@ -88,6 +98,12 @@ export function OrderTableRow({
       </TableCell>
       <TableCell>
         <span className="font-medium">{order.order_number}</span>
+      </TableCell>
+      <TableCell className="text-xs text-muted-foreground whitespace-nowrap">
+        {formatDateTime(order.order_time)}
+      </TableCell>
+      <TableCell className="text-xs text-muted-foreground whitespace-nowrap">
+        {formatDateTime(order.return_time)}
       </TableCell>
       <TableCell>
         <div className="flex justify-center gap-0.5">

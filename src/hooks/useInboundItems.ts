@@ -507,3 +507,34 @@ export const useBulkClearRefurbishment = () => {
     },
   });
 };
+
+// 批量更新面单照片（为同一物流号的所有入库记录设置面单照片）
+export const useBatchUpdateShippingLabel = () => {
+  const queryClient = useQueryClient();
+
+  return useMutation({
+    mutationFn: async ({ 
+      trackingNumber, 
+      shippingLabelPhoto 
+    }: { 
+      trackingNumber: string; 
+      shippingLabelPhoto: string;
+    }) => {
+      const { data, error } = await supabase
+        .from("inbound_items")
+        .update({ shipping_label_photo: shippingLabelPhoto })
+        .eq("tracking_number", trackingNumber)
+        .select("id");
+
+      if (error) throw error;
+      return { count: data?.length || 0, trackingNumber };
+    },
+    onSuccess: (data) => {
+      queryClient.invalidateQueries({ queryKey: ["inbound_items"] });
+      toast.success(`已为 ${data.count} 条入库记录补充面单照片`);
+    },
+    onError: (error) => {
+      toast.error("补传面单失败: " + mapDatabaseError(error));
+    },
+  });
+};

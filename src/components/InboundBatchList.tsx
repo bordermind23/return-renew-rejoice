@@ -1,10 +1,17 @@
-import { useState, useMemo } from "react";
-import { ChevronDown, ChevronRight, Package, Trash2, Image, Eye } from "lucide-react";
+import { useState, useMemo, useRef } from "react";
+import { ChevronDown, ChevronRight, Package, Trash2, Image, Eye, Upload, Loader2 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Card } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { Checkbox } from "@/components/ui/checkbox";
-
+import {
+  Dialog,
+  DialogContent,
+  DialogDescription,
+  DialogFooter,
+  DialogHeader,
+  DialogTitle,
+} from "@/components/ui/dialog";
 import {
   Table,
   TableBody,
@@ -20,8 +27,10 @@ import {
 } from "@/components/ui/collapsible";
 import { ScrollArea, ScrollBar } from "@/components/ui/scroll-area";
 import { PhotoViewDialog } from "@/components/PhotoViewDialog";
-import { type InboundItem } from "@/hooks/useInboundItems";
+import { type InboundItem, useBatchUpdateShippingLabel } from "@/hooks/useInboundItems";
+import { supabase } from "@/integrations/supabase/client";
 import { cn } from "@/lib/utils";
+import { toast } from "sonner";
 
 interface InboundBatchListProps {
   items: InboundItem[];
@@ -45,6 +54,15 @@ export function InboundBatchList({ items, onDelete, onBatchDelete, enableBatchSe
   const [batchPhotoViewItem, setBatchPhotoViewItem] = useState<BatchGroup | null>(null);
   const [shippingLabelUrl, setShippingLabelUrl] = useState<string | null>(null); // 单独查看物流面单
   const [selectedIds, setSelectedIds] = useState<Set<string>>(new Set());
+  
+  // 补传面单相关状态
+  const [uploadDialogOpen, setUploadDialogOpen] = useState(false);
+  const [uploadingBatch, setUploadingBatch] = useState<BatchGroup | null>(null);
+  const [isUploading, setIsUploading] = useState(false);
+  const [previewImage, setPreviewImage] = useState<string | null>(null);
+  const fileInputRef = useRef<HTMLInputElement>(null);
+  
+  const batchUpdateShippingLabelMutation = useBatchUpdateShippingLabel();
 
   // 按物流跟踪号分组
   const batches = useMemo(() => {
@@ -172,6 +190,71 @@ export function InboundBatchList({ items, onDelete, onBatchDelete, enableBatchSe
     }
   };
 
+  // 补传面单相关函数
+  const handleOpenUploadDialog = (batch: BatchGroup) => {
+    setUploadingBatch(batch);
+    setPreviewImage(null);
+    setUploadDialogOpen(true);
+  };
+
+  const handleFileSelect = (event: React.ChangeEvent<HTMLInputElement>) => {
+    const file = event.target.files?.[0];
+    if (!file) return;
+    
+    const reader = new FileReader();
+    reader.onload = (e) => {
+      setPreviewImage(e.target?.result as string);
+    };
+    reader.readAsDataURL(file);
+  };
+
+  const handleUploadConfirm = async () => {
+    if (!uploadingBatch || !previewImage) return;
+    
+    setIsUploading(true);
+    try {
+      // Convert base64 to blob
+      const response = await fetch(previewImage);
+      const blob = await response.blob();
+      
+      // Generate unique filename
+      const filename = `${uploadingBatch.trackingNumber}/${Date.now()}.jpg`;
+      
+      // Upload to storage
+      const { error: uploadError } = await supabase.storage
+        .from("shipping-labels")
+        .upload(filename, blob, {
+          contentType: "image/jpeg",
+          upsert: true
+        });
+
+      if (uploadError) {
+        toast.error("照片上传失败");
+        return;
+      }
+
+      // Get public URL
+      const { data: { publicUrl } } = supabase.storage
+        .from("shipping-labels")
+        .getPublicUrl(filename);
+
+      // Update all inbound items with this tracking number
+      await batchUpdateShippingLabelMutation.mutateAsync({
+        trackingNumber: uploadingBatch.trackingNumber,
+        shippingLabelPhoto: publicUrl,
+      });
+
+      setUploadDialogOpen(false);
+      setUploadingBatch(null);
+      setPreviewImage(null);
+    } catch (error) {
+      console.error("Upload error:", error);
+      toast.error("补传面单失败");
+    } finally {
+      setIsUploading(false);
+    }
+  };
+
   const allSelected = items.length > 0 && items.every(item => selectedIds.has(item.id));
   const someSelected = items.some(item => selectedIds.has(item.id)) && !allSelected;
 
@@ -278,19 +361,31 @@ export function InboundBatchList({ items, onDelete, onBatchDelete, enableBatchSe
                 </CollapsibleTrigger>
                 {/* 批次操作按钮 */}
                 <div className="pr-4 flex-shrink-0 flex items-center gap-2">
-                  {shippingLabelPhoto && (
+                  {shippingLabelPhoto ? (
                     <Button
                       size="sm"
                       variant="outline"
                       className="h-8"
                       onClick={(e) => {
                         e.stopPropagation();
-                        // 只展示物流面单
                         setShippingLabelUrl(shippingLabelPhoto);
                       }}
                     >
                       <Eye className="h-4 w-4 mr-1" />
                       查看面单
+                    </Button>
+                  ) : (
+                    <Button
+                      size="sm"
+                      variant="outline"
+                      className="h-8 text-orange-600 border-orange-300 hover:bg-orange-50"
+                      onClick={(e) => {
+                        e.stopPropagation();
+                        handleOpenUploadDialog(batch);
+                      }}
+                    >
+                      <Upload className="h-4 w-4 mr-1" />
+                      补传面单
                     </Button>
                   )}
                 </div>
@@ -473,6 +568,82 @@ export function InboundBatchList({ items, onDelete, onBatchDelete, enableBatchSe
           photos={[{ key: 'shipping_label', label: '物流面单', url: shippingLabelUrl }]}
         />
       )}
+
+      {/* 补传面单对话框 */}
+      <Dialog open={uploadDialogOpen} onOpenChange={setUploadDialogOpen}>
+        <DialogContent className="max-w-md">
+          <DialogHeader>
+            <DialogTitle>补传物流面单</DialogTitle>
+            <DialogDescription>
+              为物流号 <code className="bg-muted px-1.5 py-0.5 rounded font-medium">{uploadingBatch?.trackingNumber}</code> 上传面单照片，将应用到该批次的 {uploadingBatch?.totalCount} 条入库记录。
+            </DialogDescription>
+          </DialogHeader>
+          
+          <div className="space-y-4">
+            {/* 隐藏的文件输入 */}
+            <input
+              ref={fileInputRef}
+              type="file"
+              accept="image/*"
+              className="hidden"
+              onChange={handleFileSelect}
+            />
+            
+            {/* 预览区域 */}
+            {previewImage ? (
+              <div className="relative aspect-video rounded-lg overflow-hidden border bg-muted">
+                <img
+                  src={previewImage}
+                  alt="预览"
+                  className="w-full h-full object-contain"
+                />
+                <Button
+                  size="sm"
+                  variant="secondary"
+                  className="absolute bottom-2 right-2"
+                  onClick={() => fileInputRef.current?.click()}
+                >
+                  重新选择
+                </Button>
+              </div>
+            ) : (
+              <button
+                className="w-full aspect-video rounded-lg border-2 border-dashed border-muted-foreground/30 bg-muted/50 hover:border-primary/50 hover:bg-muted/70 transition-colors flex flex-col items-center justify-center gap-2"
+                onClick={() => fileInputRef.current?.click()}
+              >
+                <Upload className="h-10 w-10 text-muted-foreground" />
+                <p className="text-sm text-muted-foreground">点击选择图片或拍照</p>
+              </button>
+            )}
+          </div>
+
+          <DialogFooter>
+            <Button
+              variant="outline"
+              onClick={() => {
+                setUploadDialogOpen(false);
+                setPreviewImage(null);
+              }}
+              disabled={isUploading}
+            >
+              取消
+            </Button>
+            <Button
+              onClick={handleUploadConfirm}
+              disabled={!previewImage || isUploading}
+            >
+              {isUploading ? (
+                <>
+                  <Loader2 className="h-4 w-4 mr-2 animate-spin" />
+                  上传中...
+                </>
+              ) : (
+                "确认上传"
+              )}
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
     </div>
   );
 }

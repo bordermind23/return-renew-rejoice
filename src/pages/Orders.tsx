@@ -1416,7 +1416,6 @@ export default function Orders() {
                     <div className="space-y-4">
                       <div className="grid grid-cols-2 gap-4 rounded-lg bg-muted/50 p-4 text-sm">
                         <div><p className="text-muted-foreground">LPN编号</p><p className="font-mono font-medium">{inboundItem.lpn}</p></div>
-                        <div><p className="text-muted-foreground">入库等级</p><p className="font-medium"><GradeBadge grade={inboundItem.grade as "A" | "B" | "C"} /></p></div>
                         <div><p className="text-muted-foreground">产品名称</p><p className="font-medium">{inboundItem.product_name}</p></div>
                         <div><p className="text-muted-foreground">产品SKU</p><p className="font-medium">{inboundItem.product_sku}</p></div>
                         <div><p className="text-muted-foreground">移除订单号</p><p className="font-medium">{inboundItem.removal_order_id}</p></div>

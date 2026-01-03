@@ -16,7 +16,6 @@ interface OrderTableRowProps {
   onEditGrade: () => void;
   displayGrade?: string | null;
   hasInboundItem: boolean;
-  isGroupChild?: boolean;
 }
 
 const formatDate = (dateStr: string | null) => {
@@ -37,24 +36,14 @@ export function OrderTableRow({
   onEditGrade,
   displayGrade,
   hasInboundItem,
-  isGroupChild = false,
 }: OrderTableRowProps) {
   return (
-    <TableRow
-      className={`
-        transition-colors
-        ${isGroupChild ? "bg-muted/20 hover:bg-muted/30 border-l-2 border-l-primary/50" : "hover:bg-muted/30"}
-      `}
-    >
+    <TableRow className="transition-colors hover:bg-muted/30">
       <TableCell className="w-[36px]">
         <Checkbox checked={isSelected} onCheckedChange={onSelect} />
       </TableCell>
       <TableCell>
-        {isGroupChild ? (
-          <div className="pl-6 text-muted-foreground text-xs">└</div>
-        ) : (
-          <span className="font-medium">{order.order_number}</span>
-        )}
+        <span className="font-medium">{order.order_number}</span>
       </TableCell>
       <TableCell className="text-center">
         <OrderStatusBadge status={order.status} />

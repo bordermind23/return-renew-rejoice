@@ -147,7 +147,7 @@ export default function Removals() {
   const bulkDeleteMutation = useBulkDeleteRemovalShipments();
   const bulkUpdateMutation = useBulkUpdateRemovalShipments();
 
-  // 计算每个跟踪号的到货数量
+  // 计算每个跟踪号的到货数量（用于分组视图显示整体情况）
   const arrivedCountByTracking = useMemo(() => {
     const counts: Record<string, number> = {};
     (inboundItems || []).forEach((item) => {
@@ -157,6 +157,24 @@ export default function Removals() {
     });
     return counts;
   }, [inboundItems]);
+
+  // 按跟踪号 + 产品SKU 组合统计到货数量（用于单个产品行显示）
+  const arrivedCountByTrackingAndSku = useMemo(() => {
+    const counts: Record<string, number> = {};
+    (inboundItems || []).forEach((item) => {
+      if (item.tracking_number && item.product_sku) {
+        const key = `${item.tracking_number}_${item.product_sku}`;
+        counts[key] = (counts[key] || 0) + 1;
+      }
+    });
+    return counts;
+  }, [inboundItems]);
+
+  // 获取单个产品的到货数量
+  const getArrivedCount = (trackingNumber: string, productSku: string | null | undefined) => {
+    if (!trackingNumber || !productSku) return 0;
+    return arrivedCountByTrackingAndSku[`${trackingNumber}_${productSku}`] || 0;
+  };
 
   // 批量选择
   const toggleSelectAll = () => {
@@ -1212,26 +1230,26 @@ export default function Removals() {
                                 <span className="cursor-help inline-flex items-center gap-0.5">
                                   <span className="font-semibold">{item.quantity}</span>
                                   <span className="text-muted-foreground">/</span>
-                                  <span className={`font-semibold ${(arrivedCountByTracking[item.tracking_number] || 0) >= item.quantity ? 'text-green-600' : 'text-amber-600'}`}>
-                                    {arrivedCountByTracking[item.tracking_number] || 0}
+                                  <span className={`font-semibold ${getArrivedCount(item.tracking_number, item.product_sku) >= item.quantity ? 'text-green-600' : 'text-amber-600'}`}>
+                                    {getArrivedCount(item.tracking_number, item.product_sku)}
                                   </span>
                                 </span>
                               </TooltipTrigger>
                               <TooltipContent side="top" className="max-w-xs">
                                 <div className="text-xs space-y-1">
                                   <p><span className="text-muted-foreground">申报数量：</span>{item.quantity}</p>
-                                  <p><span className="text-muted-foreground">到货数量：</span>{arrivedCountByTracking[item.tracking_number] || 0}</p>
-                                  {(arrivedCountByTracking[item.tracking_number] || 0) < item.quantity && (
+                                  <p><span className="text-muted-foreground">到货数量：</span>{getArrivedCount(item.tracking_number, item.product_sku)}</p>
+                                  {getArrivedCount(item.tracking_number, item.product_sku) < item.quantity && (
                                     <p className="text-amber-600">
-                                      差异：缺少 {item.quantity - (arrivedCountByTracking[item.tracking_number] || 0)} 件
+                                      差异：缺少 {item.quantity - getArrivedCount(item.tracking_number, item.product_sku)} 件
                                     </p>
                                   )}
-                                  {(arrivedCountByTracking[item.tracking_number] || 0) > item.quantity && (
+                                  {getArrivedCount(item.tracking_number, item.product_sku) > item.quantity && (
                                     <p className="text-blue-600">
-                                      差异：多出 {(arrivedCountByTracking[item.tracking_number] || 0) - item.quantity} 件
+                                      差异：多出 {getArrivedCount(item.tracking_number, item.product_sku) - item.quantity} 件
                                     </p>
                                   )}
-                                  {(arrivedCountByTracking[item.tracking_number] || 0) === item.quantity && (
+                                  {getArrivedCount(item.tracking_number, item.product_sku) === item.quantity && (
                                     <p className="text-green-600">已全部到货</p>
                                   )}
                                 </div>
@@ -1321,26 +1339,26 @@ export default function Removals() {
                                   <span className="cursor-help inline-flex items-center gap-0.5">
                                     <span className="font-semibold">{item.quantity}</span>
                                     <span className="text-muted-foreground">/</span>
-                                    <span className={`font-semibold ${(arrivedCountByTracking[item.tracking_number] || 0) >= item.quantity ? 'text-green-600' : 'text-amber-600'}`}>
-                                      {arrivedCountByTracking[item.tracking_number] || 0}
+                                    <span className={`font-semibold ${getArrivedCount(item.tracking_number, item.product_sku) >= item.quantity ? 'text-green-600' : 'text-amber-600'}`}>
+                                      {getArrivedCount(item.tracking_number, item.product_sku)}
                                     </span>
                                   </span>
                                 </TooltipTrigger>
                                 <TooltipContent side="top" className="max-w-xs">
                                   <div className="text-xs space-y-1">
                                     <p><span className="text-muted-foreground">申报数量：</span>{item.quantity}</p>
-                                    <p><span className="text-muted-foreground">到货数量：</span>{arrivedCountByTracking[item.tracking_number] || 0}</p>
-                                    {(arrivedCountByTracking[item.tracking_number] || 0) < item.quantity && (
+                                    <p><span className="text-muted-foreground">到货数量：</span>{getArrivedCount(item.tracking_number, item.product_sku)}</p>
+                                    {getArrivedCount(item.tracking_number, item.product_sku) < item.quantity && (
                                       <p className="text-amber-600">
-                                        差异：缺少 {item.quantity - (arrivedCountByTracking[item.tracking_number] || 0)} 件
+                                        差异：缺少 {item.quantity - getArrivedCount(item.tracking_number, item.product_sku)} 件
                                       </p>
                                     )}
-                                    {(arrivedCountByTracking[item.tracking_number] || 0) > item.quantity && (
+                                    {getArrivedCount(item.tracking_number, item.product_sku) > item.quantity && (
                                       <p className="text-blue-600">
-                                        差异：多出 {(arrivedCountByTracking[item.tracking_number] || 0) - item.quantity} 件
+                                        差异：多出 {getArrivedCount(item.tracking_number, item.product_sku) - item.quantity} 件
                                       </p>
                                     )}
-                                    {(arrivedCountByTracking[item.tracking_number] || 0) === item.quantity && (
+                                    {getArrivedCount(item.tracking_number, item.product_sku) === item.quantity && (
                                       <p className="text-green-600">已全部到货</p>
                                     )}
                                   </div>
@@ -1529,26 +1547,26 @@ export default function Removals() {
                                             <span className="cursor-help inline-flex items-center gap-0.5">
                                               <span className="font-semibold">{item.quantity}</span>
                                               <span className="text-muted-foreground">/</span>
-                                              <span className={`font-semibold ${(arrivedCountByTracking[item.tracking_number] || 0) >= item.quantity ? 'text-green-600' : 'text-amber-600'}`}>
-                                                {arrivedCountByTracking[item.tracking_number] || 0}
+                                              <span className={`font-semibold ${getArrivedCount(item.tracking_number, item.product_sku) >= item.quantity ? 'text-green-600' : 'text-amber-600'}`}>
+                                                {getArrivedCount(item.tracking_number, item.product_sku)}
                                               </span>
                                             </span>
                                           </TooltipTrigger>
                                           <TooltipContent side="top" className="max-w-xs">
                                             <div className="text-xs space-y-1">
                                               <p><span className="text-muted-foreground">申报数量：</span>{item.quantity}</p>
-                                              <p><span className="text-muted-foreground">到货数量：</span>{arrivedCountByTracking[item.tracking_number] || 0}</p>
-                                              {(arrivedCountByTracking[item.tracking_number] || 0) < item.quantity && (
+                                              <p><span className="text-muted-foreground">到货数量：</span>{getArrivedCount(item.tracking_number, item.product_sku)}</p>
+                                              {getArrivedCount(item.tracking_number, item.product_sku) < item.quantity && (
                                                 <p className="text-amber-600">
-                                                  差异：缺少 {item.quantity - (arrivedCountByTracking[item.tracking_number] || 0)} 件
+                                                  差异：缺少 {item.quantity - getArrivedCount(item.tracking_number, item.product_sku)} 件
                                                 </p>
                                               )}
-                                              {(arrivedCountByTracking[item.tracking_number] || 0) > item.quantity && (
+                                              {getArrivedCount(item.tracking_number, item.product_sku) > item.quantity && (
                                                 <p className="text-blue-600">
-                                                  差异：多出 {(arrivedCountByTracking[item.tracking_number] || 0) - item.quantity} 件
+                                                  差异：多出 {getArrivedCount(item.tracking_number, item.product_sku) - item.quantity} 件
                                                 </p>
                                               )}
-                                              {(arrivedCountByTracking[item.tracking_number] || 0) === item.quantity && (
+                                              {getArrivedCount(item.tracking_number, item.product_sku) === item.quantity && (
                                                 <p className="text-green-600">已全部到货</p>
                                               )}
                                             </div>

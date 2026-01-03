@@ -133,7 +133,7 @@ export function OrderFilters({
 
           {/* 排序选择 */}
           <Select value={sortField} onValueChange={(value) => onSortChange(value as SortField, sortDirection)}>
-            <SelectTrigger className="w-[120px] h-10 bg-background">
+            <SelectTrigger className="w-[140px] h-10 bg-background">
               <ArrowUpDown className="mr-2 h-4 w-4" />
               <SelectValue placeholder="排序" />
             </SelectTrigger>

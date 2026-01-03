@@ -1,5 +1,7 @@
 import { useState } from "react";
-import { Plus, Search, Eye, Trash2, MessageSquare, ExternalLink, Filter, Euro, Settings } from "lucide-react";
+import { useQuery } from "@tanstack/react-query";
+import { Plus, Search, Eye, Trash2, MessageSquare, ExternalLink, Filter, Euro, Settings, Camera, Package } from "lucide-react";
+import { supabase } from "@/integrations/supabase/client";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { PageHeader } from "@/components/ui/page-header";
@@ -41,6 +43,7 @@ import { Textarea } from "@/components/ui/textarea";
 import { Skeleton } from "@/components/ui/skeleton";
 import { Badge } from "@/components/ui/badge";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
+import { ImageLightbox } from "@/components/ui/image-lightbox";
 import { CaseStatusBadge } from "@/components/ui/case-status-badge";
 import { CaseTypeBadge } from "@/components/ui/case-type-badge";
 import {
@@ -72,10 +75,31 @@ export default function Cases() {
   const [selectedCase, setSelectedCase] = useState<Case | null>(null);
   const [deleteId, setDeleteId] = useState<string | null>(null);
   const [noteContent, setNoteContent] = useState("");
+  const [lightboxImage, setLightboxImage] = useState<string | null>(null);
 
   const { data: cases, isLoading } = useCases();
   const { data: caseTypes } = useCaseTypes();
   const { data: notes } = useCaseNotes(selectedCase?.id || null);
+  
+  // 查询关联的入库记录（根据LPN或tracking_number）
+  const { data: relatedInboundItem } = useQuery({
+    queryKey: ["related-inbound-item", selectedCase?.lpn, selectedCase?.tracking_number],
+    enabled: !!(selectedCase?.lpn || selectedCase?.tracking_number),
+    queryFn: async () => {
+      let query = supabase.from("inbound_items").select("*");
+      
+      if (selectedCase?.lpn) {
+        query = query.ilike("lpn", selectedCase.lpn);
+      } else if (selectedCase?.tracking_number) {
+        query = query.eq("tracking_number", selectedCase.tracking_number);
+      }
+      
+      const { data, error } = await query.maybeSingle();
+      if (error) throw error;
+      return data;
+    },
+  });
+
   const createMutation = useCreateCase();
   const updateMutation = useUpdateCase();
   const deleteMutation = useDeleteCase();
@@ -597,6 +621,86 @@ export default function Cases() {
                 )}
               </div>
 
+              {/* 关联入库发现 */}
+              {relatedInboundItem && (
+                <div className="p-4 rounded-lg bg-amber-50/50 border border-amber-200">
+                  <h3 className="font-semibold mb-3 flex items-center gap-2 text-amber-800">
+                    <Package className="h-4 w-4" />
+                    关联入库发现
+                  </h3>
+                  <div className="space-y-4">
+                    {/* 基本信息 */}
+                    <div className="grid grid-cols-2 gap-2 text-sm">
+                      <div><span className="text-muted-foreground">LPN：</span>{relatedInboundItem.lpn}</div>
+                      <div><span className="text-muted-foreground">SKU：</span>{relatedInboundItem.product_sku}</div>
+                      <div className="col-span-2"><span className="text-muted-foreground">产品：</span>{relatedInboundItem.product_name}</div>
+                    </div>
+
+                    {/* 缺失配件 */}
+                    {relatedInboundItem.missing_parts && relatedInboundItem.missing_parts.length > 0 && (
+                      <div>
+                        <p className="text-sm font-medium text-amber-700 mb-2">缺失配件：</p>
+                        <div className="flex flex-wrap gap-1">
+                          {relatedInboundItem.missing_parts.map((part: string, idx: number) => (
+                            <Badge key={idx} variant="outline" className="bg-amber-100 text-amber-800 border-amber-300">
+                              {part}
+                            </Badge>
+                          ))}
+                        </div>
+                      </div>
+                    )}
+
+                    {/* 损坏照片 */}
+                    {(relatedInboundItem.damage_photo_1 || relatedInboundItem.damage_photo_2 || relatedInboundItem.damage_photo_3) && (
+                      <div>
+                        <p className="text-sm font-medium text-red-700 mb-2 flex items-center gap-1">
+                          <Camera className="h-4 w-4" />
+                          产品损坏照片：
+                        </p>
+                        <div className="grid grid-cols-3 gap-2">
+                          {[relatedInboundItem.damage_photo_1, relatedInboundItem.damage_photo_2, relatedInboundItem.damage_photo_3]
+                            .filter(Boolean)
+                            .map((photo: string, idx: number) => (
+                              <div
+                                key={idx}
+                                className="aspect-square rounded-lg overflow-hidden border border-red-200 cursor-pointer hover:opacity-80 transition-opacity"
+                                onClick={() => setLightboxImage(photo)}
+                              >
+                                <img src={photo} alt={`损坏照片 ${idx + 1}`} className="w-full h-full object-cover" />
+                              </div>
+                            ))}
+                        </div>
+                      </div>
+                    )}
+
+                    {/* 其他相关照片 */}
+                    {(relatedInboundItem.accessories_photo || relatedInboundItem.package_accessories_photo) && (
+                      <div>
+                        <p className="text-sm font-medium text-muted-foreground mb-2">相关照片：</p>
+                        <div className="grid grid-cols-4 gap-2">
+                          {relatedInboundItem.accessories_photo && (
+                            <div
+                              className="aspect-square rounded-lg overflow-hidden border cursor-pointer hover:opacity-80 transition-opacity"
+                              onClick={() => setLightboxImage(relatedInboundItem.accessories_photo)}
+                            >
+                              <img src={relatedInboundItem.accessories_photo} alt="配件展示" className="w-full h-full object-cover" />
+                            </div>
+                          )}
+                          {relatedInboundItem.package_accessories_photo && (
+                            <div
+                              className="aspect-square rounded-lg overflow-hidden border cursor-pointer hover:opacity-80 transition-opacity"
+                              onClick={() => setLightboxImage(relatedInboundItem.package_accessories_photo)}
+                            >
+                              <img src={relatedInboundItem.package_accessories_photo} alt="包装配件同框" className="w-full h-full object-cover" />
+                            </div>
+                          )}
+                        </div>
+                      </div>
+                    )}
+                  </div>
+                </div>
+              )}
+
               {/* 跟进记录 */}
               <div>
                 <h3 className="font-semibold mb-3 flex items-center gap-2">
@@ -654,6 +758,16 @@ export default function Cases() {
           </AlertDialogFooter>
         </AlertDialogContent>
       </AlertDialog>
+
+      {/* 图片灯箱 */}
+      {lightboxImage && (
+        <ImageLightbox
+          images={[lightboxImage]}
+          initialIndex={0}
+          open={!!lightboxImage}
+          onOpenChange={(open) => !open && setLightboxImage(null)}
+        />
+      )}
     </div>
   );
 }

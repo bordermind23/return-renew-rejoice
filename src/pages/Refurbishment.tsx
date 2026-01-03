@@ -21,6 +21,7 @@ import {
   useCreateInboundItem,
   type InboundItem,
 } from "@/hooks/useInboundItems";
+import { useAuth } from "@/hooks/useAuth";
 import { Skeleton } from "@/components/ui/skeleton";
 import { toast } from "sonner";
 import { Scanner } from "@/components/Scanner";
@@ -33,6 +34,7 @@ import { RefurbishmentMediaCapture } from "@/components/RefurbishmentMediaCaptur
 export default function Refurbishment() {
   const { t } = useLanguage();
   const isMobile = useIsMobile();
+  const { user } = useAuth();
   const [lpnInput, setLpnInput] = useState("");
   const [matchedItem, setMatchedItem] = useState<InboundItem | null>(null);
   const [isProcessDialogOpen, setIsProcessDialogOpen] = useState(false);
@@ -211,7 +213,7 @@ export default function Refurbishment() {
           return_reason: null,
           grade: selectedGrade as "A" | "B" | "C" | "new",
           processed_at: new Date().toISOString(),
-          processed_by: "操作员",
+          processed_by: user?.email || "未知用户",
           tracking_number: null,
           shipment_id: null,
           missing_parts: null,
@@ -220,7 +222,7 @@ export default function Refurbishment() {
           refurbishment_videos: capturedVideos.length > 0 ? capturedVideos : null,
           refurbishment_notes: notes ? `[无入库信息翻新] ${notes}` : "[无入库信息翻新]",
           refurbished_at: new Date().toISOString(),
-          refurbished_by: "操作员",
+          refurbished_by: user?.email || "未知用户",
         },
         {
           onSuccess: async () => {
@@ -294,7 +296,7 @@ export default function Refurbishment() {
         refurbishment_videos: capturedVideos.length > 0 ? capturedVideos : null,
         refurbishment_notes: notes || null,
         refurbished_at: new Date().toISOString(),
-        refurbished_by: "操作员",
+        refurbished_by: user?.email || "未知用户",
       },
       {
         onSuccess: () => {

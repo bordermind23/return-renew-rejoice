@@ -596,6 +596,7 @@ export default function InboundScan() {
     setLpnInput("");
     setSkuMismatchWarning(null);
     setOverQuantityWarning(false);
+    setShippingLabelPhoto(null);
     resetProcessForm();
   };
 

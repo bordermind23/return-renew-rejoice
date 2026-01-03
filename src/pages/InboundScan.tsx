@@ -507,6 +507,17 @@ export default function InboundScan() {
 
     const matchingShipmentBySku = matchedShipments.find(s => s.product_sku === orderSku) || matchedShipment;
 
+    // 如果当前没有面单照片，尝试从同物流号的已入库记录中获取
+    let finalShippingLabelPhoto = shippingLabelPhoto;
+    if (!finalShippingLabelPhoto && matchedShipment?.tracking_number && inboundItems) {
+      const existingWithPhoto = inboundItems.find(
+        item => item.tracking_number === matchedShipment.tracking_number && item.shipping_label_photo
+      );
+      if (existingWithPhoto?.shipping_label_photo) {
+        finalShippingLabelPhoto = existingWithPhoto.shipping_label_photo;
+      }
+    }
+
       createMutation.mutate(
         {
           lpn: currentLpn,
@@ -533,7 +544,7 @@ export default function InboundScan() {
           damage_photo_2: capturedPhotos.damage_photo_2 || null,
           damage_photo_3: capturedPhotos.damage_photo_3 || null,
           package_accessories_photo: capturedPhotos.package_accessories_photo || null,
-          shipping_label_photo: shippingLabelPhoto || null,
+          shipping_label_photo: finalShippingLabelPhoto || null,
         },
       {
         onSuccess: () => {

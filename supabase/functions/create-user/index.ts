@@ -5,8 +5,61 @@ const corsHeaders = {
   "Access-Control-Allow-Headers": "authorization, x-client-info, apikey, content-type",
 };
 
+// Safe error response - logs details server-side, returns generic message to client
+function safeErrorResponse(error: unknown, fallbackMessage: string, status = 500) {
+  console.error("[Error Details]", error);
+  return new Response(
+    JSON.stringify({ error: fallbackMessage }),
+    { status, headers: { ...corsHeaders, "Content-Type": "application/json" } }
+  );
+}
+
+// Input validation functions
+function validateUsername(username: string): { valid: boolean; error?: string } {
+  if (!username || typeof username !== "string") {
+    return { valid: false, error: "用户名不能为空" };
+  }
+  if (username.length < 3 || username.length > 20) {
+    return { valid: false, error: "用户名长度必须为3-20个字符" };
+  }
+  if (!/^[a-zA-Z0-9_-]+$/.test(username)) {
+    return { valid: false, error: "用户名只能包含字母、数字、下划线和连字符" };
+  }
+  return { valid: true };
+}
+
+function validatePassword(password: string): { valid: boolean; error?: string } {
+  if (!password || typeof password !== "string") {
+    return { valid: false, error: "密码不能为空" };
+  }
+  if (password.length < 8) {
+    return { valid: false, error: "密码长度必须至少8个字符" };
+  }
+  if (!/[A-Z]/.test(password)) {
+    return { valid: false, error: "密码必须包含至少一个大写字母" };
+  }
+  if (!/[a-z]/.test(password)) {
+    return { valid: false, error: "密码必须包含至少一个小写字母" };
+  }
+  if (!/[0-9]/.test(password)) {
+    return { valid: false, error: "密码必须包含至少一个数字" };
+  }
+  return { valid: true };
+}
+
+function validateRole(role: string): { valid: boolean; error?: string } {
+  const validRoles = ["admin", "warehouse_staff", "viewer"];
+  if (!role || typeof role !== "string") {
+    return { valid: false, error: "角色不能为空" };
+  }
+  if (!validRoles.includes(role)) {
+    return { valid: false, error: "无效的角色" };
+  }
+  return { valid: true };
+}
+
 Deno.serve(async (req) => {
-  console.log("Create user function called, method:", req.method);
+  console.log("[create-user] Function called, method:", req.method);
   
   if (req.method === "OPTIONS") {
     return new Response(null, { headers: corsHeaders });
@@ -16,20 +69,13 @@ Deno.serve(async (req) => {
     const supabaseUrl = Deno.env.get("SUPABASE_URL");
     const supabaseServiceRoleKey = Deno.env.get("SUPABASE_SERVICE_ROLE_KEY");
 
-    console.log("SUPABASE_URL exists:", !!supabaseUrl);
-    console.log("SUPABASE_SERVICE_ROLE_KEY exists:", !!supabaseServiceRoleKey);
-
     if (!supabaseUrl || !supabaseServiceRoleKey) {
-      console.error("Missing environment variables");
-      return new Response(
-        JSON.stringify({ error: "服务器配置错误" }),
-        { status: 500, headers: { ...corsHeaders, "Content-Type": "application/json" } }
-      );
+      console.error("[create-user] Missing environment variables");
+      return safeErrorResponse(null, "服务器配置错误");
     }
 
     // Get the authorization header from the request
     const authHeader = req.headers.get("Authorization");
-    console.log("Authorization header present:", !!authHeader);
     
     if (!authHeader) {
       return new Response(
@@ -45,12 +91,10 @@ Deno.serve(async (req) => {
     const token = authHeader.replace("Bearer ", "");
     const { data: { user: requestingUser }, error: userError } = await supabaseClient.auth.getUser(token);
     
-    console.log("Requesting user ID:", requestingUser?.id);
-    console.log("User verification error:", userError?.message);
-    
     if (userError || !requestingUser) {
+      console.error("[create-user] Token verification failed");
       return new Response(
-        JSON.stringify({ error: "无效的认证令牌" }),
+        JSON.stringify({ error: "认证失败" }),
         { status: 401, headers: { ...corsHeaders, "Content-Type": "application/json" } }
       );
     }
@@ -62,10 +106,8 @@ Deno.serve(async (req) => {
       .eq("user_id", requestingUser.id)
       .single();
 
-    console.log("User role:", roleData?.role);
-    console.log("Role query error:", roleError?.message);
-
     if (roleError || roleData?.role !== "admin") {
+      console.error("[create-user] Non-admin user attempted to create user");
       return new Response(
         JSON.stringify({ error: "只有管理员可以创建用户" }),
         { status: 403, headers: { ...corsHeaders, "Content-Type": "application/json" } }
@@ -74,28 +116,43 @@ Deno.serve(async (req) => {
 
     // Parse the request body
     const body = await req.json();
-    console.log("Request body:", JSON.stringify({ ...body, password: "***" }));
-    
     const { username, password, role } = body;
 
-    if (!username || !password || !role) {
-      console.error("Missing required params:", { username: !!username, password: !!password, role: !!role });
+    // Validate inputs
+    const usernameValidation = validateUsername(username);
+    if (!usernameValidation.valid) {
       return new Response(
-        JSON.stringify({ error: "缺少必要参数（用户名、密码、角色）" }),
+        JSON.stringify({ error: usernameValidation.error }),
         { status: 400, headers: { ...corsHeaders, "Content-Type": "application/json" } }
       );
     }
+
+    const passwordValidation = validatePassword(password);
+    if (!passwordValidation.valid) {
+      return new Response(
+        JSON.stringify({ error: passwordValidation.error }),
+        { status: 400, headers: { ...corsHeaders, "Content-Type": "application/json" } }
+      );
+    }
+
+    const roleValidation = validateRole(role);
+    if (!roleValidation.valid) {
+      return new Response(
+        JSON.stringify({ error: roleValidation.error }),
+        { status: 400, headers: { ...corsHeaders, "Content-Type": "application/json" } }
+      );
+    }
+
+    console.log("[create-user] Creating user:", username);
 
     // Create a placeholder email for Supabase Auth (required)
     const placeholderEmail = `${username}@placeholder.local`;
 
     // Create the user using service role
-    console.log("Creating user with username:", username);
-    
     const { data: newUser, error: createError } = await supabaseClient.auth.admin.createUser({
       email: placeholderEmail,
       password,
-      email_confirm: true, // Auto-confirm the email
+      email_confirm: true,
       user_metadata: {
         username: username,
         display_name: username,
@@ -103,14 +160,15 @@ Deno.serve(async (req) => {
     });
 
     if (createError) {
-      console.error("Error creating user:", createError.message, createError);
+      console.error("[create-user] Failed to create user");
+      // Return generic error instead of exposing auth API details
       return new Response(
-        JSON.stringify({ error: createError.message }),
+        JSON.stringify({ error: "创建用户失败，请检查用户名是否已存在" }),
         { status: 400, headers: { ...corsHeaders, "Content-Type": "application/json" } }
       );
     }
 
-    console.log("User created successfully:", newUser?.user?.id);
+    console.log("[create-user] User created successfully:", newUser?.user?.id);
 
     // Update the profiles table to show the actual username instead of placeholder email
     if (newUser.user) {
@@ -120,15 +178,11 @@ Deno.serve(async (req) => {
         .eq("id", newUser.user.id);
       
       if (profileUpdateError) {
-        console.error("Error updating profile:", profileUpdateError.message);
-      } else {
-        console.log("Profile updated with username:", username);
+        console.error("[create-user] Profile update failed");
       }
     }
 
-    // The user_roles entry should be created by the trigger, but let's update it with the correct role
-
-    // The user_roles entry should be created by the trigger, but let's update it with the correct role
+    // Handle role assignment
     if (newUser.user) {
       // Wait a moment for the trigger to create the role entry
       await new Promise(resolve => setTimeout(resolve, 500));
@@ -148,9 +202,7 @@ Deno.serve(async (req) => {
           .eq("user_id", newUser.user.id);
 
         if (updateRoleError) {
-          console.error("Error updating role:", updateRoleError.message);
-        } else {
-          console.log("Role updated to:", role);
+          console.error("[create-user] Role update failed");
         }
       } else {
         // Insert new role
@@ -159,9 +211,7 @@ Deno.serve(async (req) => {
           .insert({ user_id: newUser.user.id, role });
         
         if (insertRoleError) {
-          console.error("Error inserting role:", insertRoleError.message);
-        } else {
-          console.log("Role inserted:", role);
+          console.error("[create-user] Role insert failed");
         }
       }
     }
@@ -171,11 +221,6 @@ Deno.serve(async (req) => {
       { status: 200, headers: { ...corsHeaders, "Content-Type": "application/json" } }
     );
   } catch (error) {
-    console.error("Unexpected error:", error);
-    const errorMessage = error instanceof Error ? error.message : "未知错误";
-    return new Response(
-      JSON.stringify({ error: errorMessage }),
-      { status: 500, headers: { ...corsHeaders, "Content-Type": "application/json" } }
-    );
+    return safeErrorResponse(error, "创建用户失败，请稍后重试");
   }
 });

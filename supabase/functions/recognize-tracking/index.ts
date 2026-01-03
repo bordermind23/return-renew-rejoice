@@ -7,6 +7,18 @@ const corsHeaders = {
   "Access-Control-Allow-Headers": "authorization, x-client-info, apikey, content-type",
 };
 
+// Maximum image size: 10MB in base64 characters (roughly 7.5MB actual file)
+const MAX_IMAGE_SIZE = 10 * 1024 * 1024;
+
+// Safe error response - logs details server-side, returns generic message to client
+function safeErrorResponse(error: unknown, fallbackMessage: string, status = 500) {
+  console.error("[recognize-tracking] Error:", error);
+  return new Response(
+    JSON.stringify({ error: fallbackMessage }),
+    { status, headers: { ...corsHeaders, "Content-Type": "application/json" } }
+  );
+}
+
 serve(async (req) => {
   // Handle CORS preflight requests
   if (req.method === "OPTIONS") {
@@ -17,9 +29,9 @@ serve(async (req) => {
     // Authentication check - require valid user session
     const authHeader = req.headers.get("Authorization");
     if (!authHeader) {
-      console.error("Missing Authorization header");
+      console.error("[recognize-tracking] Missing Authorization header");
       return new Response(
-        JSON.stringify({ error: "Authentication required" }),
+        JSON.stringify({ error: "认证失败" }),
         { status: 401, headers: { ...corsHeaders, "Content-Type": "application/json" } }
       );
     }
@@ -33,56 +45,61 @@ serve(async (req) => {
     const { data: { user }, error: authError } = await supabaseClient.auth.getUser(token);
 
     if (authError || !user) {
-      console.error("Authentication failed:", authError?.message || "Invalid token");
+      console.error("[recognize-tracking] Authentication failed");
       return new Response(
-        JSON.stringify({ error: "Invalid authentication" }),
+        JSON.stringify({ error: "认证失败" }),
         { status: 401, headers: { ...corsHeaders, "Content-Type": "application/json" } }
       );
     }
 
-    console.log("Authenticated user:", user.id);
+    console.log("[recognize-tracking] Processing request for user:", user.id);
 
     const { imageBase64 } = await req.json();
 
     if (!imageBase64) {
-      console.error("No image provided");
       return new Response(
-        JSON.stringify({ error: "No image provided" }),
+        JSON.stringify({ error: "未提供图片" }),
         { status: 400, headers: { ...corsHeaders, "Content-Type": "application/json" } }
       );
     }
 
-    // 验证和清理图片数据
+    // Validate and clean image data
     let cleanImageUrl = imageBase64;
     
-    // 检查是否是有效的 data URL
+    // Check if it's a valid data URL
     if (imageBase64.startsWith("data:")) {
-      // 验证 data URL 格式
+      // Validate data URL format
       const dataUrlRegex = /^data:image\/(jpeg|jpg|png|gif|webp);base64,/;
       if (!dataUrlRegex.test(imageBase64)) {
-        console.error("Invalid data URL format");
         return new Response(
-          JSON.stringify({ error: "Invalid image format" }),
+          JSON.stringify({ error: "图片格式无效" }),
           { status: 400, headers: { ...corsHeaders, "Content-Type": "application/json" } }
         );
       }
       cleanImageUrl = imageBase64;
     } else {
-      // 如果是纯 base64，添加前缀
+      // If pure base64, add prefix
       cleanImageUrl = `data:image/jpeg;base64,${imageBase64}`;
     }
 
-    // 验证 base64 数据长度
+    // Validate base64 data length
     const base64Part = cleanImageUrl.split(",")[1];
     if (!base64Part || base64Part.length < 100) {
-      console.error("Image data too small or invalid");
       return new Response(
-        JSON.stringify({ error: "Image data invalid" }),
+        JSON.stringify({ error: "图片数据无效" }),
         { status: 400, headers: { ...corsHeaders, "Content-Type": "application/json" } }
       );
     }
 
-    console.log("Received image for tracking recognition, size:", Math.round(base64Part.length / 1024), "KB");
+    // Check maximum image size to prevent DoS
+    if (base64Part.length > MAX_IMAGE_SIZE) {
+      return new Response(
+        JSON.stringify({ error: "图片过大，最大支持10MB" }),
+        { status: 400, headers: { ...corsHeaders, "Content-Type": "application/json" } }
+      );
+    }
+
+    console.log("[recognize-tracking] Processing image, size:", Math.round(base64Part.length / 1024), "KB");
 
     // Use Lovable AI gateway with Gemini Flash model for better OCR accuracy
     const response = await fetch("https://ai.gateway.lovable.dev/v1/chat/completions", {
@@ -141,18 +158,14 @@ serve(async (req) => {
     });
 
     if (!response.ok) {
-      const errorText = await response.text();
-      console.error("AI API error:", errorText);
-      return new Response(
-        JSON.stringify({ error: "Failed to recognize tracking number", details: errorText }),
-        { status: 500, headers: { ...corsHeaders, "Content-Type": "application/json" } }
-      );
+      console.error("[recognize-tracking] AI service request failed, status:", response.status);
+      return safeErrorResponse(null, "识别服务暂时不可用，请稍后重试");
     }
 
     const data = await response.json();
     const recognizedText = data.choices?.[0]?.message?.content?.trim() || "";
 
-    console.log("Recognized tracking numbers:", recognizedText);
+    console.log("[recognize-tracking] Recognition complete");
 
     // Parse the response to extract tracking numbers
     // Normalize: remove spaces and non-alphanumeric chars (common in OCR like "1Z K45 ...")
@@ -173,11 +186,6 @@ serve(async (req) => {
     );
 
   } catch (error: unknown) {
-    const errorMessage = error instanceof Error ? error.message : "Unknown error";
-    console.error("Error in recognize-tracking function:", errorMessage);
-    return new Response(
-      JSON.stringify({ error: errorMessage }),
-      { status: 500, headers: { ...corsHeaders, "Content-Type": "application/json" } }
-    );
+    return safeErrorResponse(error, "处理失败，请稍后重试");
   }
 });

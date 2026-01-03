@@ -242,7 +242,7 @@ function MobileSidebarContent({ onClose }: { onClose: () => void }) {
               <item.icon className="h-5 w-5 flex-shrink-0" />
               <span>{item.label}</span>
               {item.badge && (
-                <span className="ml-auto text-[10px] text-muted-foreground/70 bg-muted/50 px-1.5 py-0.5 rounded">
+                <span className="ml-auto text-[9px] font-medium text-amber-600 bg-amber-100 dark:text-amber-400 dark:bg-amber-900/30 px-1.5 py-0.5 rounded-full">
                   {item.badge}
                 </span>
               )}
@@ -385,7 +385,7 @@ function DesktopSidebar({ collapsed, setCollapsed }: { collapsed: boolean; setCo
                 <item.icon className="h-5 w-5 flex-shrink-0" />
                 {!collapsed && <span>{item.label}</span>}
                 {!collapsed && item.badge && (
-                  <span className="ml-auto text-[10px] text-muted-foreground/70 bg-muted/50 px-1.5 py-0.5 rounded">
+                  <span className="ml-auto text-[9px] font-medium text-amber-600 bg-amber-100 dark:text-amber-400 dark:bg-amber-900/30 px-1.5 py-0.5 rounded-full">
                     {item.badge}
                   </span>
                 )}

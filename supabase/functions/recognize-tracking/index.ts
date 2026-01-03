@@ -84,7 +84,7 @@ serve(async (req) => {
 
     console.log("Received image for tracking recognition, size:", Math.round(base64Part.length / 1024), "KB");
 
-    // Use Lovable AI gateway with faster Gemini Flash Lite model for OCR
+    // Use Lovable AI gateway with Gemini Flash model for better OCR accuracy
     const response = await fetch("https://ai.gateway.lovable.dev/v1/chat/completions", {
       method: "POST",
       headers: {
@@ -92,18 +92,39 @@ serve(async (req) => {
         "Content-Type": "application/json",
       },
       body: JSON.stringify({
-        model: "google/gemini-2.5-flash-lite",
+        model: "google/gemini-2.5-flash",
         messages: [
           {
             role: "system",
-            content: `识别物流面单上的跟踪号。常见格式: 亚马逊FBA(15位数字如166114969534313)、UPS(1Z开头)、FedEx(12-34位数字)、DHL(10位)、顺丰(SF开头)、中通(75开头)、圆通(YT开头)。只返回跟踪号，多个用逗号分隔，无法识别返回空。`
+            content: `你是一个专业的物流面单识别系统。请识别图片中的物流跟踪号，包括：
+1. 条形码下方或旁边的数字/字母组合
+2. 二维码（QR Code）中包含的跟踪号信息
+3. 任何明显标注的跟踪号、运单号、快递单号
+
+注意事项：
+- 图片可能有阴影、光照不均或拍摄角度问题，请尽力识别
+- 如果QR码包含URL，请提取其中的跟踪号部分
+- 优先识别主要的物流跟踪号
+
+常见格式参考：
+- UPS: 1Z开头+16位字母数字（如1ZV8K8976840784249）
+- FedEx: 12-34位纯数字
+- 亚马逊FBA: 15位数字（如166114969534313）
+- DHL: 10位数字
+- 顺丰: SF开头+12位数字
+- 中通: 75/73开头+12位数字
+- 圆通: YT开头+15位数字
+- 德邦: DPK开头
+- 韵达: 13位数字
+
+只返回识别到的跟踪号，多个用逗号分隔。如果无法识别，返回空字符串。`
           },
           {
             role: "user",
             content: [
               {
                 type: "text",
-                text: "识别跟踪号"
+                text: "请识别这张物流面单图片中的跟踪号（包括条形码和二维码）"
               },
               {
                 type: "image_url",
@@ -114,7 +135,7 @@ serve(async (req) => {
             ]
           }
         ],
-        max_tokens: 100,
+        max_tokens: 200,
         temperature: 0,
       }),
     });

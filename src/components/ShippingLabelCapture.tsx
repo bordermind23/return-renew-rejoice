@@ -99,6 +99,51 @@ export function ShippingLabelCapture({ onTrackingRecognized, onCancel }: Shippin
     });
   }, []);
 
+  // 图像增强 - 增加对比度和亮度，处理阴影问题
+  const enhanceImageContrast = useCallback((imageData: string, contrast: number = 1.3, brightness: number = 1.1): Promise<string> => {
+    return new Promise((resolve) => {
+      const img = new Image();
+      img.onload = () => {
+        const canvas = document.createElement("canvas");
+        canvas.width = img.width;
+        canvas.height = img.height;
+        const ctx = canvas.getContext("2d");
+        
+        if (!ctx) {
+          resolve(imageData);
+          return;
+        }
+        
+        // 绘制原图
+        ctx.drawImage(img, 0, 0);
+        
+        // 获取像素数据
+        const imageDataObj = ctx.getImageData(0, 0, canvas.width, canvas.height);
+        const data = imageDataObj.data;
+        
+        // 对每个像素应用对比度和亮度增强
+        for (let i = 0; i < data.length; i += 4) {
+          // 应用亮度
+          data[i] = Math.min(255, data[i] * brightness);     // R
+          data[i + 1] = Math.min(255, data[i + 1] * brightness); // G
+          data[i + 2] = Math.min(255, data[i + 2] * brightness); // B
+          
+          // 应用对比度 (以128为中心点)
+          data[i] = Math.min(255, Math.max(0, ((data[i] - 128) * contrast) + 128));
+          data[i + 1] = Math.min(255, Math.max(0, ((data[i + 1] - 128) * contrast) + 128));
+          data[i + 2] = Math.min(255, Math.max(0, ((data[i + 2] - 128) * contrast) + 128));
+        }
+        
+        // 写回处理后的像素数据
+        ctx.putImageData(imageDataObj, 0, 0);
+        
+        resolve(canvas.toDataURL("image/jpeg", 0.9));
+      };
+      img.onerror = () => resolve(imageData);
+      img.src = imageData;
+    });
+  }, []);
+
   // 优化压缩图片 - 平衡速度和识别准确率
   const compressImage = (imageData: string, maxWidth: number = 1200, quality: number = 0.75): Promise<string> => {
     return new Promise((resolve) => {
@@ -160,12 +205,13 @@ export function ShippingLabelCapture({ onTrackingRecognized, onCancel }: Shippin
         setClarityWarning(`照片可能模糊（清晰度: ${score}），建议重新拍摄`);
       }
       
-      // 压缩后再识别
-      const compressedImage = await compressImage(imageData);
+      // 先增强对比度处理阴影，再压缩
+      const enhancedImage = await enhanceImageContrast(imageData);
+      const compressedImage = await compressImage(enhancedImage);
       recognizeTracking(compressedImage);
     };
     reader.readAsDataURL(file);
-  }, [detectImageClarity]);
+  }, [detectImageClarity, enhanceImageContrast]);
 
   // 处理拍照或上传的图片
   const handleImageCapture = async (event: React.ChangeEvent<HTMLInputElement>) => {

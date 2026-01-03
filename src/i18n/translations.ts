@@ -54,7 +54,7 @@ export const translations = {
     // 导航
     nav: {
       dashboard: '仪表盘',
-      orders: '退货订单列表',
+      orders: '退货订单',
       inbound: '入库处理',
       inboundScan: '入库扫码',
       inboundRecords: '入库记录',
@@ -228,7 +228,7 @@ export const translations = {
     },
     // 订单
     orders: {
-      title: '退货订单列表',
+      title: '退货订单',
       description: '管理退货订单',
       orderNumber: '订单号',
       storeName: '店铺',

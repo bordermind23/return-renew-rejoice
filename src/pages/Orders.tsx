@@ -928,7 +928,7 @@ export default function Orders() {
   return (
     <div className="space-y-4 animate-fade-in">
       <PageHeader
-        title="退货订单列表"
+        title="退货订单"
         description="查看和管理所有退货订单"
         actions={
           <div className="flex gap-2 flex-wrap justify-end">

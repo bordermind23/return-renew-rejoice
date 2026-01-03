@@ -61,6 +61,8 @@ export function MobileInboundScanner({ initialTracking }: MobileInboundScannerPr
   const [matchedTrackingNumbers, setMatchedTrackingNumbers] = useState<string[]>([]);
   const [showTrackingSelection, setShowTrackingSelection] = useState(false);
   const [shippingLabelPhoto, setShippingLabelPhoto] = useState<string | null>(null);
+  // 已全部入库提示状态
+  const [alreadyInboundedInfo, setAlreadyInboundedInfo] = useState<{ trackingNumber: string; quantity: number } | null>(null);
   const nativeCameraRef = useRef<HTMLInputElement>(null);
 
   const { data: shipments } = useRemovalShipments();
@@ -284,9 +286,13 @@ export function MobileInboundScanner({ initialTracking }: MobileInboundScannerPr
     if (inboundedCount >= totalQuantity) {
       vibrateWarning();
       playWarning();
+      setAlreadyInboundedInfo({ trackingNumber, quantity: totalQuantity });
       toast.warning(`该物流号下的 ${totalQuantity} 件货物已全部入库`);
       return;
     }
+    
+    // 清除已入库提示
+    setAlreadyInboundedInfo(null);
 
     // 上传照片到storage
     try {
@@ -340,9 +346,13 @@ export function MobileInboundScanner({ initialTracking }: MobileInboundScannerPr
     if (inboundedCount >= totalQuantity) {
       vibrateWarning();
       playWarning();
+      setAlreadyInboundedInfo({ trackingNumber, quantity: totalQuantity });
       toast.warning(`该物流号下的 ${totalQuantity} 件货物已全部入库`);
       return;
     }
+    
+    // 清除已入库提示
+    setAlreadyInboundedInfo(null);
 
     // 上传照片到storage
     if (capturedImage) {
@@ -386,6 +396,19 @@ export function MobileInboundScanner({ initialTracking }: MobileInboundScannerPr
     setRecognizedNumbers([]);
     setMatchedTrackingNumbers([]);
     setShowTrackingSelection(false);
+    setAlreadyInboundedInfo(null);
+    setTimeout(() => {
+      nativeCameraRef.current?.click();
+    }, 100);
+  };
+
+  // 重新扫描（已全部入库后使用）
+  const handleRescan = () => {
+    setCapturedImage(null);
+    setRecognizedNumbers([]);
+    setMatchedTrackingNumbers([]);
+    setShowTrackingSelection(false);
+    setAlreadyInboundedInfo(null);
     setTimeout(() => {
       nativeCameraRef.current?.click();
     }, 100);
@@ -821,6 +844,27 @@ export function MobileInboundScanner({ initialTracking }: MobileInboundScannerPr
                     </Button>
                   </div>
                 </div>
+              ) : alreadyInboundedInfo ? (
+                // 已全部入库提示
+                <div className="space-y-4">
+                  <div className="text-center p-4 rounded-lg bg-amber-50 dark:bg-amber-900/20 border border-amber-200 dark:border-amber-800">
+                    <CheckCircle className="h-10 w-10 text-amber-600 mx-auto mb-2" />
+                    <p className="font-medium text-amber-800 dark:text-amber-200">该货件已全部入库</p>
+                    <p className="text-sm text-amber-600 dark:text-amber-300 mt-1">
+                      物流号 <span className="font-mono">{alreadyInboundedInfo.trackingNumber}</span>
+                    </p>
+                    <p className="text-sm text-amber-600 dark:text-amber-300">
+                      共 {alreadyInboundedInfo.quantity} 件货物已完成入库
+                    </p>
+                  </div>
+                  <Button 
+                    onClick={handleRescan} 
+                    className="w-full h-14 text-lg gradient-tracking"
+                  >
+                    <RefreshCw className="mr-2 h-5 w-5" />
+                    扫描下一个货件
+                  </Button>
+                </div>
               ) : recognizedNumbers.length > 0 && !showTrackingSelection ? (
                 <div className="space-y-3">
                   <p className="text-sm text-center text-muted-foreground">识别成功，正在匹配...</p>
@@ -831,7 +875,7 @@ export function MobileInboundScanner({ initialTracking }: MobileInboundScannerPr
                 </div>
               ) : null}
               
-              {!showTrackingSelection && (
+              {!showTrackingSelection && !alreadyInboundedInfo && (
                 <div className="flex gap-3 mt-4">
                   <Button variant="outline" onClick={retakePhoto} className="flex-1 h-12">
                     <RefreshCw className="mr-2 h-4 w-4" />
@@ -846,7 +890,7 @@ export function MobileInboundScanner({ initialTracking }: MobileInboundScannerPr
               )}
               
               {/* 手动输入备用 */}
-              {!showTrackingSelection && (
+              {!showTrackingSelection && !alreadyInboundedInfo && (
                 <div className="mt-4 pt-4 border-t">
                   <p className="text-xs text-muted-foreground text-center mb-3">或手动输入物流号</p>
                   <div className="flex gap-2">

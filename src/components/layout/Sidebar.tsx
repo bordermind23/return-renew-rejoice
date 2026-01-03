@@ -1,7 +1,6 @@
 import { useState, useEffect, MouseEvent, useMemo } from "react";
 import { NavLink, useLocation, useNavigate } from "react-router-dom";
 import {
-  LayoutDashboard,
   PackageX,
   PackageCheck,
   Warehouse,
@@ -87,7 +86,7 @@ const getNavItems = (t: ReturnType<typeof useLanguage>['t']): NavItem[] => [
       { to: "/refurbishment/records", icon: History, label: t.nav.refurbishmentRecords || "翻新记录", permissionKey: "refurbishment" },
     ]
   },
-  { to: "/dashboard", icon: LayoutDashboard, label: t.nav.dashboard, permissionKey: "viewDashboard" },
+  
   { to: "/orders", icon: ClipboardList, label: t.nav.orders, badge: "领星导入", permissionKey: "manageOrders" },
   { to: "/removals", icon: PackageX, label: t.nav.removals, badge: "领星导入", permissionKey: "manageOrders" },
   { to: "/order-findings", icon: AlertTriangle, label: t.nav.orderFindings || "退货订单发现", permissionKey: "manageCases" },

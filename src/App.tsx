@@ -6,7 +6,7 @@ import { BrowserRouter, Routes, Route, Navigate } from "react-router-dom";
 import { LanguageProvider } from "@/i18n/LanguageContext";
 import { MainLayout } from "@/components/layout/MainLayout";
 import { ProtectedRoute } from "@/components/ProtectedRoute";
-import Dashboard from "./pages/Dashboard";
+
 import Products from "./pages/Products";
 import Removals from "./pages/Removals";
 import InboundScan from "./pages/InboundScan";
@@ -47,16 +47,6 @@ const App = () => (
               <ProtectedRoute>
                 <MainLayout>
                   <InboundScan />
-                </MainLayout>
-              </ProtectedRoute>
-            }
-          />
-          <Route
-            path="/dashboard"
-            element={
-              <ProtectedRoute>
-                <MainLayout>
-                  <Dashboard />
                 </MainLayout>
               </ProtectedRoute>
             }

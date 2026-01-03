@@ -1,5 +1,5 @@
 import { useState } from "react";
-import { useQuery } from "@tanstack/react-query";
+import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { useNavigate } from "react-router-dom";
 import { supabase } from "@/integrations/supabase/client";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
@@ -54,6 +54,7 @@ export default function OrderFindings() {
 
   const navigate = useNavigate();
   const { user } = useAuth();
+  const queryClient = useQueryClient();
   const createCase = useCreateCase();
 
   // 查询有配件缺失或产品损坏的入库记录
@@ -70,6 +71,26 @@ export default function OrderFindings() {
       return data as InboundFinding[];
     },
   });
+
+  // 查询已创建CASE的LPN列表
+  const { data: existingCaseLpns = [] } = useQuery({
+    queryKey: ["case-lpns"],
+    queryFn: async () => {
+      const { data, error } = await supabase
+        .from("cases")
+        .select("lpn")
+        .not("lpn", "is", null)
+        .neq("status", "voided");
+
+      if (error) throw error;
+      return data.map((c) => c.lpn?.toLowerCase()).filter(Boolean) as string[];
+    },
+  });
+
+  // 检查是否已创建CASE
+  const hasCaseCreated = (lpn: string) => {
+    return existingCaseLpns.includes(lpn.toLowerCase());
+  };
 
   // 判断是否有配件缺失
   const hasMissingParts = (item: InboundFinding) => {
@@ -271,14 +292,20 @@ export default function OrderFindings() {
                             <Eye className="h-4 w-4 mr-1" />
                             查看
                           </Button>
-                          <Button
-                            variant="outline"
-                            size="sm"
-                            onClick={() => setCreateCaseItem(item)}
-                          >
-                            <FileText className="h-4 w-4 mr-1" />
-                            创建CASE
-                          </Button>
+                          {hasCaseCreated(item.lpn) ? (
+                            <Badge variant="outline" className="bg-green-50 text-green-700 border-green-200">
+                              已创建CASE
+                            </Badge>
+                          ) : (
+                            <Button
+                              variant="outline"
+                              size="sm"
+                              onClick={() => setCreateCaseItem(item)}
+                            >
+                              <FileText className="h-4 w-4 mr-1" />
+                              创建CASE
+                            </Button>
+                          )}
                         </div>
                       </TableCell>
                     </TableRow>
@@ -524,6 +551,8 @@ export default function OrderFindings() {
                       created_by: user?.email || "未知用户",
                     });
 
+                    // 刷新已创建CASE的LPN列表
+                    queryClient.invalidateQueries({ queryKey: ["case-lpns"] });
                     setCreateCaseItem(null);
                     navigate("/cases");
                   }}

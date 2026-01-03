@@ -1,6 +1,6 @@
 import { useState } from "react";
 import { useQuery } from "@tanstack/react-query";
-import { Plus, Search, Eye, Trash2, MessageSquare, ExternalLink, Filter, Euro, Settings, Camera, Package } from "lucide-react";
+import { Plus, Search, Eye, Ban, MessageSquare, ExternalLink, Filter, Euro, Settings, Camera, Package } from "lucide-react";
 import { supabase } from "@/integrations/supabase/client";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -65,7 +65,7 @@ import { useLanguage } from "@/i18n/LanguageContext";
 import { toast } from "sonner";
 import { format } from "date-fns";
 
-const caseStatuses: CaseStatus[] = ['pending', 'submitted', 'in_progress', 'approved', 'rejected', 'closed'];
+const caseStatuses: CaseStatus[] = ['pending', 'submitted', 'in_progress', 'approved', 'rejected', 'closed', 'voided'];
 
 export default function Cases() {
   const [searchTerm, setSearchTerm] = useState("");
@@ -207,10 +207,13 @@ export default function Cases() {
     });
   };
 
-  const handleDelete = () => {
+  const handleVoid = () => {
     if (deleteId) {
-      deleteMutation.mutate(deleteId, {
-        onSuccess: () => setDeleteId(null),
+      updateMutation.mutate({ id: deleteId, status: 'voided' }, {
+        onSuccess: () => {
+          setDeleteId(null);
+          toast.success("CASE已作废");
+        },
       });
     }
   };
@@ -365,15 +368,20 @@ export default function Cases() {
                 </TableRow>
               ) : (
                 filteredCases.map((item) => (
-                  <TableRow key={item.id} className="hover:bg-muted/30">
+                  <TableRow 
+                    key={item.id} 
+                    className={item.status === 'voided' ? "opacity-50 bg-muted/20" : "hover:bg-muted/30"}
+                  >
                     <TableCell>
-                      <code className="text-xs bg-primary/10 text-primary px-1.5 py-0.5 rounded font-medium">
+                      <code className={`text-xs px-1.5 py-0.5 rounded font-medium ${
+                        item.status === 'voided' ? 'bg-muted text-muted-foreground line-through' : 'bg-primary/10 text-primary'
+                      }`}>
                         {item.case_number}
                       </code>
                     </TableCell>
                     <TableCell><CaseTypeBadge type={item.case_type} /></TableCell>
                     <TableCell><CaseStatusBadge status={item.status} /></TableCell>
-                    <TableCell><span className="line-clamp-1">{item.title}</span></TableCell>
+                    <TableCell><span className={`line-clamp-1 ${item.status === 'voided' ? 'line-through text-muted-foreground' : ''}`}>{item.title}</span></TableCell>
                     <TableCell>
                       {item.lpn ? (
                         <code className="text-xs bg-muted px-1.5 py-0.5 rounded">{item.lpn}</code>
@@ -409,9 +417,17 @@ export default function Cases() {
                         <Button size="icon" variant="ghost" className="h-8 w-8" onClick={() => setSelectedCase(item)}>
                           <Eye className="h-4 w-4" />
                         </Button>
-                        <Button size="icon" variant="ghost" className="h-8 w-8 text-destructive" onClick={() => setDeleteId(item.id)}>
-                          <Trash2 className="h-4 w-4" />
-                        </Button>
+                        {item.status !== 'voided' && (
+                          <Button 
+                            size="icon" 
+                            variant="ghost" 
+                            className="h-8 w-8 text-muted-foreground hover:text-foreground" 
+                            onClick={() => setDeleteId(item.id)}
+                            title="作废此CASE"
+                          >
+                            <Ban className="h-4 w-4" />
+                          </Button>
+                        )}
                       </div>
                     </TableCell>
                   </TableRow>
@@ -743,17 +759,17 @@ export default function Cases() {
         </DialogContent>
       </Dialog>
 
-      {/* 删除确认 */}
+      {/* 作废确认 */}
       <AlertDialog open={!!deleteId} onOpenChange={(open) => !open && setDeleteId(null)}>
         <AlertDialogContent>
           <AlertDialogHeader>
-            <AlertDialogTitle>确认删除</AlertDialogTitle>
-            <AlertDialogDescription>确定要删除此CASE吗？此操作无法撤销。</AlertDialogDescription>
+            <AlertDialogTitle>确认作废</AlertDialogTitle>
+            <AlertDialogDescription>确定要作废此CASE吗？作废后CASE将显示为灰色，无法恢复。</AlertDialogDescription>
           </AlertDialogHeader>
           <AlertDialogFooter>
             <AlertDialogCancel>取消</AlertDialogCancel>
-            <AlertDialogAction onClick={handleDelete} className="bg-destructive text-destructive-foreground hover:bg-destructive/90">
-              删除
+            <AlertDialogAction onClick={handleVoid} className="bg-muted text-muted-foreground hover:bg-muted/80">
+              作废
             </AlertDialogAction>
           </AlertDialogFooter>
         </AlertDialogContent>

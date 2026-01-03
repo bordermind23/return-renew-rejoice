@@ -865,6 +865,7 @@ export type Database = {
         | "approved"
         | "rejected"
         | "closed"
+        | "voided"
       case_type:
         | "lpn_missing"
         | "sku_mismatch"
@@ -1018,6 +1019,7 @@ export const Constants = {
         "approved",
         "rejected",
         "closed",
+        "voided",
       ],
       case_type: [
         "lpn_missing",

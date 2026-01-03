@@ -18,9 +18,11 @@ import {
 interface ShippingLabelCaptureProps {
   onTrackingRecognized: (trackingNumbers: string[], photoUrl: string) => void;
   onCancel?: () => void;
+  onAlreadyInbound?: (trackingNumber: string) => void;
+  alreadyInboundMessage?: string | null;
 }
 
-export function ShippingLabelCapture({ onTrackingRecognized, onCancel }: ShippingLabelCaptureProps) {
+export function ShippingLabelCapture({ onTrackingRecognized, onCancel, onAlreadyInbound, alreadyInboundMessage }: ShippingLabelCaptureProps) {
   const [capturedImage, setCapturedImage] = useState<string | null>(null);
   const [isRecognizing, setIsRecognizing] = useState(false);
   const [recognizedNumbers, setRecognizedNumbers] = useState<string[]>([]);
@@ -539,14 +541,31 @@ export function ShippingLabelCapture({ onTrackingRecognized, onCancel }: Shippin
                 </div>
 
                 {/* 清晰度警告 */}
-                {clarityWarning && !isRecognizing && !isUploading && (
+                {clarityWarning && !isRecognizing && !isUploading && !alreadyInboundMessage && (
                   <div className="flex items-center justify-center gap-2 text-yellow-600 bg-yellow-50 dark:bg-yellow-900/20 dark:text-yellow-400 px-4 py-2 rounded-lg max-w-lg mx-auto">
                     <AlertTriangle className="h-4 w-4 flex-shrink-0" />
                     <span className="text-sm">{clarityWarning}</span>
                   </div>
                 )}
 
-                {/* 多个匹配时显示选择界面 */}
+                {/* 已入库提示 */}
+                {alreadyInboundMessage && !isRecognizing && !isUploading && (
+                  <div className="space-y-4 max-w-md mx-auto">
+                    <div className="flex items-center justify-center gap-2 text-amber-600 bg-amber-50 dark:bg-amber-900/20 dark:text-amber-400 px-4 py-3 rounded-lg">
+                      <AlertTriangle className="h-5 w-5 flex-shrink-0" />
+                      <span className="text-sm font-medium">{alreadyInboundMessage}</span>
+                    </div>
+                    <div className="flex gap-3 justify-center">
+                      <Button variant="outline" onClick={retakePhoto} className="h-10">
+                        <RefreshCw className="mr-2 h-4 w-4" />
+                        重新拍摄
+                      </Button>
+                      <Button variant="ghost" onClick={handleCancel} className="h-10">
+                        取消
+                      </Button>
+                    </div>
+                  </div>
+                )}
                 {showSelection && matchedNumbers.length > 1 && (
                   <div className="space-y-3 max-w-md mx-auto">
                     <p className="text-sm font-medium text-foreground">

@@ -82,6 +82,7 @@ export default function InboundScan() {
   const [pendingSession, setPendingSession] = useState<PendingInboundSession | null>(null);
   const [shippingLabelPhoto, setShippingLabelPhoto] = useState<string | null>(null);
   const [showManualInput, setShowManualInput] = useState(false);
+  const [alreadyInboundMessage, setAlreadyInboundMessage] = useState<string | null>(null);
   
   const lpnInputRef = useRef<HTMLInputElement>(null);
   const trackingInputRef = useRef<HTMLInputElement>(null);
@@ -288,6 +289,9 @@ export default function InboundScan() {
   };
 
   const handleShippingLabelRecognized = (trackingNumbers: string[], photoUrl: string) => {
+    // 清除之前的已入库消息
+    setAlreadyInboundMessage(null);
+    
     if (trackingNumbers.length === 0) {
       playError();
       toast.error("未识别到物流跟踪号");
@@ -311,7 +315,7 @@ export default function InboundScan() {
     const inboundedCount = getInboundedCount(allMatched[0].tracking_number);
     if (inboundedCount >= totalQuantity) {
       playWarning();
-      toast.warning(`该物流号下的 ${totalQuantity} 件货物已全部入库`);
+      setAlreadyInboundMessage(`该物流号下的 ${totalQuantity} 件货物已全部入库`);
       return;
     }
 
@@ -726,6 +730,8 @@ export default function InboundScan() {
           <ShippingLabelCapture
             onTrackingRecognized={handleShippingLabelRecognized}
             onCancel={() => setShowManualInput(false)}
+            alreadyInboundMessage={alreadyInboundMessage}
+            onAlreadyInbound={() => setAlreadyInboundMessage(null)}
           />
 
           {/* 备用方式：手动输入 */}

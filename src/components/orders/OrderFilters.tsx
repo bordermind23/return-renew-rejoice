@@ -1,4 +1,4 @@
-import { Search, Filter, X, RotateCcw } from "lucide-react";
+import { Search, Filter, X, RotateCcw, ArrowUpDown } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Badge } from "@/components/ui/badge";
@@ -19,6 +19,9 @@ import {
 import { OrderStatusBadge } from "@/components/ui/order-status-badge";
 import { GradeBadge } from "@/components/ui/grade-badge";
 
+export type SortField = "order_time" | "return_time" | "product_name" | "product_sku" | "status";
+export type SortDirection = "asc" | "desc";
+
 interface OrderFiltersProps {
   searchTerm: string;
   onSearchChange: (value: string) => void;
@@ -26,9 +29,20 @@ interface OrderFiltersProps {
   onStatusFilterChange: (status: "未到货" | "到货" | "出库") => void;
   gradeFilter: string;
   onGradeFilterChange: (value: string) => void;
+  sortField: SortField;
+  sortDirection: SortDirection;
+  onSortChange: (field: SortField, direction: SortDirection) => void;
   hasActiveFilters: boolean;
   onClearFilters: () => void;
 }
+
+const sortOptions: { value: SortField; label: string }[] = [
+  { value: "return_time", label: "退货日期" },
+  { value: "order_time", label: "订购日期" },
+  { value: "product_name", label: "产品名称" },
+  { value: "product_sku", label: "SKU" },
+  { value: "status", label: "状态" },
+];
 
 export function OrderFilters({
   searchTerm,
@@ -37,6 +51,9 @@ export function OrderFilters({
   onStatusFilterChange,
   gradeFilter,
   onGradeFilterChange,
+  sortField,
+  sortDirection,
+  onSortChange,
   hasActiveFilters,
   onClearFilters,
 }: OrderFiltersProps) {
@@ -114,6 +131,31 @@ export function OrderFilters({
             </SelectContent>
           </Select>
 
+          {/* 排序选择 */}
+          <Select value={sortField} onValueChange={(value) => onSortChange(value as SortField, sortDirection)}>
+            <SelectTrigger className="w-[120px] h-10 bg-background">
+              <ArrowUpDown className="mr-2 h-4 w-4" />
+              <SelectValue placeholder="排序" />
+            </SelectTrigger>
+            <SelectContent>
+              {sortOptions.map((option) => (
+                <SelectItem key={option.value} value={option.value}>
+                  {option.label}
+                </SelectItem>
+              ))}
+            </SelectContent>
+          </Select>
+
+          {/* 排序方向 */}
+          <Button
+            variant="outline"
+            size="icon"
+            className="h-10 w-10 bg-background"
+            onClick={() => onSortChange(sortField, sortDirection === "desc" ? "asc" : "desc")}
+            title={sortDirection === "desc" ? "降序" : "升序"}
+          >
+            {sortDirection === "desc" ? "↓" : "↑"}
+          </Button>
 
           {/* 清除筛选 */}
           {hasActiveFilters && (

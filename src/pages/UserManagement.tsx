@@ -50,6 +50,7 @@ import {
   type AppRole,
 } from "@/hooks/useUserManagement";
 import { useAuth } from "@/hooks/useAuth";
+import { usePermissions } from "@/hooks/usePermissions";
 import { cn } from "@/lib/utils";
 import { toast } from "sonner";
 
@@ -76,6 +77,7 @@ function RoleBadge({ role }: { role: AppRole | null }) {
 }
 
 export default function UserManagement() {
+  const { can, isAdmin } = usePermissions();
   const { data: users, isLoading } = useUsersWithRoles();
   const { data: currentUserRole } = useCurrentUserRole();
   const { user: currentUser } = useAuth();
@@ -89,7 +91,7 @@ export default function UserManagement() {
   const [newUserPassword, setNewUserPassword] = useState("");
   const [newUserRole, setNewUserRole] = useState<AppRole>("warehouse_staff");
 
-  const isAdmin = currentUserRole === "admin";
+  // isAdmin is already from usePermissions
 
   const handleRoleChange = (userId: string, roleId: string | null, newRole: AppRole) => {
     updateRoleMutation.mutate({ userId, roleId, newRole });

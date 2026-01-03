@@ -28,11 +28,15 @@ import {
 import { fetchOrdersByLpn } from "@/hooks/useOrdersByLpn";
 import { useDecreaseInventoryStock } from "@/hooks/useInventoryItems";
 import { useRemovalShipments, useUpdateRemovalShipment } from "@/hooks/useRemovalShipments";
+import { usePermissions } from "@/hooks/usePermissions";
 import { Skeleton } from "@/components/ui/skeleton";
 import { InboundBatchList } from "@/components/InboundBatchList";
 import { toast } from "sonner";
 
 export default function InboundRecords() {
+  const { can } = usePermissions();
+  const canDeleteData = can.deleteData;
+  
   const [deleteId, setDeleteId] = useState<string | null>(null);
   const [deleteIds, setDeleteIds] = useState<string[]>([]);
   const [isBatchDeleteOpen, setIsBatchDeleteOpen] = useState(false);
@@ -301,7 +305,8 @@ export default function InboundRecords() {
         items={filteredItems} 
         onDelete={(id) => setDeleteId(id)}
         onBatchDelete={handleBatchDeleteRequest}
-        enableBatchSelect
+        enableBatchSelect={canDeleteData}
+        canDelete={canDeleteData}
       />
 
       {/* 单个删除确认 */}

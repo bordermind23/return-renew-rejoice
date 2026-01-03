@@ -30,6 +30,7 @@ import {
 import { Checkbox } from "@/components/ui/checkbox";
 import { ScrollArea } from "@/components/ui/scroll-area";
 import { useInboundItems, useClearRefurbishment, useBulkClearRefurbishment, type InboundItem } from "@/hooks/useInboundItems";
+import { usePermissions } from "@/hooks/usePermissions";
 import { Skeleton } from "@/components/ui/skeleton";
 import { toast } from "sonner";
 import {
@@ -47,6 +48,9 @@ import { format } from "date-fns";
 
 export default function RefurbishmentRecords() {
   const { t } = useLanguage();
+  const { can } = usePermissions();
+  const canDeleteData = can.deleteData;
+  
   const [searchQuery, setSearchQuery] = useState("");
   const [gradeFilter, setGradeFilter] = useState<string>("all");
   const [selectedItems, setSelectedItems] = useState<string[]>([]);
@@ -181,7 +185,7 @@ export default function RefurbishmentRecords() {
       </Card>
 
       {/* 批量操作 */}
-      {selectedItems.length > 0 && (
+      {canDeleteData && selectedItems.length > 0 && (
         <Card className="border-primary/50 bg-primary/5">
           <CardContent className="py-3">
             <div className="flex items-center justify-between">
@@ -262,14 +266,16 @@ export default function RefurbishmentRecords() {
                           >
                             <Eye className="h-4 w-4" />
                           </Button>
-                          <Button
-                            variant="ghost"
-                            size="sm"
-                            className="text-destructive hover:text-destructive hover:bg-destructive/10"
-                            onClick={() => handleDeleteSingle(item.id)}
-                          >
-                            <Trash2 className="h-4 w-4" />
-                          </Button>
+                          {canDeleteData && (
+                            <Button
+                              variant="ghost"
+                              size="sm"
+                              className="text-destructive hover:text-destructive hover:bg-destructive/10"
+                              onClick={() => handleDeleteSingle(item.id)}
+                            >
+                              <Trash2 className="h-4 w-4" />
+                            </Button>
+                          )}
                         </div>
                       </TableCell>
                     </TableRow>

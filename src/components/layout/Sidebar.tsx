@@ -1,4 +1,4 @@
-import { useState, useEffect, MouseEvent } from "react";
+import { useState, useEffect, MouseEvent, useMemo } from "react";
 import { NavLink, useLocation, useNavigate } from "react-router-dom";
 import {
   LayoutDashboard,
@@ -30,6 +30,7 @@ import { Sheet, SheetContent, SheetTrigger } from "@/components/ui/sheet";
 import { Collapsible, CollapsibleContent, CollapsibleTrigger } from "@/components/ui/collapsible";
 import { useAuth } from "@/hooks/useAuth";
 import { useCurrentUserRole } from "@/hooks/useUserManagement";
+import { usePermissions } from "@/hooks/usePermissions";
 import { useLanguage } from "@/i18n/LanguageContext";
 import LanguageSwitcher from "@/components/LanguageSwitcher";
 import { toast } from "sonner";
@@ -58,7 +59,8 @@ type NavItem = {
   to: string;
   icon: React.ElementType;
   label: string;
-  children?: { to: string; icon: React.ElementType; label: string }[];
+  permissionKey?: string; // For permission-based filtering
+  children?: { to: string; icon: React.ElementType; label: string; permissionKey?: string }[];
 };
 
 // 使用翻译的导航项生成函数
@@ -67,29 +69,31 @@ const getNavItems = (t: ReturnType<typeof useLanguage>['t']): NavItem[] => [
     to: "/inbound", 
     icon: PackageCheck, 
     label: t.nav.inbound,
+    permissionKey: "inboundScan",
     children: [
-      { to: "/inbound/scan", icon: ScanLine, label: t.nav.inboundScan },
-      { to: "/inbound/records", icon: History, label: t.nav.inboundRecords },
-      { to: "/inbound/discrepancy", icon: AlertTriangle, label: t.nav.inboundDiscrepancy },
+      { to: "/inbound/scan", icon: ScanLine, label: t.nav.inboundScan, permissionKey: "inboundScan" },
+      { to: "/inbound/records", icon: History, label: t.nav.inboundRecords, permissionKey: "inboundScan" },
+      { to: "/inbound/discrepancy", icon: AlertTriangle, label: t.nav.inboundDiscrepancy, permissionKey: "inboundScan" },
     ]
   },
   { 
     to: "/refurbishment", 
     icon: Wrench, 
     label: t.nav.refurbishment || "翻新处理",
+    permissionKey: "refurbishment",
     children: [
-      { to: "/refurbishment/scan", icon: ScanLine, label: t.nav.refurbishmentScan || "翻新扫码" },
-      { to: "/refurbishment/records", icon: History, label: t.nav.refurbishmentRecords || "翻新记录" },
+      { to: "/refurbishment/scan", icon: ScanLine, label: t.nav.refurbishmentScan || "翻新扫码", permissionKey: "refurbishment" },
+      { to: "/refurbishment/records", icon: History, label: t.nav.refurbishmentRecords || "翻新记录", permissionKey: "refurbishment" },
     ]
   },
-  { to: "/dashboard", icon: LayoutDashboard, label: t.nav.dashboard },
-  { to: "/orders", icon: ClipboardList, label: t.nav.orders },
-  { to: "/removals", icon: PackageX, label: t.nav.removals },
-  { to: "/order-findings", icon: AlertTriangle, label: t.nav.orderFindings || "退货订单发现" },
-  { to: "/inventory", icon: Warehouse, label: t.nav.inventory },
-  { to: "/products", icon: Package, label: t.nav.products },
-  { to: "/outbound", icon: PackageOpen, label: t.nav.outbound },
-  { to: "/cases", icon: FileWarning, label: t.nav.cases },
+  { to: "/dashboard", icon: LayoutDashboard, label: t.nav.dashboard, permissionKey: "viewDashboard" },
+  { to: "/orders", icon: ClipboardList, label: t.nav.orders, permissionKey: "manageOrders" },
+  { to: "/removals", icon: PackageX, label: t.nav.removals, permissionKey: "manageOrders" },
+  { to: "/order-findings", icon: AlertTriangle, label: t.nav.orderFindings || "退货订单发现", permissionKey: "manageCases" },
+  { to: "/inventory", icon: Warehouse, label: t.nav.inventory, permissionKey: "viewInventory" },
+  { to: "/products", icon: Package, label: t.nav.products, permissionKey: "manageProducts" },
+  { to: "/outbound", icon: PackageOpen, label: t.nav.outbound, permissionKey: "viewInventory" },
+  { to: "/cases", icon: FileWarning, label: t.nav.cases, permissionKey: "manageCases" },
 ];
 
 const getAdminNavItems = (t: ReturnType<typeof useLanguage>['t']): NavItem[] => [
@@ -97,22 +101,44 @@ const getAdminNavItems = (t: ReturnType<typeof useLanguage>['t']): NavItem[] => 
     to: "/settings", 
     icon: Settings, 
     label: t.nav.settings || "系统设置",
+    permissionKey: "manageUsers",
     children: [
-      { to: "/users", icon: Users, label: t.nav.users },
-      { to: "/roles", icon: Shield, label: t.nav.roles || "角色管理" },
-      { to: "/logs", icon: HistoryIcon, label: t.nav.logs || "操作日志" },
+      { to: "/users", icon: Users, label: t.nav.users, permissionKey: "manageUsers" },
+      { to: "/roles", icon: Shield, label: t.nav.roles || "角色管理", permissionKey: "manageRoles" },
+      { to: "/logs", icon: HistoryIcon, label: t.nav.logs || "操作日志", permissionKey: "manageUsers" },
     ]
   },
 ];
+
+// Filter nav items based on permissions
+const filterNavItems = (items: NavItem[], can: Record<string, boolean>): NavItem[] => {
+  return items
+    .filter(item => {
+      if (!item.permissionKey) return true;
+      return can[item.permissionKey] ?? false;
+    })
+    .map(item => {
+      if (item.children) {
+        const filteredChildren = item.children.filter(child => {
+          if (!child.permissionKey) return true;
+          return can[child.permissionKey] ?? false;
+        });
+        // Only include parent if it has visible children
+        if (filteredChildren.length === 0) return null;
+        return { ...item, children: filteredChildren };
+      }
+      return item;
+    })
+    .filter((item): item is NavItem => item !== null);
+};
 
 // 移动端侧边栏内容
 function MobileSidebarContent({ onClose }: { onClose: () => void }) {
   const location = useLocation();
   const navigate = useNavigate();
   const { signOut, user } = useAuth();
-  const { data: userRole } = useCurrentUserRole();
+  const { can, isAdmin } = usePermissions();
   const { t } = useLanguage();
-  const isAdmin = userRole === "admin";
 
   const navItems = getNavItems(t);
   const adminNavItems = getAdminNavItems(t);
@@ -128,7 +154,10 @@ function MobileSidebarContent({ onClose }: { onClose: () => void }) {
     onClose();
   };
 
-  const allNavItems = isAdmin ? [...navItems, ...adminNavItems] : navItems;
+  // Filter nav items based on permissions
+  const filteredNavItems = useMemo(() => filterNavItems(navItems, can), [navItems, can]);
+  const filteredAdminNavItems = useMemo(() => filterNavItems(adminNavItems, can), [adminNavItems, can]);
+  const allNavItems = [...filteredNavItems, ...filteredAdminNavItems];
 
   return (
     <div className="flex h-full flex-col bg-sidebar">
@@ -240,9 +269,8 @@ function DesktopSidebar({ collapsed, setCollapsed }: { collapsed: boolean; setCo
   const location = useLocation();
   const navigate = useNavigate();
   const { signOut, user } = useAuth();
-  const { data: userRole } = useCurrentUserRole();
+  const { can, isAdmin } = usePermissions();
   const { t } = useLanguage();
-  const isAdmin = userRole === "admin";
 
   const navItems = getNavItems(t);
   const adminNavItems = getAdminNavItems(t);
@@ -257,7 +285,10 @@ function DesktopSidebar({ collapsed, setCollapsed }: { collapsed: boolean; setCo
     }
   };
 
-  const allNavItems = isAdmin ? [...navItems, ...adminNavItems] : navItems;
+  // Filter nav items based on permissions
+  const filteredNavItems = useMemo(() => filterNavItems(navItems, can), [navItems, can]);
+  const filteredAdminNavItems = useMemo(() => filterNavItems(adminNavItems, can), [adminNavItems, can]);
+  const allNavItems = [...filteredNavItems, ...filteredAdminNavItems];
 
   return (
     <aside

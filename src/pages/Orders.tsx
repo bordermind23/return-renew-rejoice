@@ -55,7 +55,6 @@ import { BulkStatusDialog } from "@/components/orders/BulkStatusDialog";
 import { BulkGradeDialog } from "@/components/orders/BulkGradeDialog";
 import {
   useOrdersPaginated,
-  useOrderStores,
   useOrderStats,
   useCreateOrder,
   useUpdateOrder,
@@ -127,7 +126,6 @@ export default function Orders() {
   // 筛选状态
   const [searchTerm, setSearchTerm] = useState("");
   const [debouncedSearch, setDebouncedSearch] = useState("");
-  const [storeFilter, setStoreFilter] = useState<string>("all");
   const [statusFilters, setStatusFilters] = useState<("未到货" | "到货" | "出库")[]>([]);
   const [gradeFilter, setGradeFilter] = useState<string>("all");
   
@@ -204,11 +202,9 @@ export default function Orders() {
   // 数据查询
   const { data: paginatedData, isLoading } = useOrdersPaginated(currentPage, pageSize, { 
     searchTerm: debouncedSearch, 
-    storeFilter, 
     statusFilters, 
     gradeFilter 
   });
-  const { data: stores = [] } = useOrderStores();
   const { data: orderStats } = useOrderStats();
   const { data: inboundItems } = useInboundItems();
   
@@ -283,22 +279,22 @@ export default function Orders() {
     });
   }, [orders, sortField, sortDirection]);
 
-  // 按内部订单号分组
+  // 按订单号分组
   const { groupedOrders, singleOrders } = useMemo(() => {
     const groups: Record<string, Order[]> = {};
     sortedOrders.forEach(order => {
-      const key = order.internal_order_no || `no-group-${order.id}`;
+      const key = order.order_number || `no-group-${order.id}`;
       if (!groups[key]) groups[key] = [];
       groups[key].push(order);
     });
 
-    const multiLpnGroups: { internalOrderNo: string | null; orders: Order[]; totalQuantity: number }[] = [];
+    const multiLpnGroups: { orderNumber: string; orders: Order[]; totalQuantity: number }[] = [];
     const singles: Order[] = [];
 
     Object.entries(groups).forEach(([key, items]) => {
       if (items.length >= 2 && !key.startsWith('no-group-')) {
         multiLpnGroups.push({
-          internalOrderNo: key,
+          orderNumber: key,
           orders: items,
           totalQuantity: items.reduce((sum, o) => sum + o.return_quantity, 0),
         });
@@ -337,7 +333,7 @@ export default function Orders() {
   };
 
   const hasGroups = groupedOrders.length > 0;
-  const hasActiveFilters = !!(debouncedSearch || storeFilter !== "all" || statusFilters.length > 0 || gradeFilter !== "all");
+  const hasActiveFilters = !!(debouncedSearch || statusFilters.length > 0 || gradeFilter !== "all");
 
   // 事件处理
   const handleSearchChange = (value: string) => {
@@ -347,11 +343,6 @@ export default function Orders() {
       setDebouncedSearch(value);
       setCurrentPage(1);
     }, 300);
-  };
-
-  const handleStoreFilterChange = (value: string) => {
-    setStoreFilter(value);
-    setCurrentPage(1);
   };
 
   const handleStatusFilterChange = (status: "未到货" | "到货" | "出库") => {
@@ -369,7 +360,6 @@ export default function Orders() {
   const clearAllFilters = () => {
     setSearchTerm("");
     setDebouncedSearch("");
-    setStoreFilter("all");
     setStatusFilters([]);
     setGradeFilter("all");
     setActiveQuickFilter(null);
@@ -460,7 +450,7 @@ export default function Orders() {
     if (expandedGroups.size === groupedOrders.length) {
       setExpandedGroups(new Set());
     } else {
-      setExpandedGroups(new Set(groupedOrders.map(g => g.internalOrderNo || g.orders[0].id)));
+      setExpandedGroups(new Set(groupedOrders.map(g => g.orderNumber || g.orders[0].id)));
     }
   };
 
@@ -1278,7 +1268,7 @@ export default function Orders() {
                 </TableHead>
                 <TableHead className="w-[140px]">
                   <div className="flex items-center gap-1">
-                    内部订单号
+                    订单号
                     {hasGroups && (
                       <Button variant="ghost" size="icon" className="h-5 w-5" onClick={toggleAllGroups}>
                         {expandedGroups.size === groupedOrders.length ? (
@@ -1317,7 +1307,6 @@ export default function Orders() {
                 </TableHead>
                 <TableHead className="w-[70px]">等级</TableHead>
                 <TableHead className="text-center w-[50px]">数量</TableHead>
-                <TableHead className="w-[120px]">订单号</TableHead>
                 <TableHead className="w-[100px]">
                   <button 
                     className="inline-flex items-center hover:text-primary transition-colors"
@@ -1340,7 +1329,7 @@ export default function Orders() {
             <TableBody>
               {orders.length === 0 ? (
                 <TableRow>
-                  <TableCell colSpan={12} className="h-32 text-center text-muted-foreground">
+                  <TableCell colSpan={11} className="h-32 text-center text-muted-foreground">
                     暂无数据
                   </TableCell>
                 </TableRow>
@@ -1348,7 +1337,7 @@ export default function Orders() {
                 <>
                   {/* 分组订单 */}
                   {groupedOrders.map((group) => {
-                    const groupKey = group.internalOrderNo || group.orders[0].id;
+                    const groupKey = group.orderNumber || group.orders[0].id;
                     const isExpanded = expandedGroups.has(groupKey);
                     const firstOrder = group.orders[0];
 
@@ -1377,7 +1366,7 @@ export default function Orders() {
                             <div className="flex items-center gap-2">
                               {isExpanded ? <ChevronUp className="h-4 w-4 text-primary" /> : <ChevronDown className="h-4 w-4 text-primary" />}
                               <code className="text-xs bg-primary/10 text-primary px-1.5 py-0.5 rounded font-medium">
-                                {group.internalOrderNo}
+                                {group.orderNumber}
                               </code>
                               <span className="text-xs text-muted-foreground">({group.orders.length}个LPN)</span>
                             </div>
@@ -1390,7 +1379,6 @@ export default function Orders() {
                           <TableCell><code className="text-xs bg-muted px-1.5 py-0.5 rounded">{firstOrder.product_sku || "-"}</code></TableCell>
                           <TableCell className="text-center text-muted-foreground">-</TableCell>
                           <TableCell className="text-center font-semibold">{group.totalQuantity}</TableCell>
-                          <TableCell className="font-medium">{firstOrder.order_number}</TableCell>
                           <TableCell>
                             <div className="flex justify-center gap-1">
                               <Button size="icon" variant="ghost" className="h-8 w-8" onClick={(e) => { e.stopPropagation(); setSelectedOrder(firstOrder); }}>
@@ -1478,9 +1466,8 @@ export default function Orders() {
               {/* 订单详情标签 */}
               <TabsContent value="order" className="flex-1 overflow-y-auto mt-4">
                 <div className="grid grid-cols-2 gap-4 rounded-lg bg-muted/50 p-4 text-sm">
-                  <div><p className="text-muted-foreground">内部订单号</p><p className="font-mono font-medium text-primary">{selectedOrder.internal_order_no || "-"}</p></div>
+                  <div><p className="text-muted-foreground">订单号</p><p className="font-mono font-medium text-primary">{selectedOrder.order_number}</p></div>
                   <div><p className="text-muted-foreground">LPN编号</p><p className="font-mono font-medium">{selectedOrder.lpn}</p></div>
-                  <div><p className="text-muted-foreground">订单号</p><p className="font-medium">{selectedOrder.order_number}</p></div>
                   <div><p className="text-muted-foreground">产品名称</p><p className="font-medium">{selectedOrder.product_name || "-"}</p></div>
                   <div><p className="text-muted-foreground">产品SKU</p><p className="font-medium">{selectedOrder.product_sku || "-"}</p></div>
                   <div><p className="text-muted-foreground">店铺</p><p className="font-medium">{selectedOrder.store_name}</p></div>

@@ -53,9 +53,7 @@ export function OrderTableRow({
         {isGroupChild ? (
           <div className="pl-6 text-muted-foreground text-xs">└</div>
         ) : (
-          <code className="text-xs bg-primary/10 text-primary px-1.5 py-0.5 rounded font-medium">
-            {order.internal_order_no || "-"}
-          </code>
+          <span className="font-medium">{order.order_number}</span>
         )}
       </TableCell>
       <TableCell className="text-center">
@@ -95,9 +93,6 @@ export function OrderTableRow({
       </TableCell>
       <TableCell className="text-center font-semibold tabular-nums">
         {order.return_quantity}
-      </TableCell>
-      <TableCell>
-        <span className="font-medium">{order.order_number}</span>
       </TableCell>
       <TableCell className="text-xs text-muted-foreground whitespace-nowrap">
         {formatDate(order.order_time)}

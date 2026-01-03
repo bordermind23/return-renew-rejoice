@@ -31,6 +31,7 @@ import {
   ALL_PERMISSIONS,
   type PermissionType,
 } from "@/hooks/useRolePermissions";
+import { usePermissions } from "@/hooks/usePermissions";
 import { cn } from "@/lib/utils";
 
 interface RoleConfig {
@@ -80,6 +81,9 @@ function RoleBadge({ role }: { role: AppRole }) {
 }
 
 export default function RoleManagement() {
+  const { can, isAdmin } = usePermissions();
+  const canManageRoles = can.manageRoles;
+  
   const { data: users, isLoading: usersLoading } = useUsersWithRoles();
   const { data: currentUserRole } = useCurrentUserRole();
   const { data: permissions = [], isLoading: permissionsLoading } = useRolePermissions();
@@ -88,7 +92,6 @@ export default function RoleManagement() {
   const [editingRole, setEditingRole] = useState<AppRole | null>(null);
   const [editingPermissions, setEditingPermissions] = useState<Record<PermissionType, boolean>>({} as Record<PermissionType, boolean>);
 
-  const isAdmin = currentUserRole === "admin";
   const isLoading = usersLoading || permissionsLoading;
 
   // 计算每个角色的用户数

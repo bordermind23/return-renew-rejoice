@@ -60,6 +60,7 @@ import {
   type CaseStatus,
 } from "@/hooks/useCases";
 import { useCaseTypes } from "@/hooks/useCaseTypes";
+import { usePermissions } from "@/hooks/usePermissions";
 import CaseTypeManager from "@/components/CaseTypeManager";
 import { useLanguage } from "@/i18n/LanguageContext";
 import { toast } from "sonner";
@@ -68,6 +69,10 @@ import { format } from "date-fns";
 const caseStatuses: CaseStatus[] = ['pending', 'submitted', 'in_progress', 'approved', 'rejected', 'closed', 'voided'];
 
 export default function Cases() {
+  const { can } = usePermissions();
+  const canManageCases = can.manageCases;
+  const canDeleteData = can.deleteData;
+  
   const [searchTerm, setSearchTerm] = useState("");
   const [typeFilter, setTypeFilter] = useState<string>("all");
   const [statusFilter, setStatusFilter] = useState<string>("all");
@@ -270,12 +275,14 @@ export default function Cases() {
 
         <TabsContent value="cases" className="space-y-6">
           {/* 新建按钮 */}
-          <div className="flex justify-end">
-            <Button onClick={() => setIsCreateOpen(true)} className="gradient-primary">
-              <Plus className="mr-2 h-4 w-4" />
-              {t.cases.createCase}
-            </Button>
-          </div>
+          {canManageCases && (
+            <div className="flex justify-end">
+              <Button onClick={() => setIsCreateOpen(true)} className="gradient-primary">
+                <Plus className="mr-2 h-4 w-4" />
+                {t.cases.createCase}
+              </Button>
+            </div>
+          )}
 
           {/* 统计卡片 */}
           <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
@@ -417,7 +424,7 @@ export default function Cases() {
                         <Button size="icon" variant="ghost" className="h-8 w-8" onClick={() => setSelectedCase(item)}>
                           <Eye className="h-4 w-4" />
                         </Button>
-                        {item.status !== 'voided' && (
+                        {canDeleteData && item.status !== 'voided' && (
                           <Button 
                             size="icon" 
                             variant="ghost" 

@@ -69,6 +69,7 @@ import {
   type OrderUpdate,
 } from "@/hooks/useOrders";
 import { useInboundItems } from "@/hooks/useInboundItems";
+import { usePermissions } from "@/hooks/usePermissions";
 import { supabase } from "@/integrations/supabase/client";
 import { Skeleton } from "@/components/ui/skeleton";
 import { toast } from "sonner";
@@ -102,6 +103,10 @@ const formatFileSize = (bytes: number | null): string => {
 };
 
 export default function Orders() {
+  const { can } = usePermissions();
+  const canManageOrders = can.manageOrders;
+  const canDeleteData = can.deleteData;
+  
   // 图片大小状态
   const [photoSizes, setPhotoSizes] = useState<Record<string, number | null>>({});
 

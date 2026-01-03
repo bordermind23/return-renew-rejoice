@@ -48,6 +48,8 @@ import {
   type Product,
   type ProductPart,
 } from "@/hooks/useProducts";
+import { usePermissions } from "@/hooks/usePermissions";
+import { AccessDenied } from "@/components/PermissionGuard";
 import { Skeleton } from "@/components/ui/skeleton";
 import { toast } from "sonner";
 import { Card, CardContent } from "@/components/ui/card";
@@ -55,6 +57,8 @@ import { Badge } from "@/components/ui/badge";
 import { supabase } from "@/integrations/supabase/client";
 
 export default function Products() {
+  const { can, isLoading: permissionsLoading } = usePermissions();
+  
   const [searchTerm, setSearchTerm] = useState("");
   const [selectedCategories, setSelectedCategories] = useState<string[]>([]);
   const [isDialogOpen, setIsDialogOpen] = useState(false);
@@ -88,6 +92,10 @@ export default function Products() {
   const deletePartMutation = useDeleteProductPart();
   const createCategoryMutation = useCreateProductCategory();
   const deleteCategoryMutation = useDeleteProductCategory();
+
+  // Permission checks
+  const canManageProducts = can.manageProducts;
+  const canDeleteData = can.deleteData;
 
   const toggleCategoryFilter = (categoryName: string) => {
     setSelectedCategories(prev =>
@@ -174,27 +182,31 @@ export default function Products() {
           >
             <Puzzle className="h-4 w-4" />
           </Button>
-          <Button
-            size="sm"
-            variant="ghost"
-            onClick={(e) => {
-              e.stopPropagation();
-              handleEdit(item);
-            }}
-          >
-            <Edit className="h-4 w-4" />
-          </Button>
-          <Button
-            size="sm"
-            variant="ghost"
-            className="text-destructive"
-            onClick={(e) => {
-              e.stopPropagation();
-              setDeleteId(item.id);
-            }}
-          >
-            <Trash2 className="h-4 w-4" />
-          </Button>
+          {canManageProducts && (
+            <Button
+              size="sm"
+              variant="ghost"
+              onClick={(e) => {
+                e.stopPropagation();
+                handleEdit(item);
+              }}
+            >
+              <Edit className="h-4 w-4" />
+            </Button>
+          )}
+          {canDeleteData && (
+            <Button
+              size="sm"
+              variant="ghost"
+              className="text-destructive"
+              onClick={(e) => {
+                e.stopPropagation();
+                setDeleteId(item.id);
+              }}
+            >
+              <Trash2 className="h-4 w-4" />
+            </Button>
+          )}
         </div>
       ),
     },
@@ -425,19 +437,23 @@ export default function Products() {
         description="管理产品信息和配件"
         actions={
           <div className="flex gap-2">
-            <Button variant="outline" onClick={() => setIsCategoryDialogOpen(true)}>
-              <Tags className="mr-2 h-4 w-4" />
-              分类管理
-            </Button>
-            <Button onClick={() => {
-              setEditingProduct(null);
-              setFormData({ sku: "", name: "", category: "", image: "" });
-              setImagePreview(null);
-              setIsDialogOpen(true);
-            }}>
-              <Plus className="mr-2 h-4 w-4" />
-              添加产品
-            </Button>
+            {canManageProducts && (
+              <Button variant="outline" onClick={() => setIsCategoryDialogOpen(true)}>
+                <Tags className="mr-2 h-4 w-4" />
+                分类管理
+              </Button>
+            )}
+            {canManageProducts && (
+              <Button onClick={() => {
+                setEditingProduct(null);
+                setFormData({ sku: "", name: "", category: "", image: "" });
+                setImagePreview(null);
+                setIsDialogOpen(true);
+              }}>
+                <Plus className="mr-2 h-4 w-4" />
+                添加产品
+              </Button>
+            )}
           </div>
         }
       />

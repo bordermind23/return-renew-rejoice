@@ -37,6 +37,7 @@ interface InboundBatchListProps {
   onDelete: (id: string) => void;
   onBatchDelete?: (ids: string[]) => void;
   enableBatchSelect?: boolean;
+  canDelete?: boolean;
 }
 
 interface BatchGroup {
@@ -48,7 +49,7 @@ interface BatchGroup {
   productSku: string;
 }
 
-export function InboundBatchList({ items, onDelete, onBatchDelete, enableBatchSelect = false }: InboundBatchListProps) {
+export function InboundBatchList({ items, onDelete, onBatchDelete, enableBatchSelect = false, canDelete = true }: InboundBatchListProps) {
   const [expandedBatches, setExpandedBatches] = useState<Set<string>>(new Set());
   const [photoViewItem, setPhotoViewItem] = useState<InboundItem | null>(null);
   const [batchPhotoViewItem, setBatchPhotoViewItem] = useState<BatchGroup | null>(null);
@@ -461,17 +462,19 @@ export function InboundBatchList({ items, onDelete, onBatchDelete, enableBatchSe
                               </TableCell>
                               <TableCell>
                                 <div className="flex justify-center">
-                                  <Button
-                                    size="icon"
-                                    variant="ghost"
-                                    className="h-7 w-7 text-destructive hover:text-destructive"
-                                    onClick={(e) => {
-                                      e.stopPropagation();
-                                      onDelete(item.id);
-                                    }}
-                                  >
-                                    <Trash2 className="h-4 w-4" />
-                                  </Button>
+                                  {canDelete && (
+                                    <Button
+                                      size="icon"
+                                      variant="ghost"
+                                      className="h-7 w-7 text-destructive hover:text-destructive"
+                                      onClick={(e) => {
+                                        e.stopPropagation();
+                                        onDelete(item.id);
+                                      }}
+                                    >
+                                      <Trash2 className="h-4 w-4" />
+                                    </Button>
+                                  )}
                                 </div>
                               </TableCell>
                             </TableRow>

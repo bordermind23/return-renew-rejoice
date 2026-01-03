@@ -155,10 +155,13 @@ serve(async (req) => {
     console.log("Recognized tracking numbers:", recognizedText);
 
     // Parse the response to extract tracking numbers
+    // Normalize: remove spaces and non-alphanumeric chars (common in OCR like "1Z K45 ...")
     const trackingNumbers = recognizedText
       .split(/[,，\n]/)
       .map((s: string) => s.trim())
-      .filter((s: string) => s.length >= 8 && /^[A-Za-z0-9]+$/.test(s));
+      .filter(Boolean)
+      .map((s: string) => s.replace(/[^A-Za-z0-9]/g, "").toUpperCase())
+      .filter((s: string) => s.length >= 8 && /^[A-Z0-9]+$/.test(s));
 
     return new Response(
       JSON.stringify({ 

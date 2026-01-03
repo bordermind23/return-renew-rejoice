@@ -36,6 +36,7 @@ import { type Order, useUpdateOrder } from "@/hooks/useOrders";
 import { fetchOrdersByLpn } from "@/hooks/useOrdersByLpn";
 import { useUpdateInventoryStock } from "@/hooks/useInventoryItems";
 import { useProducts, useProductParts } from "@/hooks/useProducts";
+import { useAuth } from "@/hooks/useAuth";
 import { Skeleton } from "@/components/ui/skeleton";
 import { toast } from "sonner";
 import { Scanner } from "@/components/Scanner";
@@ -62,6 +63,7 @@ export default function InboundScan() {
   const navigate = useNavigate();
   const [searchParams] = useSearchParams();
   const isMobile = useIsMobile();
+  const { user } = useAuth();
   const [currentStep, setCurrentStep] = useState<InboundStep>("scan_tracking");
   const [trackingInput, setTrackingInput] = useState("");
   const [lpnInput, setLpnInput] = useState("");
@@ -528,7 +530,7 @@ export default function InboundScan() {
           grade: "A" as "A" | "B" | "C" | "new",
           missing_parts: missingPartsLabels.length > 0 ? missingPartsLabels : null,
           processed_at: new Date().toISOString(),
-          processed_by: "操作员",
+          processed_by: user?.email || "未知用户",
           tracking_number: matchedShipment.tracking_number,
           shipment_id: matchingShipmentBySku.id,
           lpn_label_photo: capturedPhotos.lpn_label_photo || null,

@@ -17,6 +17,7 @@ import { useUpdateInventoryStock } from "@/hooks/useInventoryItems";
 import { useProducts, useProductParts } from "@/hooks/useProducts";
 import { fetchOrdersByLpn } from "@/hooks/useOrdersByLpn";
 import { type Order, useUpdateOrder } from "@/hooks/useOrders";
+import { useAuth } from "@/hooks/useAuth";
 import { useSound } from "@/hooks/useSound";
 import { toast } from "sonner";
 import { cn } from "@/lib/utils";
@@ -24,6 +25,7 @@ import { cn } from "@/lib/utils";
 export default function InboundProcess() {
   const navigate = useNavigate();
   const [searchParams] = useSearchParams();
+  const { user } = useAuth();
   const lpn = searchParams.get("lpn") || "";
   const trackingNumber = searchParams.get("tracking") || "";
   const shippingLabelPhotoUrl = searchParams.get("labelPhoto") || "";
@@ -130,7 +132,7 @@ export default function InboundProcess() {
         grade: "A" as "A" | "B" | "C" | "new", // 默认A级
         missing_parts: selectedMissingParts.length > 0 ? selectedMissingParts : null,
         processed_at: new Date().toISOString(),
-        processed_by: "操作员",
+        processed_by: user?.email || "未知用户",
         tracking_number: matchedShipment.tracking_number,
         shipment_id: matchedShipment.id,
         shipping_label_photo: shippingLabelPhotoUrl || null, // 保存物流面单照片

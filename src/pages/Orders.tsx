@@ -1,5 +1,5 @@
 import React, { useState, useRef, useMemo } from "react";
-import { Eye, Plus, Trash2, Upload, Download, FileSpreadsheet, ChevronDown, AlertCircle, CheckCircle2, Loader2, Edit, ChevronUp, Package, Wrench, X, ChevronLeft, ChevronRight, RefreshCw, Settings2, ArrowUpDown, ArrowUp, ArrowDown } from "lucide-react";
+import { Eye, Plus, Trash2, Upload, Download, FileSpreadsheet, ChevronDown, AlertCircle, CheckCircle2, Loader2, Edit, Package, Wrench, X, ChevronLeft, ChevronRight, RefreshCw, Settings2 } from "lucide-react";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -100,9 +100,7 @@ const formatFileSize = (bytes: number | null): string => {
   if (bytes < 1024 * 1024) return `${(bytes / 1024).toFixed(1)} KB`;
   return `${(bytes / (1024 * 1024)).toFixed(2)} MB`;
 };
-// 排序类型定义
-type SortField = "order_time" | "return_time" | "product_name" | "product_sku" | "status" | null;
-type SortDirection = "asc" | "desc";
+import { SortField, SortDirection } from "@/components/orders/OrderFilters";
 
 export default function Orders() {
   const { can } = usePermissions();
@@ -129,8 +127,8 @@ export default function Orders() {
   const [statusFilters, setStatusFilters] = useState<("未到货" | "到货" | "出库")[]>([]);
   const [gradeFilter, setGradeFilter] = useState<string>("all");
   
-  // 排序状态
-  const [sortField, setSortField] = useState<SortField>(null);
+  // 排序状态 - 默认按退货日期降序
+  const [sortField, setSortField] = useState<SortField>("return_time");
   const [sortDirection, setSortDirection] = useState<SortDirection>("desc");
 
   // 分页状态
@@ -277,32 +275,6 @@ export default function Orders() {
       return 0;
     });
   }, [orders, sortField, sortDirection]);
-
-  // 切换排序
-  const handleSort = (field: SortField) => {
-    if (sortField === field) {
-      // 同一字段切换方向，或清除排序
-      if (sortDirection === "desc") {
-        setSortDirection("asc");
-      } else {
-        setSortField(null);
-        setSortDirection("desc");
-      }
-    } else {
-      setSortField(field);
-      setSortDirection("desc");
-    }
-  };
-
-  // 渲染排序图标
-  const renderSortIcon = (field: SortField) => {
-    if (sortField !== field) {
-      return <ArrowUpDown className="h-3 w-3 ml-1 opacity-50" />;
-    }
-    return sortDirection === "desc" 
-      ? <ArrowDown className="h-3 w-3 ml-1 text-primary" />
-      : <ArrowUp className="h-3 w-3 ml-1 text-primary" />;
-  };
 
   const hasActiveFilters = !!(debouncedSearch || statusFilters.length > 0 || gradeFilter !== "all");
 
@@ -1204,6 +1176,12 @@ export default function Orders() {
         onStatusFilterChange={handleStatusFilterChange}
         gradeFilter={gradeFilter}
         onGradeFilterChange={handleGradeFilterChange}
+        sortField={sortField}
+        sortDirection={sortDirection}
+        onSortChange={(field, direction) => {
+          setSortField(field);
+          setSortDirection(direction);
+        }}
         hasActiveFilters={hasActiveFilters}
         onClearFilters={clearAllFilters}
       />
@@ -1221,49 +1199,14 @@ export default function Orders() {
                   />
                 </TableHead>
                 <TableHead className="w-[140px]">订单号</TableHead>
-                <TableHead className="text-center w-[70px]">
-                  <button 
-                    className="inline-flex items-center hover:text-primary transition-colors"
-                    onClick={() => handleSort("status")}
-                  >
-                    状态{renderSortIcon("status")}
-                  </button>
-                </TableHead>
+                <TableHead className="text-center w-[70px]">状态</TableHead>
                 <TableHead className="w-[120px]">LPN</TableHead>
-                <TableHead className="w-[200px]">
-                  <button 
-                    className="inline-flex items-center hover:text-primary transition-colors"
-                    onClick={() => handleSort("product_name")}
-                  >
-                    产品名称{renderSortIcon("product_name")}
-                  </button>
-                </TableHead>
-                <TableHead className="w-[100px]">
-                  <button 
-                    className="inline-flex items-center hover:text-primary transition-colors"
-                    onClick={() => handleSort("product_sku")}
-                  >
-                    SKU{renderSortIcon("product_sku")}
-                  </button>
-                </TableHead>
+                <TableHead className="w-[200px]">产品名称</TableHead>
+                <TableHead className="w-[100px]">SKU</TableHead>
                 <TableHead className="w-[70px]">等级</TableHead>
                 <TableHead className="text-center w-[50px]">数量</TableHead>
-                <TableHead className="w-[100px]">
-                  <button 
-                    className="inline-flex items-center hover:text-primary transition-colors"
-                    onClick={() => handleSort("order_time")}
-                  >
-                    订购日期{renderSortIcon("order_time")}
-                  </button>
-                </TableHead>
-                <TableHead className="w-[100px]">
-                  <button 
-                    className="inline-flex items-center hover:text-primary transition-colors"
-                    onClick={() => handleSort("return_time")}
-                  >
-                    退货日期{renderSortIcon("return_time")}
-                  </button>
-                </TableHead>
+                <TableHead className="w-[100px]">订购日期</TableHead>
+                <TableHead className="w-[100px]">退货日期</TableHead>
                 <TableHead className="text-center w-[70px]">操作</TableHead>
               </TableRow>
             </TableHeader>

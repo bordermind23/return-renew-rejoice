@@ -101,6 +101,9 @@ const formatFileSize = (bytes: number | null): string => {
   if (bytes < 1024 * 1024) return `${(bytes / 1024).toFixed(1)} KB`;
   return `${(bytes / (1024 * 1024)).toFixed(2)} MB`;
 };
+// 排序类型定义
+type SortField = "order_time" | "return_time" | "product_name" | "product_sku" | "status" | null;
+type SortDirection = "asc" | "desc";
 
 export default function Orders() {
   const { can } = usePermissions();
@@ -129,11 +132,9 @@ export default function Orders() {
   const [gradeFilter, setGradeFilter] = useState<string>("all");
   
   // 排序状态
-  type SortField = "order_time" | "return_time" | "product_name" | "product_sku" | "status" | null;
-  type SortDirection = "asc" | "desc";
   const [sortField, setSortField] = useState<SortField>(null);
   const [sortDirection, setSortDirection] = useState<SortDirection>("desc");
-  
+
   // 分页状态
   const [currentPage, setCurrentPage] = useState(1);
   const [pageSize, setPageSize] = useState(50);

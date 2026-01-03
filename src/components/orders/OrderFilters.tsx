@@ -26,9 +26,6 @@ interface OrderFiltersProps {
   onStatusFilterChange: (status: "未到货" | "到货" | "出库") => void;
   gradeFilter: string;
   onGradeFilterChange: (value: string) => void;
-  storeFilter: string;
-  onStoreFilterChange: (value: string) => void;
-  stores: string[];
   hasActiveFilters: boolean;
   onClearFilters: () => void;
 }
@@ -40,9 +37,6 @@ export function OrderFilters({
   onStatusFilterChange,
   gradeFilter,
   onGradeFilterChange,
-  storeFilter,
-  onStoreFilterChange,
-  stores,
   hasActiveFilters,
   onClearFilters,
 }: OrderFiltersProps) {
@@ -120,20 +114,6 @@ export function OrderFilters({
             </SelectContent>
           </Select>
 
-          {/* 店铺筛选 */}
-          <Select value={storeFilter} onValueChange={onStoreFilterChange}>
-            <SelectTrigger className="w-[140px] h-10 bg-background">
-              <SelectValue placeholder="店铺" />
-            </SelectTrigger>
-            <SelectContent>
-              <SelectItem value="all">全部店铺</SelectItem>
-              {stores.map((store) => (
-                <SelectItem key={store} value={store}>
-                  {store}
-                </SelectItem>
-              ))}
-            </SelectContent>
-          </Select>
 
           {/* 清除筛选 */}
           {hasActiveFilters && (
@@ -172,16 +152,6 @@ export function OrderFilters({
               onClick={() => onGradeFilterChange("all")}
             >
               {gradeFilter === "ungraded" ? "未评级" : <GradeBadge grade={gradeFilter as "A" | "B" | "C"} />}
-              <X className="h-3 w-3 ml-1" />
-            </Badge>
-          )}
-          {storeFilter !== "all" && (
-            <Badge
-              variant="secondary"
-              className="gap-1 pl-2 pr-1 py-0.5 cursor-pointer hover:bg-secondary/80"
-              onClick={() => onStoreFilterChange("all")}
-            >
-              {storeFilter}
               <X className="h-3 w-3 ml-1" />
             </Badge>
           )}

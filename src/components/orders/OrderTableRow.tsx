@@ -19,10 +19,10 @@ interface OrderTableRowProps {
   isGroupChild?: boolean;
 }
 
-const formatDateTime = (dateStr: string | null) => {
+const formatDate = (dateStr: string | null) => {
   if (!dateStr) return "-";
   try {
-    return format(new Date(dateStr), "MM-dd HH:mm");
+    return format(new Date(dateStr), "yyyy-MM-dd");
   } catch {
     return "-";
   }
@@ -100,10 +100,10 @@ export function OrderTableRow({
         <span className="font-medium">{order.order_number}</span>
       </TableCell>
       <TableCell className="text-xs text-muted-foreground whitespace-nowrap">
-        {formatDateTime(order.order_time)}
+        {formatDate(order.order_time)}
       </TableCell>
       <TableCell className="text-xs text-muted-foreground whitespace-nowrap">
-        {formatDateTime(order.return_time)}
+        {formatDate(order.return_time)}
       </TableCell>
       <TableCell>
         <div className="flex justify-center gap-0.5">

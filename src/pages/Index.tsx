@@ -1,12 +1,7 @@
-import Dashboard from "./Dashboard";
-import { MainLayout } from "@/components/layout/MainLayout";
+import { Navigate } from "react-router-dom";
 
 const Index = () => {
-  return (
-    <MainLayout>
-      <Dashboard />
-    </MainLayout>
-  );
+  return <Navigate to="/inbound/scan" replace />;
 };
 
 export default Index;

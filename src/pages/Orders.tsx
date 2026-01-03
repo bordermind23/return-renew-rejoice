@@ -1229,7 +1229,7 @@ export default function Orders() {
                 <TableHead className="text-center w-[50px]">数量</TableHead>
                 <TableHead className="w-[120px]">订单号</TableHead>
                 <TableHead className="w-[100px]">订购时间</TableHead>
-                <TableHead className="w-[100px]">退货时间</TableHead>
+                <TableHead className="w-[100px]">退货日期</TableHead>
                 <TableHead className="text-center w-[70px]">操作</TableHead>
               </TableRow>
             </TableHeader>

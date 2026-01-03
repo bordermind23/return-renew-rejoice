@@ -1,5 +1,5 @@
 import { useState, useRef, useMemo, useCallback, useEffect } from "react";
-import { Plus, Search, Filter, Trash2, Edit, Eye, Upload, Download, FileSpreadsheet, ChevronDown, ChevronRight, AlertCircle, CheckCircle2, Loader2, Package, Copy, LayoutGrid, List, Check, Image } from "lucide-react";
+import { Plus, Search, Filter, Trash2, Edit, Eye, Upload, Download, FileSpreadsheet, ChevronDown, ChevronRight, AlertCircle, CheckCircle2, Loader2, Package, Copy, LayoutGrid, List, Check, Image, ArrowUpDown } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { PageHeader } from "@/components/ui/page-header";
@@ -101,6 +101,12 @@ export default function Removals() {
   const fileInputRef = useRef<HTMLInputElement>(null);
   const [viewMode, setViewMode] = useState<"grouped" | "list">("list");
   const [duplicateFilter, setDuplicateFilter] = useState<"all" | "duplicate" | "unconfirmed">("all");
+  
+  // 排序状态 - 默认按发货日期降序
+  type SortField = "ship_date" | "product_name" | "status" | "product_sku" | "carrier";
+  type SortDirection = "asc" | "desc";
+  const [sortField, setSortField] = useState<SortField>("ship_date");
+  const [sortDirection, setSortDirection] = useState<SortDirection>("desc");
   
   // 分页状态
   const [currentPage, setCurrentPage] = useState(1);
@@ -232,7 +238,7 @@ export default function Removals() {
   }, [updateMutation]);
 
   const filteredData = useMemo(() => {
-    return (shipments || []).filter((item) => {
+    const filtered = (shipments || []).filter((item) => {
       const matchesSearch =
         item.order_id.toLowerCase().includes(searchTerm.toLowerCase()) ||
         (item.product_name || "").toLowerCase().includes(searchTerm.toLowerCase()) ||
@@ -250,7 +256,42 @@ export default function Removals() {
 
       return matchesSearch && matchesStatus && matchesDuplicate;
     });
-  }, [shipments, searchTerm, statusFilter, duplicateFilter, duplicateInfo]);
+
+    // 排序
+    return [...filtered].sort((a, b) => {
+      let aVal: string | number | null = null;
+      let bVal: string | number | null = null;
+
+      switch (sortField) {
+        case "ship_date":
+          aVal = a.ship_date ? new Date(a.ship_date).getTime() : 0;
+          bVal = b.ship_date ? new Date(b.ship_date).getTime() : 0;
+          break;
+        case "product_name":
+          aVal = (a.product_name || "").toLowerCase();
+          bVal = (b.product_name || "").toLowerCase();
+          break;
+        case "status":
+          const statusOrder = { "未到货": 1, "入库": 2 };
+          aVal = statusOrder[a.status as keyof typeof statusOrder] || 0;
+          bVal = statusOrder[b.status as keyof typeof statusOrder] || 0;
+          break;
+        case "product_sku":
+          aVal = (a.product_sku || "").toLowerCase();
+          bVal = (b.product_sku || "").toLowerCase();
+          break;
+        case "carrier":
+          aVal = (a.carrier || "").toLowerCase();
+          bVal = (b.carrier || "").toLowerCase();
+          break;
+      }
+
+      if (aVal === null || bVal === null) return 0;
+      if (aVal < bVal) return sortDirection === "asc" ? -1 : 1;
+      if (aVal > bVal) return sortDirection === "asc" ? 1 : -1;
+      return 0;
+    });
+  }, [shipments, searchTerm, statusFilter, duplicateFilter, duplicateInfo, sortField, sortDirection]);
 
   // 分页计算
   const totalCount = filteredData.length;
@@ -1063,6 +1104,30 @@ export default function Removals() {
             <SelectItem value="unconfirmed">未确认重复</SelectItem>
           </SelectContent>
         </Select>
+        {/* 排序选择 */}
+        <Select value={sortField} onValueChange={(v) => setSortField(v as SortField)}>
+          <SelectTrigger className="w-full sm:w-[140px]">
+            <ArrowUpDown className="mr-2 h-4 w-4" />
+            <SelectValue placeholder="排序" />
+          </SelectTrigger>
+          <SelectContent>
+            <SelectItem value="ship_date">发货日期</SelectItem>
+            <SelectItem value="product_name">产品名称</SelectItem>
+            <SelectItem value="status">状态</SelectItem>
+            <SelectItem value="product_sku">产品SKU</SelectItem>
+            <SelectItem value="carrier">承运商</SelectItem>
+          </SelectContent>
+        </Select>
+        {/* 排序方向 */}
+        <Button
+          variant="outline"
+          size="icon"
+          className="h-10 w-10"
+          onClick={() => setSortDirection(sortDirection === "desc" ? "asc" : "desc")}
+          title={sortDirection === "desc" ? "降序" : "升序"}
+        >
+          {sortDirection === "desc" ? "↓" : "↑"}
+        </Button>
         {/* 视图切换 */}
         <div className="flex items-center border rounded-lg p-1 bg-muted/30">
           <Button

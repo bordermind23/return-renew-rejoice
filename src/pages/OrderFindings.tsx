@@ -1,5 +1,6 @@
 import { useState } from "react";
 import { useQuery } from "@tanstack/react-query";
+import { useNavigate } from "react-router-dom";
 import { supabase } from "@/integrations/supabase/client";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
@@ -7,11 +8,13 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
-import { AlertTriangle, Package, Search, Filter, Eye } from "lucide-react";
+import { AlertTriangle, Package, Search, Filter, Eye, FileText } from "lucide-react";
 import { format } from "date-fns";
-import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog";
+import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from "@/components/ui/dialog";
 import { ScrollArea } from "@/components/ui/scroll-area";
 import { ImageLightbox } from "@/components/ui/image-lightbox";
+import { useCreateCase, CaseType } from "@/hooks/useCases";
+import { useAuth } from "@/hooks/useAuth";
 
 interface InboundFinding {
   id: string;
@@ -47,6 +50,11 @@ export default function OrderFindings() {
   const [findingType, setFindingType] = useState<FindingType>("all");
   const [selectedItem, setSelectedItem] = useState<InboundFinding | null>(null);
   const [lightboxImage, setLightboxImage] = useState<string | null>(null);
+  const [createCaseItem, setCreateCaseItem] = useState<InboundFinding | null>(null);
+
+  const navigate = useNavigate();
+  const { user } = useAuth();
+  const createCase = useCreateCase();
 
   // 查询有配件缺失或产品损坏的入库记录
   const { data: findings = [], isLoading } = useQuery({
@@ -254,14 +262,24 @@ export default function OrderFindings() {
                       </TableCell>
                       <TableCell>{item.processed_by}</TableCell>
                       <TableCell className="text-right">
-                        <Button
-                          variant="ghost"
-                          size="sm"
-                          onClick={() => setSelectedItem(item)}
-                        >
-                          <Eye className="h-4 w-4 mr-1" />
-                          查看
-                        </Button>
+                        <div className="flex justify-end gap-1">
+                          <Button
+                            variant="ghost"
+                            size="sm"
+                            onClick={() => setSelectedItem(item)}
+                          >
+                            <Eye className="h-4 w-4 mr-1" />
+                            查看
+                          </Button>
+                          <Button
+                            variant="outline"
+                            size="sm"
+                            onClick={() => setCreateCaseItem(item)}
+                          >
+                            <FileText className="h-4 w-4 mr-1" />
+                            创建CASE
+                          </Button>
+                        </div>
                       </TableCell>
                     </TableRow>
                   ))}
@@ -415,6 +433,106 @@ export default function OrderFindings() {
                 </div>
               </div>
             </ScrollArea>
+          )}
+        </DialogContent>
+      </Dialog>
+
+      {/* 创建CASE确认弹窗 */}
+      <Dialog open={!!createCaseItem} onOpenChange={(open) => !open && setCreateCaseItem(null)}>
+        <DialogContent className="max-w-md">
+          <DialogHeader>
+            <DialogTitle className="flex items-center gap-2">
+              <FileText className="h-5 w-5 text-primary" />
+              创建CASE
+            </DialogTitle>
+          </DialogHeader>
+          {createCaseItem && (
+            <div className="space-y-4">
+              <p className="text-sm text-muted-foreground">
+                将为以下问题创建CASE并跳转到CASE管理页面：
+              </p>
+              <div className="rounded-lg bg-muted/50 p-4 space-y-2 text-sm">
+                <div className="flex justify-between">
+                  <span className="text-muted-foreground">LPN</span>
+                  <span className="font-mono">{createCaseItem.lpn}</span>
+                </div>
+                <div className="flex justify-between">
+                  <span className="text-muted-foreground">产品</span>
+                  <span className="font-medium">{createCaseItem.product_name}</span>
+                </div>
+                <div className="flex justify-between">
+                  <span className="text-muted-foreground">问题类型</span>
+                  <div className="flex gap-1">
+                    {hasMissingParts(createCaseItem) && (
+                      <Badge variant="outline" className="bg-amber-50 text-amber-700 border-amber-200 text-xs">
+                        配件缺失
+                      </Badge>
+                    )}
+                    {hasDamage(createCaseItem) && (
+                      <Badge variant="outline" className="bg-red-50 text-red-700 border-red-200 text-xs">
+                        产品损坏
+                      </Badge>
+                    )}
+                  </div>
+                </div>
+              </div>
+              <DialogFooter>
+                <Button variant="outline" onClick={() => setCreateCaseItem(null)}>
+                  取消
+                </Button>
+                <Button
+                  onClick={async () => {
+                    // 根据问题类型决定CASE类型
+                    let caseType: CaseType = "other";
+                    if (hasMissingParts(createCaseItem) && hasDamage(createCaseItem)) {
+                      caseType = "product_damaged"; // 优先用损坏类型
+                    } else if (hasDamage(createCaseItem)) {
+                      caseType = "product_damaged";
+                    } else if (hasMissingParts(createCaseItem)) {
+                      caseType = "accessory_missing";
+                    }
+
+                    // 构建描述
+                    const descriptionParts = [];
+                    if (hasMissingParts(createCaseItem)) {
+                      descriptionParts.push(`缺失配件: ${createCaseItem.missing_parts?.join(", ")}`);
+                    }
+                    if (hasDamage(createCaseItem)) {
+                      descriptionParts.push("产品有损坏照片");
+                    }
+
+                    await createCase.mutateAsync({
+                      case_type: caseType,
+                      status: "pending",
+                      order_id: null,
+                      lpn: createCaseItem.lpn,
+                      tracking_number: createCaseItem.tracking_number,
+                      removal_order_id: createCaseItem.removal_order_id,
+                      title: `${createCaseItem.product_name} - ${hasDamage(createCaseItem) ? "产品损坏" : "配件缺失"}`,
+                      description: descriptionParts.join("\n"),
+                      expected_sku: createCaseItem.product_sku,
+                      actual_sku: null,
+                      missing_items: createCaseItem.missing_parts,
+                      damage_description: hasDamage(createCaseItem) ? "请查看入库时拍摄的损坏照片" : null,
+                      amazon_case_id: null,
+                      amazon_case_url: null,
+                      claim_amount: null,
+                      approved_amount: null,
+                      currency: "EUR",
+                      submitted_at: null,
+                      resolved_at: null,
+                      created_by: user?.email || "未知用户",
+                    });
+
+                    setCreateCaseItem(null);
+                    navigate("/cases");
+                  }}
+                  disabled={createCase.isPending}
+                >
+                  {createCase.isPending ? "创建中..." : "确认创建"}
+                </Button>
+              </DialogFooter>
+            </div>
           )}
         </DialogContent>
       </Dialog>

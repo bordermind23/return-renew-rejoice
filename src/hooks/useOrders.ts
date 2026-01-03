@@ -74,8 +74,8 @@ export const useOrdersPaginated = (page: number, pageSize: number = 50, filters:
       // 应用搜索过滤（包含产品名称）
       if (searchTerm) {
         const search = `%${searchTerm}%`;
-        countQuery = countQuery.or(`order_number.ilike.${search},lpn.ilike.${search},store_name.ilike.${search},product_name.ilike.${search},internal_order_no.ilike.${search}`);
-        dataQuery = dataQuery.or(`order_number.ilike.${search},lpn.ilike.${search},store_name.ilike.${search},product_name.ilike.${search},internal_order_no.ilike.${search}`);
+        countQuery = countQuery.or(`order_number.ilike.${search},lpn.ilike.${search},store_name.ilike.${search},product_name.ilike.${search}`);
+        dataQuery = dataQuery.or(`order_number.ilike.${search},lpn.ilike.${search},store_name.ilike.${search},product_name.ilike.${search}`);
       }
 
       // 应用店铺过滤
@@ -105,7 +105,7 @@ export const useOrdersPaginated = (page: number, pageSize: number = 50, filters:
       const to = from + pageSize - 1;
 
       const { data, error } = await dataQuery
-        .order("internal_order_no", { ascending: false, nullsFirst: false })
+        .order("order_number", { ascending: false, nullsFirst: false })
         .order("created_at", { ascending: false })
         .range(from, to);
 

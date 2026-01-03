@@ -43,7 +43,6 @@ export default function InboundRecords() {
   
   // 筛选状态
   const [searchTerm, setSearchTerm] = useState("");
-  const [gradeFilter, setGradeFilter] = useState<string>("all");
   const [dateFilter, setDateFilter] = useState<string>("all");
 
   const { data: inboundItems, isLoading } = useInboundItems();
@@ -66,11 +65,6 @@ export default function InboundRecords() {
           item.product_name.toLowerCase().includes(search) ||
           (item.tracking_number?.toLowerCase().includes(search) ?? false);
         if (!matchesSearch) return false;
-      }
-      
-      // 级别过滤
-      if (gradeFilter !== "all" && item.grade !== gradeFilter) {
-        return false;
       }
       
       // 日期过滤
@@ -96,7 +90,7 @@ export default function InboundRecords() {
       
       return true;
     });
-  }, [inboundItems, searchTerm, gradeFilter, dateFilter]);
+  }, [inboundItems, searchTerm, dateFilter]);
 
   // 获取某物流号下的已入库数量（不包含当前正在删除的项目）
   const getInboundedCountExcluding = (trackingNumber: string, excludeIds: string[]) => {
@@ -218,11 +212,10 @@ export default function InboundRecords() {
 
   const clearFilters = () => {
     setSearchTerm("");
-    setGradeFilter("all");
     setDateFilter("all");
   };
 
-  const hasActiveFilters = searchTerm || gradeFilter !== "all" || dateFilter !== "all";
+  const hasActiveFilters = searchTerm || dateFilter !== "all";
 
   if (isLoading) {
     return (
@@ -254,18 +247,6 @@ export default function InboundRecords() {
             />
           </div>
           
-          {/* 级别筛选 */}
-          <Select value={gradeFilter} onValueChange={setGradeFilter}>
-            <SelectTrigger className="w-[120px]">
-              <SelectValue placeholder="全部级别" />
-            </SelectTrigger>
-            <SelectContent>
-              <SelectItem value="all">全部级别</SelectItem>
-              <SelectItem value="A">A级</SelectItem>
-              <SelectItem value="B">B级</SelectItem>
-              <SelectItem value="C">C级</SelectItem>
-            </SelectContent>
-          </Select>
           
           {/* 日期筛选 */}
           <Select value={dateFilter} onValueChange={setDateFilter}>

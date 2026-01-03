@@ -312,28 +312,33 @@ export default function Orders() {
 
   // 切换排序
   const handleSort = (field: SortField) => {
+    let nextField: SortField = field;
+    let nextDirection: SortDirection = "desc";
+
     if (sortField === field) {
-      // 同一字段切换方向，或清除排序
       if (sortDirection === "desc") {
-        setSortDirection("asc");
+        nextDirection = "asc";
       } else {
-        setSortField(null);
-        setSortDirection("desc");
+        nextField = null;
+        nextDirection = "desc";
       }
-    } else {
-      setSortField(field);
-      setSortDirection("desc");
     }
+
+    setSortField(nextField);
+    setSortDirection(nextDirection);
+
+    // Debug: 方便确认点击已生效
+    console.log("[orders] sort change", { field, nextField, nextDirection });
   };
 
   // 渲染排序图标
   const renderSortIcon = (field: SortField) => {
     if (sortField !== field) {
-      return <ArrowUpDown className="h-3 w-3 ml-1 opacity-50" />;
+      return <ArrowUpDown className="h-4 w-4 opacity-60" />;
     }
-    return sortDirection === "desc" 
-      ? <ArrowDown className="h-3 w-3 ml-1 text-primary" />
-      : <ArrowUp className="h-3 w-3 ml-1 text-primary" />;
+    return sortDirection === "desc"
+      ? <ArrowDown className="h-4 w-4 text-primary" />
+      : <ArrowUp className="h-4 w-4 text-primary" />;
   };
 
   const hasGroups = groupedOrders.length > 0;
@@ -1295,7 +1300,8 @@ export default function Orders() {
                 </TableHead>
                 <TableHead className="text-center w-[70px]">
                   <button 
-                    className="inline-flex items-center hover:text-primary transition-colors"
+                    type="button"
+                    className="inline-flex items-center gap-1 select-none hover:text-primary transition-colors"
                     onClick={() => handleSort("status")}
                   >
                     状态{renderSortIcon("status")}
@@ -1304,7 +1310,8 @@ export default function Orders() {
                 <TableHead className="w-[120px]">LPN</TableHead>
                 <TableHead className="w-[200px]">
                   <button 
-                    className="inline-flex items-center hover:text-primary transition-colors"
+                    type="button"
+                    className="inline-flex items-center gap-1 select-none hover:text-primary transition-colors"
                     onClick={() => handleSort("product_name")}
                   >
                     产品名称{renderSortIcon("product_name")}
@@ -1312,7 +1319,8 @@ export default function Orders() {
                 </TableHead>
                 <TableHead className="w-[100px]">
                   <button 
-                    className="inline-flex items-center hover:text-primary transition-colors"
+                    type="button"
+                    className="inline-flex items-center gap-1 select-none hover:text-primary transition-colors"
                     onClick={() => handleSort("product_sku")}
                   >
                     SKU{renderSortIcon("product_sku")}
@@ -1323,7 +1331,8 @@ export default function Orders() {
                 <TableHead className="w-[120px]">订单号</TableHead>
                 <TableHead className="w-[100px]">
                   <button 
-                    className="inline-flex items-center hover:text-primary transition-colors"
+                    type="button"
+                    className="inline-flex items-center gap-1 select-none hover:text-primary transition-colors"
                     onClick={() => handleSort("order_time")}
                   >
                     订购日期{renderSortIcon("order_time")}
@@ -1331,7 +1340,8 @@ export default function Orders() {
                 </TableHead>
                 <TableHead className="w-[100px]">
                   <button 
-                    className="inline-flex items-center hover:text-primary transition-colors"
+                    type="button"
+                    className="inline-flex items-center gap-1 select-none hover:text-primary transition-colors"
                     onClick={() => handleSort("return_time")}
                   >
                     退货日期{renderSortIcon("return_time")}

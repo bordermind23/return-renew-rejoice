@@ -12,7 +12,7 @@ const statusConfig: Record<OrderStatus, { label: string; className: string }> = 
     className: 'text-yellow-600 dark:text-yellow-400',
   },
   '到货': {
-    label: '到货',
+    label: '入库',
     className: 'text-blue-600 dark:text-blue-400',
   },
   '出库': {

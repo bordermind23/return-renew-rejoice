@@ -1,5 +1,5 @@
 import { useState, useEffect } from "react";
-import { ChevronLeft, ChevronRight, X, ZoomIn, Loader2, FileImage } from "lucide-react";
+import { ChevronLeft, ChevronRight, X, ZoomIn, Loader2, FileImage, AlertTriangle } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import {
   Dialog,
@@ -19,6 +19,7 @@ interface PhotoItem {
 interface PhotoWithSize extends PhotoItem {
   size?: number;
   loading?: boolean;
+  error?: boolean; // 加载失败标记
 }
 
 interface PhotoViewDialogProps {
@@ -36,20 +37,29 @@ const formatFileSize = (bytes: number): string => {
 };
 
 // 获取图片文件大小
-const fetchImageSize = async (url: string): Promise<number | null> => {
+const fetchImageSize = async (url: string): Promise<{ size: number | null; error: boolean }> => {
   try {
     const response = await fetch(url, { method: 'HEAD' });
+    if (!response.ok) {
+      return { size: null, error: true };
+    }
     const contentLength = response.headers.get('content-length');
     if (contentLength) {
-      return parseInt(contentLength, 10);
+      const size = parseInt(contentLength, 10);
+      // 小于1KB的图片可能是无效的占位符
+      return { size, error: size < 1024 };
     }
     // 如果HEAD请求没有返回content-length，尝试GET请求
     const getResponse = await fetch(url);
+    if (!getResponse.ok) {
+      return { size: null, error: true };
+    }
     const blob = await getResponse.blob();
-    return blob.size;
+    // 小于1KB的图片可能是无效的占位符
+    return { size: blob.size, error: blob.size < 1024 };
   } catch (error) {
     console.error('Failed to fetch image size:', error);
-    return null;
+    return { size: null, error: true };
   }
 };
 
@@ -74,11 +84,16 @@ export function PhotoViewDialog({
 
     // 异步获取每张照片的大小
     photos.forEach((photo, index) => {
-      fetchImageSize(photo.url).then(size => {
+      fetchImageSize(photo.url).then(result => {
         setPhotosWithSize(prev => {
           const updated = [...prev];
           if (updated[index]) {
-            updated[index] = { ...updated[index], size: size ?? undefined, loading: false };
+            updated[index] = { 
+              ...updated[index], 
+              size: result.size ?? undefined, 
+              error: result.error,
+              loading: false 
+            };
           }
           return updated;
         });
@@ -126,21 +141,38 @@ export function PhotoViewDialog({
               {photosWithSize.map((photo, index) => (
                 <div 
                   key={photo.key} 
-                  className="group relative rounded-xl border bg-card overflow-hidden shadow-sm hover:shadow-md transition-shadow"
+                  className={cn(
+                    "group relative rounded-xl border bg-card overflow-hidden shadow-sm hover:shadow-md transition-shadow",
+                    photo.error && "border-red-300 bg-red-50 dark:bg-red-950/20 dark:border-red-800"
+                  )}
                 >
                   {/* 图片区域 */}
                   <button
                     className="relative aspect-square w-full overflow-hidden bg-muted cursor-pointer"
-                    onClick={() => setSelectedIndex(index)}
+                    onClick={() => !photo.error && setSelectedIndex(index)}
                   >
-                    <img
-                      src={photo.url}
-                      alt={photo.label}
-                      className="w-full h-full object-cover transition-transform duration-300 group-hover:scale-105"
-                    />
-                    <div className="absolute inset-0 bg-black/0 group-hover:bg-black/40 transition-colors flex items-center justify-center">
-                      <ZoomIn className="h-8 w-8 text-white opacity-0 group-hover:opacity-100 transition-opacity drop-shadow-lg" />
-                    </div>
+                    {photo.error ? (
+                      <div className="w-full h-full flex flex-col items-center justify-center text-red-500 gap-2">
+                        <AlertTriangle className="h-10 w-10" />
+                        <span className="text-xs text-center px-2">图片无效或上传失败</span>
+                      </div>
+                    ) : (
+                      <>
+                        <img
+                          src={photo.url}
+                          alt={photo.label}
+                          className="w-full h-full object-cover transition-transform duration-300 group-hover:scale-105"
+                          onError={(e) => {
+                            // 图片加载失败时显示错误状态
+                            const target = e.target as HTMLImageElement;
+                            target.style.display = 'none';
+                          }}
+                        />
+                        <div className="absolute inset-0 bg-black/0 group-hover:bg-black/40 transition-colors flex items-center justify-center">
+                          <ZoomIn className="h-8 w-8 text-white opacity-0 group-hover:opacity-100 transition-opacity drop-shadow-lg" />
+                        </div>
+                      </>
+                    )}
                   </button>
                   
                   {/* 信息区域 */}
@@ -148,11 +180,19 @@ export function PhotoViewDialog({
                     <p className="text-sm font-medium text-foreground truncate">
                       {photo.label}
                     </p>
-                    <div className="flex items-center gap-1.5 text-xs text-muted-foreground">
+                    <div className={cn(
+                      "flex items-center gap-1.5 text-xs",
+                      photo.error ? "text-red-500" : "text-muted-foreground"
+                    )}>
                       {photo.loading ? (
                         <>
                           <Loader2 className="h-3 w-3 animate-spin" />
                           <span>加载中...</span>
+                        </>
+                      ) : photo.error ? (
+                        <>
+                          <AlertTriangle className="h-3 w-3" />
+                          <span>上传失败</span>
                         </>
                       ) : photo.size ? (
                         <>

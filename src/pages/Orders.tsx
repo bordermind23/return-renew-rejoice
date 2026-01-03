@@ -157,7 +157,6 @@ export default function Orders() {
   
   // 选择状态
   const [selectedIds, setSelectedIds] = useState<string[]>([]);
-  const [expandedGroups, setExpandedGroups] = useState<Set<string>>(new Set());
   
   // 批量编辑数据
   const [bulkEditData, setBulkEditData] = useState<OrderUpdate>({});
@@ -279,33 +278,6 @@ export default function Orders() {
     });
   }, [orders, sortField, sortDirection]);
 
-  // 按订单号分组
-  const { groupedOrders, singleOrders } = useMemo(() => {
-    const groups: Record<string, Order[]> = {};
-    sortedOrders.forEach(order => {
-      const key = order.order_number || `no-group-${order.id}`;
-      if (!groups[key]) groups[key] = [];
-      groups[key].push(order);
-    });
-
-    const multiLpnGroups: { orderNumber: string; orders: Order[]; totalQuantity: number }[] = [];
-    const singles: Order[] = [];
-
-    Object.entries(groups).forEach(([key, items]) => {
-      if (items.length >= 2 && !key.startsWith('no-group-')) {
-        multiLpnGroups.push({
-          orderNumber: key,
-          orders: items,
-          totalQuantity: items.reduce((sum, o) => sum + o.return_quantity, 0),
-        });
-      } else {
-        singles.push(...items);
-      }
-    });
-
-    return { groupedOrders: multiLpnGroups, singleOrders: singles };
-  }, [sortedOrders]);
-
   // 切换排序
   const handleSort = (field: SortField) => {
     if (sortField === field) {
@@ -332,7 +304,6 @@ export default function Orders() {
       : <ArrowUp className="h-3 w-3 ml-1 text-primary" />;
   };
 
-  const hasGroups = groupedOrders.length > 0;
   const hasActiveFilters = !!(debouncedSearch || statusFilters.length > 0 || gradeFilter !== "all");
 
   // 事件处理
@@ -435,23 +406,6 @@ export default function Orders() {
         setSelectedIds([]);
       }
     });
-  };
-
-  const toggleGroup = (groupKey: string) => {
-    setExpandedGroups(prev => {
-      const next = new Set(prev);
-      if (next.has(groupKey)) next.delete(groupKey);
-      else next.add(groupKey);
-      return next;
-    });
-  };
-
-  const toggleAllGroups = () => {
-    if (expandedGroups.size === groupedOrders.length) {
-      setExpandedGroups(new Set());
-    } else {
-      setExpandedGroups(new Set(groupedOrders.map(g => g.orderNumber || g.orders[0].id)));
-    }
   };
 
   const toggleSelectAll = () => {
@@ -1266,20 +1220,7 @@ export default function Orders() {
                     onCheckedChange={toggleSelectAll}
                   />
                 </TableHead>
-                <TableHead className="w-[140px]">
-                  <div className="flex items-center gap-1">
-                    订单号
-                    {hasGroups && (
-                      <Button variant="ghost" size="icon" className="h-5 w-5" onClick={toggleAllGroups}>
-                        {expandedGroups.size === groupedOrders.length ? (
-                          <ChevronUp className="h-3 w-3" />
-                        ) : (
-                          <ChevronDown className="h-3 w-3" />
-                        )}
-                      </Button>
-                    )}
-                  </div>
-                </TableHead>
+                <TableHead className="w-[140px]">订单号</TableHead>
                 <TableHead className="text-center w-[70px]">
                   <button 
                     className="inline-flex items-center hover:text-primary transition-colors"
@@ -1334,104 +1275,24 @@ export default function Orders() {
                   </TableCell>
                 </TableRow>
               ) : (
-                <>
-                  {/* 分组订单 */}
-                  {groupedOrders.map((group) => {
-                    const groupKey = group.orderNumber || group.orders[0].id;
-                    const isExpanded = expandedGroups.has(groupKey);
-                    const firstOrder = group.orders[0];
+                sortedOrders.map((item) => {
+                  const inboundItem = inboundByLpn[item.lpn];
+                  const displayGrade = item.grade || inboundItem?.refurbishment_grade;
 
-                    return (
-                      <React.Fragment key={groupKey}>
-                        {/* 组头 */}
-                        <TableRow
-                          className="bg-primary/5 hover:bg-primary/10 cursor-pointer font-medium"
-                          onClick={() => toggleGroup(groupKey)}
-                        >
-                          <TableCell>
-                            <Checkbox
-                              checked={group.orders.every(o => selectedIds.includes(o.id))}
-                              onCheckedChange={() => {
-                                const allSelected = group.orders.every(o => selectedIds.includes(o.id));
-                                if (allSelected) {
-                                  setSelectedIds(prev => prev.filter(id => !group.orders.some(o => o.id === id)));
-                                } else {
-                                  setSelectedIds(prev => [...new Set([...prev, ...group.orders.map(o => o.id)])]);
-                                }
-                              }}
-                              onClick={(e) => e.stopPropagation()}
-                            />
-                          </TableCell>
-                          <TableCell>
-                            <div className="flex items-center gap-2">
-                              {isExpanded ? <ChevronUp className="h-4 w-4 text-primary" /> : <ChevronDown className="h-4 w-4 text-primary" />}
-                              <code className="text-xs bg-primary/10 text-primary px-1.5 py-0.5 rounded font-medium">
-                                {group.orderNumber}
-                              </code>
-                              <span className="text-xs text-muted-foreground">({group.orders.length}个LPN)</span>
-                            </div>
-                          </TableCell>
-                          <TableCell className="text-center">
-                            <span className="text-muted-foreground text-xs">展开查看</span>
-                          </TableCell>
-                          <TableCell><span className="text-muted-foreground text-xs">展开查看</span></TableCell>
-                          <TableCell><span className="line-clamp-1 font-medium">{firstOrder.product_name || "-"}</span></TableCell>
-                          <TableCell><code className="text-xs bg-muted px-1.5 py-0.5 rounded">{firstOrder.product_sku || "-"}</code></TableCell>
-                          <TableCell className="text-center text-muted-foreground">-</TableCell>
-                          <TableCell className="text-center font-semibold">{group.totalQuantity}</TableCell>
-                          <TableCell>
-                            <div className="flex justify-center gap-1">
-                              <Button size="icon" variant="ghost" className="h-8 w-8" onClick={(e) => { e.stopPropagation(); setSelectedOrder(firstOrder); }}>
-                                <Eye className="h-4 w-4" />
-                              </Button>
-                            </div>
-                          </TableCell>
-                        </TableRow>
-
-                        {/* 展开后的子行 */}
-                        {isExpanded && group.orders.map((item) => {
-                          const inboundItem = inboundByLpn[item.lpn];
-                          const displayGrade = item.grade || inboundItem?.refurbishment_grade;
-
-                          return (
-                            <OrderTableRow
-                              key={item.id}
-                              order={item}
-                              isSelected={selectedIds.includes(item.id) as boolean}
-                              onSelect={() => toggleSelect(item.id)}
-                              onView={() => setSelectedOrder(item)}
-                              onDelete={() => setDeleteId(item.id)}
-                              onEditGrade={() => setGradeEditOrder(item)}
-                              displayGrade={displayGrade}
-                              hasInboundItem={!!inboundItem?.refurbishment_grade}
-                              isGroupChild
-                            />
-                          );
-                        })}
-                      </React.Fragment>
-                    );
-                  })}
-
-                  {/* 单个LPN订单 */}
-                  {singleOrders.map((item) => {
-                    const inboundItem = inboundByLpn[item.lpn];
-                    const displayGrade = item.grade || inboundItem?.refurbishment_grade;
-
-                    return (
-                      <OrderTableRow
-                        key={item.id}
-                        order={item}
-                        isSelected={selectedIds.includes(item.id)}
-                        onSelect={() => toggleSelect(item.id)}
-                        onView={() => setSelectedOrder(item)}
-                        onDelete={() => setDeleteId(item.id)}
-                        onEditGrade={() => setGradeEditOrder(item)}
-                        displayGrade={displayGrade}
-                        hasInboundItem={!!inboundItem?.refurbishment_grade}
-                      />
-                    );
-                  })}
-                </>
+                  return (
+                    <OrderTableRow
+                      key={item.id}
+                      order={item}
+                      isSelected={selectedIds.includes(item.id)}
+                      onSelect={() => toggleSelect(item.id)}
+                      onView={() => setSelectedOrder(item)}
+                      onDelete={() => setDeleteId(item.id)}
+                      onEditGrade={() => setGradeEditOrder(item)}
+                      displayGrade={displayGrade}
+                      hasInboundItem={!!inboundItem?.refurbishment_grade}
+                    />
+                  );
+                })
               )}
             </TableBody>
           </Table>

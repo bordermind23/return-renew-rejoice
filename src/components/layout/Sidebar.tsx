@@ -59,8 +59,9 @@ type NavItem = {
   to: string;
   icon: React.ElementType;
   label: string;
+  badge?: string; // Small badge text next to label
   permissionKey?: string; // For permission-based filtering
-  children?: { to: string; icon: React.ElementType; label: string; permissionKey?: string }[];
+  children?: { to: string; icon: React.ElementType; label: string; permissionKey?: string; badge?: string }[];
 };
 
 // 使用翻译的导航项生成函数
@@ -87,8 +88,8 @@ const getNavItems = (t: ReturnType<typeof useLanguage>['t']): NavItem[] => [
     ]
   },
   { to: "/dashboard", icon: LayoutDashboard, label: t.nav.dashboard, permissionKey: "viewDashboard" },
-  { to: "/orders", icon: ClipboardList, label: t.nav.orders, permissionKey: "manageOrders" },
-  { to: "/removals", icon: PackageX, label: t.nav.removals, permissionKey: "manageOrders" },
+  { to: "/orders", icon: ClipboardList, label: t.nav.orders, badge: "领星导入", permissionKey: "manageOrders" },
+  { to: "/removals", icon: PackageX, label: t.nav.removals, badge: "领星导入", permissionKey: "manageOrders" },
   { to: "/order-findings", icon: AlertTriangle, label: t.nav.orderFindings || "退货订单发现", permissionKey: "manageCases" },
   { to: "/inventory", icon: Warehouse, label: t.nav.inventory, permissionKey: "viewInventory" },
   { to: "/products", icon: Package, label: t.nav.products, permissionKey: "manageProducts" },
@@ -240,6 +241,11 @@ function MobileSidebarContent({ onClose }: { onClose: () => void }) {
             >
               <item.icon className="h-5 w-5 flex-shrink-0" />
               <span>{item.label}</span>
+              {item.badge && (
+                <span className="ml-auto text-[10px] text-muted-foreground/70 bg-muted/50 px-1.5 py-0.5 rounded">
+                  {item.badge}
+                </span>
+              )}
             </NavLink>
           );
         })}
@@ -378,6 +384,11 @@ function DesktopSidebar({ collapsed, setCollapsed }: { collapsed: boolean; setCo
               >
                 <item.icon className="h-5 w-5 flex-shrink-0" />
                 {!collapsed && <span>{item.label}</span>}
+                {!collapsed && item.badge && (
+                  <span className="ml-auto text-[10px] text-muted-foreground/70 bg-muted/50 px-1.5 py-0.5 rounded">
+                    {item.badge}
+                  </span>
+                )}
               </NavLink>
             );
           })}

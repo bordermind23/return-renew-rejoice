@@ -103,12 +103,28 @@ export default function UserManagement() {
       toast.error("请填写用户名和密码");
       return;
     }
-    if (newUsername.length < 3) {
-      toast.error("用户名至少需要3个字符");
+    if (newUsername.length < 3 || newUsername.length > 20) {
+      toast.error("用户名长度必须为3-20个字符");
       return;
     }
-    if (newUserPassword.length < 6) {
-      toast.error("密码至少需要6个字符");
+    if (!/^[a-zA-Z0-9_-]+$/.test(newUsername)) {
+      toast.error("用户名只能包含字母、数字、下划线和连字符");
+      return;
+    }
+    if (newUserPassword.length < 8) {
+      toast.error("密码长度必须至少8个字符");
+      return;
+    }
+    if (!/[A-Z]/.test(newUserPassword)) {
+      toast.error("密码必须包含至少一个大写字母");
+      return;
+    }
+    if (!/[a-z]/.test(newUserPassword)) {
+      toast.error("密码必须包含至少一个小写字母");
+      return;
+    }
+    if (!/[0-9]/.test(newUserPassword)) {
+      toast.error("密码必须包含至少一个数字");
       return;
     }
     
@@ -198,10 +214,13 @@ export default function UserManagement() {
                   <Input
                     id="new-password"
                     type="password"
-                    placeholder="至少6个字符"
+                    placeholder="请输入密码"
                     value={newUserPassword}
                     onChange={(e) => setNewUserPassword(e.target.value)}
                   />
+                  <p className="text-xs text-muted-foreground">
+                    密码要求：至少8个字符，包含大写字母、小写字母和数字
+                  </p>
                 </div>
                 <div className="space-y-2">
                   <Label>角色</Label>

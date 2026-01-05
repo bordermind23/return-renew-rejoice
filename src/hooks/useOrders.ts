@@ -54,18 +54,23 @@ export const useOrders = () => {
   });
 };
 
+export type SortField = "order_time" | "return_time" | "product_name" | "product_sku" | "status";
+export type SortDirection = "asc" | "desc";
+
 export interface OrderFilters {
   searchTerm?: string;
   storeFilter?: string;
   statusFilters?: OrderStatus[];
   gradeFilter?: string;
+  sortField?: SortField;
+  sortDirection?: SortDirection;
 }
 
 export const useOrdersPaginated = (page: number, pageSize: number = 50, filters: OrderFilters = {}) => {
-  const { searchTerm, storeFilter, statusFilters, gradeFilter } = filters;
+  const { searchTerm, storeFilter, statusFilters, gradeFilter, sortField = "return_time", sortDirection = "desc" } = filters;
   
   return useQuery({
-    queryKey: ["orders", "paginated", page, pageSize, searchTerm, storeFilter, statusFilters, gradeFilter],
+    queryKey: ["orders", "paginated", page, pageSize, searchTerm, storeFilter, statusFilters, gradeFilter, sortField, sortDirection],
     queryFn: async () => {
       // 构建基础查询
       let countQuery = supabase.from("orders").select("*", { count: "exact", head: true });
@@ -104,8 +109,19 @@ export const useOrdersPaginated = (page: number, pageSize: number = 50, filters:
       const from = (page - 1) * pageSize;
       const to = from + pageSize - 1;
 
+      // Map frontend sort fields to database columns
+      const sortColumnMap: Record<SortField, string> = {
+        order_time: "order_time",
+        return_time: "return_time",
+        product_name: "product_name",
+        product_sku: "product_sku",
+        status: "status",
+      };
+      const sortColumn = sortColumnMap[sortField] || "return_time";
+      const ascending = sortDirection === "asc";
+
       const { data, error } = await dataQuery
-        .order("order_number", { ascending: false, nullsFirst: false })
+        .order(sortColumn, { ascending, nullsFirst: false })
         .order("created_at", { ascending: false })
         .range(from, to);
 

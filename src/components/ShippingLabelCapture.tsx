@@ -375,9 +375,22 @@ export function ShippingLabelCapture({ onTrackingRecognized, onCancel, onAlready
 
     setIsUploading(true);
     try {
-      // 压缩图片后上传
-      const { compressImageFromDataUrl } = await import("@/lib/imageCompression");
-      const compressedBlob = await compressImageFromDataUrl(imageToUpload);
+      // 压缩图片后上传，失败则使用原始数据
+      let uploadBlob: Blob;
+      try {
+        const { compressImageFromDataUrl } = await import("@/lib/imageCompression");
+        uploadBlob = await compressImageFromDataUrl(imageToUpload);
+      } catch (compressionError) {
+        console.warn('压缩失败，尝试直接转换:', compressionError);
+        // 直接从 base64 创建 Blob
+        const base64Data = imageToUpload.split(',')[1];
+        const byteCharacters = atob(base64Data);
+        const byteNumbers = new Array(byteCharacters.length);
+        for (let i = 0; i < byteCharacters.length; i++) {
+          byteNumbers[i] = byteCharacters.charCodeAt(i);
+        }
+        uploadBlob = new Blob([new Uint8Array(byteNumbers)], { type: 'image/jpeg' });
+      }
       
       // Generate unique filename
       const filename = `${trackingNumber}/${Date.now()}.jpg`;
@@ -385,7 +398,7 @@ export function ShippingLabelCapture({ onTrackingRecognized, onCancel, onAlready
       // Upload to storage
       const { data: uploadData, error: uploadError } = await supabase.storage
         .from("shipping-labels")
-        .upload(filename, compressedBlob, {
+        .upload(filename, uploadBlob, {
           contentType: "image/jpeg",
           upsert: true
         });

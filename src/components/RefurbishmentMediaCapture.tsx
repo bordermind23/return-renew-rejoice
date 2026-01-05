@@ -46,8 +46,13 @@ export function RefurbishmentMediaCapture({
     
     // 如果是图片，先压缩
     if (type === "photo") {
-      const { compressImage } = await import("@/lib/imageCompression");
-      uploadBlob = await compressImage(file);
+      try {
+        const { compressImage } = await import("@/lib/imageCompression");
+        uploadBlob = await compressImage(file);
+      } catch (compressionError) {
+        console.warn('图片压缩失败，使用原始文件:', compressionError);
+        uploadBlob = file;
+      }
     }
     
     const fileExt = type === "photo" ? "jpg" : (file.name.split('.').pop() || "mp4");

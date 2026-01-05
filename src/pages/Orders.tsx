@@ -1207,13 +1207,14 @@ export default function Orders() {
                 <TableHead className="text-center w-[50px]">数量</TableHead>
                 <TableHead className="w-[100px]">订购日期</TableHead>
                 <TableHead className="w-[100px]">退货日期</TableHead>
+                <TableHead className="w-[100px]">上传日期</TableHead>
                 <TableHead className="text-center w-[70px]">操作</TableHead>
               </TableRow>
             </TableHeader>
             <TableBody>
               {orders.length === 0 ? (
                 <TableRow>
-                  <TableCell colSpan={11} className="h-32 text-center text-muted-foreground">
+                  <TableCell colSpan={12} className="h-32 text-center text-muted-foreground">
                     暂无数据
                   </TableCell>
                 </TableRow>

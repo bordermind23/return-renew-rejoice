@@ -33,72 +33,87 @@ export async function compressImage(
   file: File | Blob,
   config: CompressionConfig = DEFAULT_COMPRESSION_CONFIG
 ): Promise<Blob> {
-  return new Promise((resolve, reject) => {
+  return new Promise((resolve) => {
+    const objectUrl = URL.createObjectURL(file);
     const img = new Image();
     const canvas = document.createElement('canvas');
     const ctx = canvas.getContext('2d');
     
+    // 如果无法创建 canvas context，返回原始文件
     if (!ctx) {
-      reject(new Error('无法创建 canvas context'));
+      console.warn('无法创建 canvas context，使用原始文件');
+      URL.revokeObjectURL(objectUrl);
+      resolve(file instanceof Blob ? file : new Blob([file]));
       return;
     }
 
+    const cleanup = () => {
+      URL.revokeObjectURL(objectUrl);
+    };
+
     img.onload = () => {
-      let { width, height } = img;
-      
-      // 计算缩放比例，保持宽高比
-      const scale = Math.min(
-        config.maxWidth / width,
-        config.maxHeight / height,
-        1 // 不放大小图片
-      );
-      
-      width = Math.round(width * scale);
-      height = Math.round(height * scale);
-      
-      canvas.width = width;
-      canvas.height = height;
-      
-      // 设置白色背景（对于透明PNG转JPEG）
-      ctx.fillStyle = '#FFFFFF';
-      ctx.fillRect(0, 0, width, height);
-      
-      // 绘制图片
-      ctx.drawImage(img, 0, 0, width, height);
-      
-      // 转换为 Blob
-      canvas.toBlob(
-        (blob) => {
-          if (blob) {
-            const originalSize = file.size;
-            const compressedSize = blob.size;
-            const compressionRatio = ((1 - compressedSize / originalSize) * 100).toFixed(1);
+      try {
+        let { width, height } = img;
+        
+        // 计算缩放比例，保持宽高比
+        const scale = Math.min(
+          config.maxWidth / width,
+          config.maxHeight / height,
+          1 // 不放大小图片
+        );
+        
+        width = Math.round(width * scale);
+        height = Math.round(height * scale);
+        
+        canvas.width = width;
+        canvas.height = height;
+        
+        // 设置白色背景（对于透明PNG转JPEG）
+        ctx.fillStyle = '#FFFFFF';
+        ctx.fillRect(0, 0, width, height);
+        
+        // 绘制图片
+        ctx.drawImage(img, 0, 0, width, height);
+        
+        // 转换为 Blob
+        canvas.toBlob(
+          (blob) => {
+            cleanup();
             
-            console.log(
-              `图片压缩: ${formatFileSize(originalSize)} → ${formatFileSize(compressedSize)} ` +
-              `(节省 ${compressionRatio}%, 尺寸 ${img.width}x${img.height} → ${width}x${height})`
-            );
-            
-            resolve(blob);
-          } else {
-            reject(new Error('图片压缩失败'));
-          }
-        },
-        config.mimeType,
-        config.quality
-      );
-      
-      // 释放内存
-      URL.revokeObjectURL(img.src);
+            if (blob) {
+              const originalSize = file.size;
+              const compressedSize = blob.size;
+              const compressionRatio = ((1 - compressedSize / originalSize) * 100).toFixed(1);
+              
+              console.log(
+                `图片压缩: ${formatFileSize(originalSize)} → ${formatFileSize(compressedSize)} ` +
+                `(节省 ${compressionRatio}%, 尺寸 ${img.width}x${img.height} → ${width}x${height})`
+              );
+              
+              resolve(blob);
+            } else {
+              // canvas.toBlob 返回 null 时，回退到原始文件
+              console.warn('canvas.toBlob 返回 null，使用原始文件');
+              resolve(file instanceof Blob ? file : new Blob([file]));
+            }
+          },
+          config.mimeType,
+          config.quality
+        );
+      } catch (error) {
+        console.warn('图片压缩过程出错，使用原始文件:', error);
+        cleanup();
+        resolve(file instanceof Blob ? file : new Blob([file]));
+      }
     };
     
     img.onerror = () => {
-      URL.revokeObjectURL(img.src);
-      reject(new Error('图片加载失败'));
+      console.warn('图片加载失败，使用原始文件');
+      cleanup();
+      resolve(file instanceof Blob ? file : new Blob([file]));
     };
     
-    // 从 File 或 Blob 创建 URL
-    img.src = URL.createObjectURL(file);
+    img.src = objectUrl;
   });
 }
 
@@ -112,10 +127,29 @@ export async function compressImageFromDataUrl(
   dataUrl: string,
   config: CompressionConfig = DEFAULT_COMPRESSION_CONFIG
 ): Promise<Blob> {
-  // 将 base64 转换为 Blob
-  const response = await fetch(dataUrl);
-  const blob = await response.blob();
-  return compressImage(blob, config);
+  try {
+    // 将 base64 转换为 Blob
+    const response = await fetch(dataUrl);
+    const blob = await response.blob();
+    return compressImage(blob, config);
+  } catch (error) {
+    console.warn('从 DataUrl 压缩图片失败:', error);
+    // 尝试直接从 base64 创建 Blob
+    try {
+      const base64Data = dataUrl.split(',')[1];
+      const mimeType = dataUrl.split(':')[1]?.split(';')[0] || 'image/jpeg';
+      const byteCharacters = atob(base64Data);
+      const byteNumbers = new Array(byteCharacters.length);
+      for (let i = 0; i < byteCharacters.length; i++) {
+        byteNumbers[i] = byteCharacters.charCodeAt(i);
+      }
+      const byteArray = new Uint8Array(byteNumbers);
+      return new Blob([byteArray], { type: mimeType });
+    } catch (fallbackError) {
+      console.warn('回退方案也失败，返回空 Blob:', fallbackError);
+      return new Blob([], { type: 'image/jpeg' });
+    }
+  }
 }
 
 /**

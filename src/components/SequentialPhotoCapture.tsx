@@ -136,14 +136,27 @@ export function SequentialPhotoCapture({
   const uploadPhoto = async (dataUrl: string, stepId: string): Promise<string> => {
     const { compressImageFromDataUrl } = await import("@/lib/imageCompression");
     
-    // 压缩图片
-    const compressedBlob = await compressImageFromDataUrl(dataUrl);
+    // 压缩图片，失败则尝试直接使用原始数据
+    let uploadBlob: Blob;
+    try {
+      uploadBlob = await compressImageFromDataUrl(dataUrl);
+    } catch (compressionError) {
+      console.warn('压缩失败，尝试直接转换:', compressionError);
+      // 直接从 base64 创建 Blob
+      const base64Data = dataUrl.split(',')[1];
+      const byteCharacters = atob(base64Data);
+      const byteNumbers = new Array(byteCharacters.length);
+      for (let i = 0; i < byteCharacters.length; i++) {
+        byteNumbers[i] = byteCharacters.charCodeAt(i);
+      }
+      uploadBlob = new Blob([new Uint8Array(byteNumbers)], { type: 'image/jpeg' });
+    }
     
     const fileName = `${lpn}/${stepId}_${Date.now()}.jpg`;
     
     const { data, error } = await supabase.storage
       .from("product-images")
-      .upload(fileName, compressedBlob, {
+      .upload(fileName, uploadBlob, {
         contentType: "image/jpeg",
         upsert: true,
       });

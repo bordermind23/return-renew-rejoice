@@ -119,14 +119,20 @@ export function NativePhotoCapture({
     }));
 
     try {
-      // 先压缩图片
-      const compressedBlob = await compressImage(file);
+      // 先压缩图片，压缩失败则使用原始文件
+      let uploadBlob: Blob;
+      try {
+        uploadBlob = await compressImage(file);
+      } catch (compressionError) {
+        console.warn('图片压缩失败，使用原始文件:', compressionError);
+        uploadBlob = file;
+      }
       
       // 上传到存储
       const fileName = `${lpn}/${stepId}_${Date.now()}.jpg`;
       const { data, error } = await supabase.storage
         .from("product-images")
-        .upload(fileName, compressedBlob, {
+        .upload(fileName, uploadBlob, {
           contentType: 'image/jpeg',
           upsert: true,
         });
@@ -152,7 +158,7 @@ export function NativePhotoCapture({
         ...prev,
         [stepId]: { stepId, status: 'error', localUrl }
       }));
-      toast.error(`${steps.find(s => s.id === stepId)?.label || '照片'} 上传失败`);
+      toast.error(`${steps.find(s => s.id === stepId)?.label || '照片'} 上传失败，请删除后重试`);
     }
   }, [lpn, steps]);
 
@@ -237,7 +243,7 @@ export function NativePhotoCapture({
     // 检查是否有上传失败的
     const failedUploads = Object.values(uploadTasks).filter(t => t.status === 'error');
     if (failedUploads.length > 0) {
-      toast.error(`有 ${failedUploads.length} 张照片上传失败，请重新拍摄`);
+      toast.error(`有 ${failedUploads.length} 张照片上传失败，请删除后重新拍摄`);
       return;
     }
 
@@ -247,7 +253,28 @@ export function NativePhotoCapture({
       return;
     }
     
-    onComplete(capturedPhotos);
+    // 确保所有照片都使用远程 URL
+    const finalPhotos: Record<string, string> = {};
+    let hasLocalOnly = false;
+    
+    for (const [stepId, url] of Object.entries(capturedPhotos)) {
+      const task = uploadTasks[stepId];
+      if (task?.remoteUrl) {
+        finalPhotos[stepId] = task.remoteUrl;
+      } else if (url.startsWith('blob:')) {
+        hasLocalOnly = true;
+        console.warn(`照片 ${stepId} 没有远程 URL`);
+      } else {
+        finalPhotos[stepId] = url;
+      }
+    }
+    
+    if (hasLocalOnly) {
+      toast.error("部分照片尚未上传完成，请稍候");
+      return;
+    }
+    
+    onComplete(finalPhotos);
   };
 
   // 跳转到指定步骤

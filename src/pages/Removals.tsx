@@ -1195,6 +1195,7 @@ export default function Removals() {
                 <TableHead className="font-semibold min-w-[150px]">产品名称</TableHead>
                 <TableHead className="font-semibold min-w-[100px] text-center">申报/到货</TableHead>
                 <TableHead className="font-semibold min-w-[100px]">发货日期</TableHead>
+                <TableHead className="font-semibold min-w-[100px]">上传日期</TableHead>
                 <TableHead className="font-semibold min-w-[100px]">状态</TableHead>
                 
                 <TableHead className="font-semibold min-w-[100px] text-center">操作</TableHead>
@@ -1205,7 +1206,7 @@ export default function Removals() {
                 // 列表视图 - 不分组显示
                 paginatedData.length === 0 ? (
                   <TableRow>
-                    <TableCell colSpan={10} className="h-32 text-center text-muted-foreground">
+                    <TableCell colSpan={11} className="h-32 text-center text-muted-foreground">
                       暂无移除货件记录
                     </TableCell>
                   </TableRow>
@@ -1267,6 +1268,9 @@ export default function Removals() {
                         <TableCell className="text-muted-foreground text-sm">
                           {item.ship_date || "-"}
                         </TableCell>
+                        <TableCell className="text-muted-foreground text-sm">
+                          {item.created_at ? new Date(item.created_at).toLocaleDateString("zh-CN") : "-"}
+                        </TableCell>
                         <TableCell>
                           <StatusBadge status={item.status} />
                         </TableCell>
@@ -1309,7 +1313,7 @@ export default function Removals() {
                 // 分组视图
                 groupedByOrderTracking.length === 0 ? (
                   <TableRow>
-                    <TableCell colSpan={10} className="h-32 text-center text-muted-foreground">
+                    <TableCell colSpan={11} className="h-32 text-center text-muted-foreground">
                       暂无移除货件记录
                     </TableCell>
                   </TableRow>
@@ -1375,6 +1379,9 @@ export default function Removals() {
                           </TableCell>
                           <TableCell className="text-muted-foreground text-sm">
                             {item.ship_date || "-"}
+                          </TableCell>
+                          <TableCell className="text-muted-foreground text-sm">
+                            {item.created_at ? new Date(item.created_at).toLocaleDateString("zh-CN") : "-"}
                           </TableCell>
                           <TableCell>
                             <StatusBadge status={item.status} />
@@ -1502,6 +1509,9 @@ export default function Removals() {
                               </TableCell>
                             </CollapsibleTrigger>
                             <CollapsibleTrigger asChild>
+                              <TableCell onClick={() => toggleGroup(group.groupKey)}></TableCell>
+                            </CollapsibleTrigger>
+                            <CollapsibleTrigger asChild>
                               <TableCell onClick={() => toggleGroup(group.groupKey)}>
                                 <div className="flex flex-wrap gap-1">
                                   {group.statuses.map((status, idx) => (
@@ -1583,6 +1593,9 @@ export default function Removals() {
                                     </TableCell>
                                     <TableCell className="text-muted-foreground text-sm">
                                       {item.ship_date || "-"}
+                                    </TableCell>
+                                    <TableCell className="text-muted-foreground text-sm">
+                                      {item.created_at ? new Date(item.created_at).toLocaleDateString("zh-CN") : "-"}
                                     </TableCell>
                                     <TableCell>
                                       <StatusBadge status={item.status} />

@@ -89,6 +89,9 @@ export function OrderTableRow({
       <TableCell className="text-xs text-muted-foreground whitespace-nowrap">
         {formatDate(order.return_time)}
       </TableCell>
+      <TableCell className="text-xs text-muted-foreground whitespace-nowrap">
+        {formatDate(order.created_at)}
+      </TableCell>
       <TableCell>
         <div className="flex justify-center gap-0.5">
           <Button size="icon" variant="ghost" className="h-8 w-8" onClick={onView}>

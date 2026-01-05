@@ -7,19 +7,19 @@ export interface CompressionConfig {
   mimeType: 'image/jpeg' | 'image/webp';
 }
 
-// 默认压缩配置
+// 默认压缩配置（更激进压缩）
 export const DEFAULT_COMPRESSION_CONFIG: CompressionConfig = {
-  maxWidth: 1920,
-  maxHeight: 1920,
-  quality: 0.8,
+  maxWidth: 1024,
+  maxHeight: 1024,
+  quality: 0.6,
   mimeType: 'image/jpeg',
 };
 
 // 高压缩配置（适用于缩略图等）
 export const HIGH_COMPRESSION_CONFIG: CompressionConfig = {
-  maxWidth: 1280,
-  maxHeight: 1280,
-  quality: 0.7,
+  maxWidth: 800,
+  maxHeight: 800,
+  quality: 0.5,
   mimeType: 'image/jpeg',
 };
 

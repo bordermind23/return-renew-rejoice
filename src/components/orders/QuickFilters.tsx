@@ -53,15 +53,15 @@ interface QuickFiltersProps {
 
 export function QuickFilters({ activePreset, onPresetChange }: QuickFiltersProps) {
   return (
-    <div className="flex items-center gap-2 flex-wrap">
-      <span className="text-xs text-muted-foreground mr-1">快速筛选:</span>
+    <div className="flex items-center gap-1.5 sm:gap-2 flex-wrap">
+      <span className="text-xs text-muted-foreground mr-0.5 sm:mr-1 hidden sm:inline">快速筛选:</span>
       {presets.map((preset) => (
         <Button
           key={preset.id}
           variant={activePreset === preset.id ? "default" : "outline"}
           size="sm"
           className={cn(
-            "h-7 text-xs gap-1.5 transition-all",
+            "h-6 sm:h-7 text-[10px] sm:text-xs gap-1 sm:gap-1.5 px-1.5 sm:px-2 transition-all",
             activePreset === preset.id 
               ? "gradient-primary text-primary-foreground shadow-sm" 
               : "hover:bg-primary/10 hover:text-primary hover:border-primary/50"
@@ -75,7 +75,8 @@ export function QuickFilters({ activePreset, onPresetChange }: QuickFiltersProps
           }}
         >
           {preset.icon}
-          {preset.label}
+          <span className="hidden xs:inline sm:inline">{preset.label}</span>
+          <span className="xs:hidden sm:hidden">{preset.label.slice(0, 2)}</span>
         </Button>
       ))}
     </div>

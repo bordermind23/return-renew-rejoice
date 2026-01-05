@@ -60,7 +60,7 @@ export function OrderStatsCards({ stats, activeFilter, onFilterClick }: OrderSta
   ];
 
   return (
-    <div className="grid grid-cols-2 lg:grid-cols-4 gap-3">
+    <div className="grid grid-cols-2 sm:grid-cols-4 gap-2 sm:gap-3">
       {cards.map((card) => {
         const isActive = activeFilter === card.filter || (activeFilter === null && card.filter === null);
         const isClickable = onFilterClick && card.filter !== null;
@@ -71,18 +71,18 @@ export function OrderStatsCards({ stats, activeFilter, onFilterClick }: OrderSta
             onClick={() => isClickable && onFilterClick(card.filter === activeFilter ? null : card.filter)}
             disabled={!isClickable}
             className={cn(
-              "flex items-center gap-3 p-4 bg-card rounded-xl border transition-all text-left",
+              "flex items-center gap-2 sm:gap-3 p-2.5 sm:p-4 bg-card rounded-xl border transition-all text-left",
               isClickable && "cursor-pointer hover:shadow-md hover:border-primary/30 active:scale-[0.98]",
               isActive && card.filter !== null && "ring-2 ring-primary/30 border-primary/50",
               !isClickable && "cursor-default"
             )}
           >
-            <div className={cn("p-2.5 rounded-lg transition-colors", card.bgColor)}>
-              <card.icon className={cn("h-5 w-5", card.color)} />
+            <div className={cn("p-1.5 sm:p-2.5 rounded-lg transition-colors", card.bgColor)}>
+              <card.icon className={cn("h-4 w-4 sm:h-5 sm:w-5", card.color)} />
             </div>
-            <div>
-              <p className="text-2xl font-bold tabular-nums">{card.value.toLocaleString()}</p>
-              <p className="text-xs text-muted-foreground">{card.label}</p>
+            <div className="min-w-0">
+              <p className="text-lg sm:text-2xl font-bold tabular-nums truncate">{card.value.toLocaleString()}</p>
+              <p className="text-[10px] sm:text-xs text-muted-foreground">{card.label}</p>
             </div>
           </button>
         );

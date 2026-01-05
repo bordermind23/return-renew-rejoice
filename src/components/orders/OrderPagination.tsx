@@ -29,19 +29,22 @@ export function OrderPagination({
   const endItem = Math.min(currentPage * pageSize, totalCount);
 
   return (
-    <div className="flex flex-col sm:flex-row items-center justify-between gap-4 px-2">
-      <div className="flex items-center gap-4 text-sm text-muted-foreground">
+    <div className="flex flex-col sm:flex-row items-center justify-between gap-2 sm:gap-4 px-2">
+      <div className="flex items-center gap-2 sm:gap-4 text-xs sm:text-sm text-muted-foreground">
         <span>
-          显示 <span className="font-medium text-foreground">{startItem}-{endItem}</span> 条，共{" "}
-          <span className="font-medium text-foreground">{totalCount.toLocaleString()}</span> 条
+          <span className="font-medium text-foreground">{startItem}-{endItem}</span>
+          <span className="hidden sm:inline"> 条，共</span>
+          <span className="sm:hidden">/</span>
+          <span className="font-medium text-foreground">{totalCount.toLocaleString()}</span>
+          <span className="hidden sm:inline"> 条</span>
         </span>
-        <div className="flex items-center gap-2">
-          <span>每页</span>
+        <div className="flex items-center gap-1 sm:gap-2">
+          <span className="hidden sm:inline">每页</span>
           <Select
             value={String(pageSize)}
             onValueChange={(v) => onPageSizeChange(Number(v))}
           >
-            <SelectTrigger className="w-[72px] h-8">
+            <SelectTrigger className="w-[60px] sm:w-[72px] h-7 sm:h-8 text-xs sm:text-sm">
               <SelectValue />
             </SelectTrigger>
             <SelectContent>
@@ -53,27 +56,27 @@ export function OrderPagination({
         </div>
       </div>
 
-      <div className="flex items-center gap-1">
+      <div className="flex items-center gap-0.5 sm:gap-1">
         <Button
           variant="outline"
           size="icon"
-          className="h-8 w-8"
+          className="h-7 w-7 sm:h-8 sm:w-8"
           onClick={() => onPageChange(1)}
           disabled={currentPage === 1}
         >
-          <ChevronsLeft className="h-4 w-4" />
+          <ChevronsLeft className="h-3.5 w-3.5 sm:h-4 sm:w-4" />
         </Button>
         <Button
           variant="outline"
           size="icon"
-          className="h-8 w-8"
+          className="h-7 w-7 sm:h-8 sm:w-8"
           onClick={() => onPageChange(currentPage - 1)}
           disabled={currentPage === 1}
         >
-          <ChevronLeft className="h-4 w-4" />
+          <ChevronLeft className="h-3.5 w-3.5 sm:h-4 sm:w-4" />
         </Button>
 
-        {/* 页码按钮 */}
+        {/* 页码按钮 - 桌面端显示 */}
         <div className="hidden sm:flex items-center gap-1 mx-1">
           {generatePageNumbers(currentPage, totalPages).map((page, idx) =>
             page === "..." ? (
@@ -94,27 +97,28 @@ export function OrderPagination({
           )}
         </div>
 
-        <span className="sm:hidden text-sm text-muted-foreground px-2">
-          {currentPage} / {totalPages}
+        {/* 移动端简化页码显示 */}
+        <span className="sm:hidden text-xs text-muted-foreground px-1.5">
+          {currentPage}/{totalPages}
         </span>
 
         <Button
           variant="outline"
           size="icon"
-          className="h-8 w-8"
+          className="h-7 w-7 sm:h-8 sm:w-8"
           onClick={() => onPageChange(currentPage + 1)}
           disabled={currentPage === totalPages}
         >
-          <ChevronRight className="h-4 w-4" />
+          <ChevronRight className="h-3.5 w-3.5 sm:h-4 sm:w-4" />
         </Button>
         <Button
           variant="outline"
           size="icon"
-          className="h-8 w-8"
+          className="h-7 w-7 sm:h-8 sm:w-8"
           onClick={() => onPageChange(totalPages)}
           disabled={currentPage === totalPages}
         >
-          <ChevronsRight className="h-4 w-4" />
+          <ChevronsRight className="h-3.5 w-3.5 sm:h-4 sm:w-4" />
         </Button>
       </div>
     </div>

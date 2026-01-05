@@ -1068,104 +1068,111 @@ export default function Removals() {
         </Card>
       )}
 
-      {/* 批量操作栏 */}
+      {/* 批量操作栏 - 移动端优化 */}
       {selectedIds.length > 0 && (
-        <Card className="bg-primary/5 border-primary/20">
-          <CardContent className="py-3 flex flex-col sm:flex-row items-start sm:items-center justify-between gap-2">
-            <span className="text-sm font-medium">已选择 {selectedIds.length} 条记录</span>
-            <div className="flex gap-2 flex-wrap">
-              <Button variant="outline" size="sm" onClick={() => setIsBulkEditOpen(true)}>
-                <Edit className="h-4 w-4 sm:mr-2" />
-                <span className="hidden sm:inline">批量编辑</span>
-              </Button>
-              <Button variant="destructive" size="sm" onClick={() => setIsBulkDeleteOpen(true)}>
-                <Trash2 className="h-4 w-4 sm:mr-2" />
-                <span className="hidden sm:inline">批量删除</span>
-              </Button>
-              <Button variant="ghost" size="sm" onClick={() => setSelectedIds([])}>取消</Button>
-            </div>
-          </CardContent>
-        </Card>
+        <div className="flex items-center justify-between p-2 sm:p-3 bg-primary/5 border border-primary/20 rounded-lg">
+          <span className="text-xs sm:text-sm font-medium">已选 {selectedIds.length} 条</span>
+          <div className="flex gap-1 sm:gap-2">
+            <Button variant="outline" size="sm" className="h-7 sm:h-8 px-2 sm:px-3 text-xs sm:text-sm" onClick={() => setIsBulkEditOpen(true)}>
+              <Edit className="h-3.5 w-3.5 sm:h-4 sm:w-4" />
+              <span className="hidden sm:inline ml-1">编辑</span>
+            </Button>
+            <Button variant="destructive" size="sm" className="h-7 sm:h-8 px-2 sm:px-3 text-xs sm:text-sm" onClick={() => setIsBulkDeleteOpen(true)}>
+              <Trash2 className="h-3.5 w-3.5 sm:h-4 sm:w-4" />
+              <span className="hidden sm:inline ml-1">删除</span>
+            </Button>
+            <Button variant="ghost" size="sm" className="h-7 sm:h-8 text-xs sm:text-sm" onClick={() => setSelectedIds([])}>取消</Button>
+          </div>
+        </div>
       )}
 
-      {/* Filters */}
-      <div className="flex flex-col gap-4 sm:flex-row sm:items-center">
-        <div className="relative flex-1">
+      {/* Filters - 移动端优化 */}
+      <div className="space-y-3">
+        {/* 搜索框 */}
+        <div className="relative">
           <Search className="absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-muted-foreground" />
           <Input
-            placeholder="搜索订单号、产品名称、跟踪号或店铺..."
+            placeholder="搜索订单号、产品名称、跟踪号..."
             value={searchTerm}
             onChange={(e) => setSearchTerm(e.target.value)}
             className="pl-10"
           />
         </div>
-        <Select value={statusFilter} onValueChange={setStatusFilter}>
-          <SelectTrigger className="w-full sm:w-40">
-            <Filter className="mr-2 h-4 w-4" />
-            <SelectValue placeholder="状态筛选" />
-          </SelectTrigger>
-          <SelectContent>
-            <SelectItem value="all">全部状态</SelectItem>
-            <SelectItem value="未到货">未到货</SelectItem>
-            <SelectItem value="入库">入库</SelectItem>
-          </SelectContent>
-        </Select>
-        {/* 重复筛选 */}
-        <Select value={duplicateFilter} onValueChange={(v) => setDuplicateFilter(v as any)}>
-          <SelectTrigger className="w-full sm:w-40">
-            <Copy className="mr-2 h-4 w-4" />
-            <SelectValue placeholder="重复筛选" />
-          </SelectTrigger>
-          <SelectContent>
-            <SelectItem value="all">全部记录</SelectItem>
-            <SelectItem value="duplicate">仅重复</SelectItem>
-            <SelectItem value="unconfirmed">未确认重复</SelectItem>
-          </SelectContent>
-        </Select>
-        {/* 排序选择 */}
-        <Select value={sortField} onValueChange={(v) => setSortField(v as SortField)}>
-          <SelectTrigger className="w-full sm:w-[140px]">
-            <ArrowUpDown className="mr-2 h-4 w-4" />
-            <SelectValue placeholder="排序" />
-          </SelectTrigger>
-          <SelectContent>
-            <SelectItem value="ship_date">发货日期</SelectItem>
-            <SelectItem value="product_name">产品名称</SelectItem>
-            <SelectItem value="status">状态</SelectItem>
-            <SelectItem value="product_sku">产品SKU</SelectItem>
-            <SelectItem value="carrier">承运商</SelectItem>
-          </SelectContent>
-        </Select>
-        {/* 排序方向 */}
-        <Button
-          variant="outline"
-          size="icon"
-          className="h-10 w-10"
-          onClick={() => setSortDirection(sortDirection === "desc" ? "asc" : "desc")}
-          title={sortDirection === "desc" ? "降序" : "升序"}
-        >
-          {sortDirection === "desc" ? "↓" : "↑"}
-        </Button>
-        {/* 视图切换 */}
-        <div className="flex items-center border rounded-lg p-1 bg-muted/30">
+        
+        {/* 筛选和排序控件 */}
+        <div className="flex flex-wrap items-center gap-1.5 sm:gap-2">
+          <Select value={statusFilter} onValueChange={setStatusFilter}>
+            <SelectTrigger className="w-[80px] sm:w-[100px] h-8 sm:h-9 text-xs sm:text-sm">
+              <SelectValue placeholder="状态" />
+            </SelectTrigger>
+            <SelectContent>
+              <SelectItem value="all">全部</SelectItem>
+              <SelectItem value="未到货">未到货</SelectItem>
+              <SelectItem value="入库">入库</SelectItem>
+            </SelectContent>
+          </Select>
+          
+          <Select value={duplicateFilter} onValueChange={(v) => setDuplicateFilter(v as any)}>
+            <SelectTrigger className="w-[80px] sm:w-[100px] h-8 sm:h-9 text-xs sm:text-sm">
+              <SelectValue placeholder="重复" />
+            </SelectTrigger>
+            <SelectContent>
+              <SelectItem value="all">全部</SelectItem>
+              <SelectItem value="duplicate">重复</SelectItem>
+              <SelectItem value="unconfirmed">未确认</SelectItem>
+            </SelectContent>
+          </Select>
+          
+          <Select value={sortField} onValueChange={(v) => setSortField(v as SortField)}>
+            <SelectTrigger className="w-[90px] sm:w-[110px] h-8 sm:h-9 text-xs sm:text-sm">
+              <ArrowUpDown className="h-3 w-3 sm:h-4 sm:w-4 mr-1" />
+              <span className="hidden sm:inline">排序</span>
+            </SelectTrigger>
+            <SelectContent>
+              <SelectItem value="ship_date">发货日期</SelectItem>
+              <SelectItem value="product_name">产品名称</SelectItem>
+              <SelectItem value="status">状态</SelectItem>
+              <SelectItem value="product_sku">SKU</SelectItem>
+              <SelectItem value="carrier">承运商</SelectItem>
+            </SelectContent>
+          </Select>
+          
           <Button
-            variant={viewMode === "grouped" ? "secondary" : "ghost"}
-            size="sm"
-            className="h-8 px-3"
-            onClick={() => setViewMode("grouped")}
+            variant="outline"
+            size="icon"
+            className="h-8 w-8 sm:h-9 sm:w-9"
+            onClick={() => setSortDirection(sortDirection === "desc" ? "asc" : "desc")}
           >
-            <LayoutGrid className="h-4 w-4 mr-1.5" />
-            分组
+            {sortDirection === "desc" ? "↓" : "↑"}
           </Button>
-          <Button
-            variant={viewMode === "list" ? "secondary" : "ghost"}
-            size="sm"
-            className="h-8 px-3"
-            onClick={() => setViewMode("list")}
-          >
-            <List className="h-4 w-4 mr-1.5" />
-            列表
-          </Button>
+          
+          {/* 视图切换 */}
+          <div className="flex items-center border rounded-lg p-0.5 bg-muted/30 ml-auto">
+            <Button
+              variant={viewMode === "grouped" ? "secondary" : "ghost"}
+              size="sm"
+              className="h-7 sm:h-8 px-2 sm:px-3 text-xs"
+              onClick={() => setViewMode("grouped")}
+            >
+              <LayoutGrid className="h-3.5 w-3.5 sm:h-4 sm:w-4" />
+              <span className="hidden sm:inline ml-1">分组</span>
+            </Button>
+            <Button
+              variant={viewMode === "list" ? "secondary" : "ghost"}
+              size="sm"
+              className="h-7 sm:h-8 px-2 sm:px-3 text-xs"
+              onClick={() => setViewMode("list")}
+            >
+              <List className="h-3.5 w-3.5 sm:h-4 sm:w-4" />
+              <span className="hidden sm:inline ml-1">列表</span>
+            </Button>
+          </div>
+        </div>
+        
+        {/* 统计信息 */}
+        <div className="flex items-center justify-between text-xs text-muted-foreground">
+          <span>共 {totalCount} 条记录</span>
+          <span>第 {currentPage}/{totalPages} 页</span>
         </div>
       </div>
 

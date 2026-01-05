@@ -222,37 +222,35 @@ export default function Inventory() {
         }
       />
 
-      {/* Summary Cards */}
-      <div className="grid gap-4 sm:grid-cols-4">
-        <div className="rounded-xl border bg-card p-4 text-center">
-          <p className="text-sm text-muted-foreground">总库存</p>
-          <p className="mt-1 text-2xl font-bold">{totals.total}</p>
+      {/* Summary Cards - 移动端优化 */}
+      <div className="grid grid-cols-2 sm:grid-cols-4 gap-2 sm:gap-4">
+        <div className="rounded-xl border bg-card p-3 sm:p-4 text-center">
+          <p className="text-xs sm:text-sm text-muted-foreground">总库存</p>
+          <p className="mt-0.5 sm:mt-1 text-xl sm:text-2xl font-bold">{totals.total}</p>
         </div>
-        <div className="rounded-xl border bg-info/10 p-4 text-center">
-          <p className="text-sm text-info">A级</p>
-          <p className="mt-1 text-2xl font-bold text-info">{totals.gradeA}</p>
+        <div className="rounded-xl border bg-info/10 p-3 sm:p-4 text-center">
+          <p className="text-xs sm:text-sm text-info">A级</p>
+          <p className="mt-0.5 sm:mt-1 text-xl sm:text-2xl font-bold text-info">{totals.gradeA}</p>
         </div>
-        <div className="rounded-xl border bg-warning/10 p-4 text-center">
-          <p className="text-sm text-warning">B级</p>
-          <p className="mt-1 text-2xl font-bold text-warning">{totals.gradeB}</p>
+        <div className="rounded-xl border bg-warning/10 p-3 sm:p-4 text-center">
+          <p className="text-xs sm:text-sm text-warning">B级</p>
+          <p className="mt-0.5 sm:mt-1 text-xl sm:text-2xl font-bold text-warning">{totals.gradeB}</p>
         </div>
-        <div className="rounded-xl border bg-destructive/10 p-4 text-center">
-          <p className="text-sm text-destructive">C级</p>
-          <p className="mt-1 text-2xl font-bold text-destructive">{totals.gradeC}</p>
+        <div className="rounded-xl border bg-destructive/10 p-3 sm:p-4 text-center">
+          <p className="text-xs sm:text-sm text-destructive">C级</p>
+          <p className="mt-0.5 sm:mt-1 text-xl sm:text-2xl font-bold text-destructive">{totals.gradeC}</p>
         </div>
       </div>
 
-      {/* Filters */}
-      <div className="flex flex-col gap-4 sm:flex-row">
-        <div className="relative flex-1">
-          <Search className="absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-muted-foreground" />
-          <Input
-            placeholder="搜索SKU或产品名称..."
-            value={searchTerm}
-            onChange={(e) => setSearchTerm(e.target.value)}
-            className="pl-10"
-          />
-        </div>
+      {/* Filters - 移动端全宽 */}
+      <div className="relative">
+        <Search className="absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-muted-foreground" />
+        <Input
+          placeholder="搜索SKU或产品名称..."
+          value={searchTerm}
+          onChange={(e) => setSearchTerm(e.target.value)}
+          className="pl-10"
+        />
       </div>
 
       {/* Data Table */}

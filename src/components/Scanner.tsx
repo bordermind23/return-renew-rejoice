@@ -1,7 +1,7 @@
 import { useState, useEffect, useRef } from "react";
 import { Html5Qrcode, Html5QrcodeSupportedFormats } from "html5-qrcode";
 import { Button } from "@/components/ui/button";
-import { X, SwitchCamera, Scan, Focus } from "lucide-react";
+import { X, SwitchCamera, Scan, AlertCircle } from "lucide-react";
 import {
   Dialog,
   DialogContent,
@@ -10,6 +10,7 @@ import {
   DialogDescription,
 } from "@/components/ui/dialog";
 import { cn } from "@/lib/utils";
+import { useCameraPermission } from "@/hooks/useCameraPermission";
 
 interface ScannerProps {
   onScan: (code: string) => void;
@@ -35,43 +36,62 @@ export function Scanner({
   const [currentCameraIndex, setCurrentCameraIndex] = useState(0);
   const scannerRef = useRef<Html5Qrcode | null>(null);
   const scannerContainerId = "scanner-container";
+  
+  const { permissionState, isGranted, isDenied, requestPermission } = useCameraPermission();
 
   useEffect(() => {
     // Get available cameras when dialog opens
     if (isOpen) {
-      // 延迟启动以确保对话框完全渲染
-      const timer = setTimeout(() => {
-        Html5Qrcode.getCameras()
-          .then((devices) => {
-            if (devices && devices.length > 0) {
-              setCameras(devices);
-              // 优先选择后置摄像头
-              const backCameraIndex = devices.findIndex(
-                (device) => device.label.toLowerCase().includes("back") || 
-                            device.label.toLowerCase().includes("rear") ||
-                            device.label.toLowerCase().includes("environment") ||
-                            device.label.includes("后置")
-              );
-              const preferredIndex = backCameraIndex >= 0 ? backCameraIndex : 0;
-              setCurrentCameraIndex(preferredIndex);
-              startScanner(devices[preferredIndex].id);
-            } else {
-              setError("未找到摄像头设备");
-            }
-          })
-          .catch((err) => {
-            console.error("获取摄像头失败:", err);
-            setError("无法访问摄像头，请确保已授权摄像头权限");
-          });
-      }, 100);
+      const initializeScanner = async () => {
+        // If permission is already granted, start immediately
+        // If permission needs to be requested, do so
+        if (isDenied) {
+          setError("摄像头权限被拒绝，请在浏览器设置中允许访问摄像头后刷新页面");
+          return;
+        }
 
+        // If permission state is unknown or prompt, try to request
+        if (!isGranted) {
+          const granted = await requestPermission();
+          if (!granted) {
+            setError("摄像头权限被拒绝，请在浏览器设置中允许访问摄像头");
+            return;
+          }
+        }
+
+        // Now we have permission, get cameras
+        try {
+          const devices = await Html5Qrcode.getCameras();
+          if (devices && devices.length > 0) {
+            setCameras(devices);
+            // 优先选择后置摄像头
+            const backCameraIndex = devices.findIndex(
+              (device) => device.label.toLowerCase().includes("back") || 
+                          device.label.toLowerCase().includes("rear") ||
+                          device.label.toLowerCase().includes("environment") ||
+                          device.label.includes("后置")
+            );
+            const preferredIndex = backCameraIndex >= 0 ? backCameraIndex : 0;
+            setCurrentCameraIndex(preferredIndex);
+            startScanner(devices[preferredIndex].id);
+          } else {
+            setError("未找到摄像头设备");
+          }
+        } catch (err) {
+          console.error("获取摄像头失败:", err);
+          setError("无法访问摄像头，请确保已授权摄像头权限");
+        }
+      };
+
+      // Small delay to ensure dialog is fully rendered
+      const timer = setTimeout(initializeScanner, 100);
       return () => clearTimeout(timer);
     }
 
     return () => {
       stopScanner();
     };
-  }, [isOpen]);
+  }, [isOpen, isGranted, isDenied, requestPermission]);
 
   const startScanner = async (cameraId: string) => {
     setError(null);

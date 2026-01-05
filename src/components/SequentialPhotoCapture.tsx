@@ -132,16 +132,18 @@ export function SequentialPhotoCapture({
     setPreviewUrl(dataUrl);
   };
 
-  // 上传照片到存储
+  // 上传照片到存储（带压缩）
   const uploadPhoto = async (dataUrl: string, stepId: string): Promise<string> => {
-    const response = await fetch(dataUrl);
-    const blob = await response.blob();
+    const { compressImageFromDataUrl } = await import("@/lib/imageCompression");
+    
+    // 压缩图片
+    const compressedBlob = await compressImageFromDataUrl(dataUrl);
     
     const fileName = `${lpn}/${stepId}_${Date.now()}.jpg`;
     
     const { data, error } = await supabase.storage
       .from("product-images")
-      .upload(fileName, blob, {
+      .upload(fileName, compressedBlob, {
         contentType: "image/jpeg",
         upsert: true,
       });

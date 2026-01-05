@@ -82,59 +82,7 @@ interface NativePhotoCaptureProps {
   steps?: PhotoStep[];
 }
 
-// 图片压缩配置
-const COMPRESSION_CONFIG = {
-  maxWidth: 1920,
-  maxHeight: 1920,
-  quality: 0.8,
-  mimeType: 'image/jpeg',
-};
-
-// 图片压缩函数
-async function compressImage(file: File): Promise<Blob> {
-  return new Promise((resolve, reject) => {
-    const img = new Image();
-    const canvas = document.createElement('canvas');
-    const ctx = canvas.getContext('2d');
-    
-    img.onload = () => {
-      let { width, height } = img;
-      
-      // 计算缩放比例
-      if (width > COMPRESSION_CONFIG.maxWidth) {
-        height = (height * COMPRESSION_CONFIG.maxWidth) / width;
-        width = COMPRESSION_CONFIG.maxWidth;
-      }
-      if (height > COMPRESSION_CONFIG.maxHeight) {
-        width = (width * COMPRESSION_CONFIG.maxHeight) / height;
-        height = COMPRESSION_CONFIG.maxHeight;
-      }
-      
-      canvas.width = width;
-      canvas.height = height;
-      
-      // 绘制图片
-      ctx?.drawImage(img, 0, 0, width, height);
-      
-      // 转换为 Blob
-      canvas.toBlob(
-        (blob) => {
-          if (blob) {
-            console.log(`图片压缩: ${(file.size / 1024).toFixed(1)}KB -> ${(blob.size / 1024).toFixed(1)}KB`);
-            resolve(blob);
-          } else {
-            reject(new Error('图片压缩失败'));
-          }
-        },
-        COMPRESSION_CONFIG.mimeType,
-        COMPRESSION_CONFIG.quality
-      );
-    };
-    
-    img.onerror = () => reject(new Error('图片加载失败'));
-    img.src = URL.createObjectURL(file);
-  });
-}
+import { compressImage } from "@/lib/imageCompression";
 
 export function NativePhotoCapture({
   lpn,

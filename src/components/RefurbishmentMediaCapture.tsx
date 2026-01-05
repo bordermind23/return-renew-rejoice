@@ -40,15 +40,23 @@ export function RefurbishmentMediaCapture({
     ? photos.length > 0 
     : (photos.length > 0 || videos.length > 0);
 
-  // 上传文件到存储
+  // 上传文件到存储（图片会压缩）
   const uploadFile = async (file: File, type: "photo" | "video"): Promise<string> => {
-    const fileExt = file.name.split('.').pop() || (type === "photo" ? "jpg" : "mp4");
+    let uploadBlob: Blob = file;
+    
+    // 如果是图片，先压缩
+    if (type === "photo") {
+      const { compressImage } = await import("@/lib/imageCompression");
+      uploadBlob = await compressImage(file);
+    }
+    
+    const fileExt = type === "photo" ? "jpg" : (file.name.split('.').pop() || "mp4");
     const fileName = `refurbishment/${lpn}/${type}_${Date.now()}.${fileExt}`;
     
     const { data, error } = await supabase.storage
       .from("product-images")
-      .upload(fileName, file, {
-        contentType: file.type,
+      .upload(fileName, uploadBlob, {
+        contentType: type === "photo" ? "image/jpeg" : file.type,
         upsert: true,
       });
 

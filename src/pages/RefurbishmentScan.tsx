@@ -30,6 +30,7 @@ import { useSound } from "@/hooks/useSound";
 import { useLanguage } from "@/i18n/LanguageContext";
 import { useIsMobile } from "@/hooks/use-mobile";
 import { RefurbishmentMediaCapture } from "@/components/RefurbishmentMediaCapture";
+import { useCameraPermission } from "@/hooks/useCameraPermission";
 
 export default function RefurbishmentScan() {
   const { t } = useLanguage();
@@ -55,10 +56,15 @@ export default function RefurbishmentScan() {
   const updateMutation = useUpdateInboundItem();
   const createMutation = useCreateInboundItem();
   const { playSuccess, playError, playWarning } = useSound();
+  
+  // Pre-check camera permission on page load
+  const { preRequestIfNeeded } = useCameraPermission();
 
   useEffect(() => {
     lpnInputRef.current?.focus();
-  }, []);
+    // Pre-check camera permission when page loads
+    preRequestIfNeeded();
+  }, [preRequestIfNeeded]);
 
   const handleScanLpn = (lpnValue?: string) => {
     const lpn = (lpnValue || lpnInput).trim();

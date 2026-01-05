@@ -48,6 +48,7 @@ import { VoiceInputButton } from "@/components/VoiceInputButton";
 import { cn } from "@/lib/utils";
 import { useIsMobile } from "@/hooks/use-mobile";
 import { useSound } from "@/hooks/useSound";
+import { useCameraPermission } from "@/hooks/useCameraPermission";
 
 type InboundStep = "scan_tracking" | "scan_lpn" | "process";
 
@@ -98,6 +99,14 @@ export default function InboundScan() {
   const updateInventoryMutation = useUpdateInventoryStock();
   const updateOrderMutation = useUpdateOrder();
   const { playSuccess, playError, playWarning } = useSound();
+  
+  // Pre-check camera permission on page load
+  const { preRequestIfNeeded } = useCameraPermission();
+  
+  useEffect(() => {
+    // Pre-check camera permission when page loads
+    preRequestIfNeeded();
+  }, [preRequestIfNeeded]);
 
   const currentOrderSku = matchedOrders.length > 0 && matchedOrders[0].product_sku
     ? matchedOrders[0].product_sku

@@ -196,11 +196,13 @@ export default function Orders() {
     grade: null,
   });
 
-  // 数据查询
+  // 数据查询 - 排序在数据库层面进行
   const { data: paginatedData, isLoading } = useOrdersPaginated(currentPage, pageSize, { 
     searchTerm: debouncedSearch, 
     statusFilters, 
-    gradeFilter 
+    gradeFilter,
+    sortField,
+    sortDirection,
   });
   const { data: orderStats } = useOrderStats();
   const { data: inboundItems } = useInboundItems();
@@ -237,44 +239,12 @@ export default function Orders() {
     };
   }, [orderStats]);
 
-  // 排序后的订单
-  const sortedOrders = useMemo(() => {
-    if (!sortField) return orders;
-    
-    return [...orders].sort((a, b) => {
-      let aVal: string | number | null = null;
-      let bVal: string | number | null = null;
-      
-      switch (sortField) {
-        case "order_time":
-          aVal = a.order_time ? new Date(a.order_time).getTime() : 0;
-          bVal = b.order_time ? new Date(b.order_time).getTime() : 0;
-          break;
-        case "return_time":
-          aVal = a.return_time ? new Date(a.return_time).getTime() : 0;
-          bVal = b.return_time ? new Date(b.return_time).getTime() : 0;
-          break;
-        case "product_name":
-          aVal = (a.product_name || "").toLowerCase();
-          bVal = (b.product_name || "").toLowerCase();
-          break;
-        case "product_sku":
-          aVal = (a.product_sku || "").toLowerCase();
-          bVal = (b.product_sku || "").toLowerCase();
-          break;
-        case "status":
-          const statusOrder = { "未到货": 1, "到货": 2, "出库": 3 };
-          aVal = statusOrder[a.status as keyof typeof statusOrder] || 0;
-          bVal = statusOrder[b.status as keyof typeof statusOrder] || 0;
-          break;
-      }
-      
-      if (aVal === null || bVal === null) return 0;
-      if (aVal < bVal) return sortDirection === "asc" ? -1 : 1;
-      if (aVal > bVal) return sortDirection === "asc" ? 1 : -1;
-      return 0;
-    });
-  }, [orders, sortField, sortDirection]);
+  // 排序变化时重置到第一页
+  const handleSortChange = (field: SortField, direction: SortDirection) => {
+    setSortField(field);
+    setSortDirection(direction);
+    setCurrentPage(1);
+  };
 
   const hasActiveFilters = !!(debouncedSearch || statusFilters.length > 0 || gradeFilter !== "all");
 
@@ -1178,10 +1148,7 @@ export default function Orders() {
         onGradeFilterChange={handleGradeFilterChange}
         sortField={sortField}
         sortDirection={sortDirection}
-        onSortChange={(field, direction) => {
-          setSortField(field);
-          setSortDirection(direction);
-        }}
+        onSortChange={handleSortChange}
         hasActiveFilters={hasActiveFilters}
         onClearFilters={clearAllFilters}
       />
@@ -1219,7 +1186,7 @@ export default function Orders() {
                   </TableCell>
                 </TableRow>
               ) : (
-                sortedOrders.map((item) => {
+                orders.map((item) => {
                   const inboundItem = inboundByLpn[item.lpn];
                   const displayGrade = item.grade || inboundItem?.refurbishment_grade;
 

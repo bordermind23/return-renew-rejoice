@@ -214,9 +214,9 @@ export function InboundBatchList({ items, onDelete, onBatchDelete, enableBatchSe
     
     setIsUploading(true);
     try {
-      // Convert base64 to blob
-      const response = await fetch(previewImage);
-      const blob = await response.blob();
+      // 压缩图片
+      const { compressImageFromDataUrl } = await import("@/lib/imageCompression");
+      const compressedBlob = await compressImageFromDataUrl(previewImage);
       
       // Generate unique filename
       const filename = `${uploadingBatch.trackingNumber}/${Date.now()}.jpg`;
@@ -224,7 +224,7 @@ export function InboundBatchList({ items, onDelete, onBatchDelete, enableBatchSe
       // Upload to storage
       const { error: uploadError } = await supabase.storage
         .from("shipping-labels")
-        .upload(filename, blob, {
+        .upload(filename, compressedBlob, {
           contentType: "image/jpeg",
           upsert: true
         });
@@ -248,6 +248,7 @@ export function InboundBatchList({ items, onDelete, onBatchDelete, enableBatchSe
       setUploadDialogOpen(false);
       setUploadingBatch(null);
       setPreviewImage(null);
+      toast.success("面单上传成功");
     } catch (error) {
       console.error("Upload error:", error);
       toast.error("补传面单失败");

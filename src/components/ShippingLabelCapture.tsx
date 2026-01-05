@@ -375,9 +375,9 @@ export function ShippingLabelCapture({ onTrackingRecognized, onCancel, onAlready
 
     setIsUploading(true);
     try {
-      // Convert base64 to blob
-      const response = await fetch(imageToUpload);
-      const blob = await response.blob();
+      // 压缩图片后上传
+      const { compressImageFromDataUrl } = await import("@/lib/imageCompression");
+      const compressedBlob = await compressImageFromDataUrl(imageToUpload);
       
       // Generate unique filename
       const filename = `${trackingNumber}/${Date.now()}.jpg`;
@@ -385,7 +385,7 @@ export function ShippingLabelCapture({ onTrackingRecognized, onCancel, onAlready
       // Upload to storage
       const { data: uploadData, error: uploadError } = await supabase.storage
         .from("shipping-labels")
-        .upload(filename, blob, {
+        .upload(filename, compressedBlob, {
           contentType: "image/jpeg",
           upsert: true
         });

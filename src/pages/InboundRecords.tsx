@@ -233,51 +233,48 @@ export default function InboundRecords() {
         description="查看所有已入库的产品记录"
       />
 
-      {/* 筛选区域 */}
-      <div className="flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
-        <div className="flex flex-col gap-3 sm:flex-row sm:items-center flex-1">
-          {/* 搜索框 */}
-          <div className="relative flex-1 max-w-sm">
-            <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
-            <Input
-              placeholder="搜索LPN、SKU、产品名称、物流号..."
-              value={searchTerm}
-              onChange={(e) => setSearchTerm(e.target.value)}
-              className="pl-9"
-            />
-          </div>
-          
-          
-          {/* 日期筛选 */}
-          <Select value={dateFilter} onValueChange={setDateFilter}>
-            <SelectTrigger className="w-[120px]">
-              <SelectValue placeholder="全部时间" />
-            </SelectTrigger>
-            <SelectContent>
-              <SelectItem value="all">全部时间</SelectItem>
-              <SelectItem value="today">今天</SelectItem>
-              <SelectItem value="week">最近7天</SelectItem>
-              <SelectItem value="month">最近30天</SelectItem>
-            </SelectContent>
-          </Select>
-          
-          {/* 清除筛选 */}
-          {hasActiveFilters && (
-            <Button variant="ghost" size="sm" onClick={clearFilters}>
-              <X className="h-4 w-4 mr-1" />
-              清除筛选
-            </Button>
-          )}
+      {/* 筛选区域 - 移动端优化 */}
+      <div className="space-y-3">
+        {/* 搜索框 - 全宽 */}
+        <div className="relative">
+          <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
+          <Input
+            placeholder="搜索LPN、SKU、产品名称、物流号..."
+            value={searchTerm}
+            onChange={(e) => setSearchTerm(e.target.value)}
+            className="pl-9"
+          />
         </div>
         
-        <div className="flex items-center gap-2">
-          {hasActiveFilters && (
-            <Badge variant="secondary">
-              筛选结果: {filteredItems.length} 条
-            </Badge>
-          )}
-          <div className="text-sm text-muted-foreground">
-            共 {inboundItems?.length || 0} 条记录
+        {/* 日期筛选和统计 */}
+        <div className="flex items-center justify-between gap-2">
+          <div className="flex items-center gap-2">
+            <Select value={dateFilter} onValueChange={setDateFilter}>
+              <SelectTrigger className="w-[100px] h-9 text-sm">
+                <SelectValue placeholder="全部" />
+              </SelectTrigger>
+              <SelectContent>
+                <SelectItem value="all">全部</SelectItem>
+                <SelectItem value="today">今天</SelectItem>
+                <SelectItem value="week">近7天</SelectItem>
+                <SelectItem value="month">近30天</SelectItem>
+              </SelectContent>
+            </Select>
+            
+            {hasActiveFilters && (
+              <Button variant="ghost" size="sm" onClick={clearFilters} className="h-9 px-2">
+                <X className="h-4 w-4" />
+              </Button>
+            )}
+          </div>
+          
+          <div className="flex items-center gap-2 text-xs text-muted-foreground">
+            {hasActiveFilters && (
+              <Badge variant="secondary" className="text-xs">
+                {filteredItems.length}条
+              </Badge>
+            )}
+            <span>共{inboundItems?.length || 0}条</span>
           </div>
         </div>
       </div>

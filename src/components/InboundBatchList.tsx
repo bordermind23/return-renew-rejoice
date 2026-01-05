@@ -268,20 +268,20 @@ export function InboundBatchList({ items, onDelete, onBatchDelete, enableBatchSe
   }
 
   return (
-    <div className="space-y-3">
-      {/* 批量操作栏 */}
+    <div className="space-y-2 sm:space-y-3">
+      {/* 批量操作栏 - 移动端优化 */}
       {enableBatchSelect && (
-        <div className="flex items-center justify-between p-3 bg-muted/50 rounded-lg">
-          <div className="flex items-center gap-3">
+        <div className="flex items-center justify-between p-2 sm:p-3 bg-muted/50 rounded-lg">
+          <div className="flex items-center gap-2 sm:gap-3">
             <Checkbox
               checked={allSelected}
               onCheckedChange={toggleSelectAll}
               className="data-[state=indeterminate]:bg-primary data-[state=indeterminate]:text-primary-foreground"
               {...(someSelected ? { "data-state": "indeterminate" } : {})}
             />
-            <span className="text-sm text-muted-foreground">
+            <span className="text-xs sm:text-sm text-muted-foreground">
               {selectedIds.size > 0 
-                ? `已选择 ${selectedIds.size} 条记录` 
+                ? `已选 ${selectedIds.size} 条` 
                 : "全选"}
             </span>
           </div>
@@ -290,9 +290,10 @@ export function InboundBatchList({ items, onDelete, onBatchDelete, enableBatchSe
               variant="destructive"
               size="sm"
               onClick={handleBatchDelete}
+              className="h-8 text-xs sm:text-sm"
             >
-              <Trash2 className="h-4 w-4 mr-1" />
-              批量删除 ({selectedIds.size})
+              <Trash2 className="h-3.5 w-3.5 sm:h-4 sm:w-4 mr-1" />
+              删除({selectedIds.size})
             </Button>
           )}
         </div>
@@ -308,10 +309,11 @@ export function InboundBatchList({ items, onDelete, onBatchDelete, enableBatchSe
             onOpenChange={() => toggleBatch(batch.trackingNumber)}
           >
             <Card className="overflow-hidden">
-              <div className="flex items-center">
+              {/* 批次头部 - 移动端优化 */}
+              <div className="flex items-start sm:items-center">
                 {enableBatchSelect && (
                   <div 
-                    className="pl-4 py-4 flex-shrink-0"
+                    className="pl-3 sm:pl-4 pt-3 sm:py-4 flex-shrink-0"
                     onClick={(e) => e.stopPropagation()}
                   >
                     <Checkbox
@@ -324,69 +326,76 @@ export function InboundBatchList({ items, onDelete, onBatchDelete, enableBatchSe
                 )}
                 <CollapsibleTrigger asChild>
                   <button className={cn(
-                    "flex-1 p-4 flex items-center gap-4 hover:bg-muted/50 transition-colors text-left",
+                    "flex-1 p-3 sm:p-4 flex items-start sm:items-center gap-2 sm:gap-4 hover:bg-muted/50 transition-colors text-left",
                     enableBatchSelect && "pl-2"
                   )}>
-                    <div className="flex-shrink-0">
+                    <div className="flex-shrink-0 mt-0.5 sm:mt-0">
                       {expandedBatches.has(batch.trackingNumber) ? (
-                        <ChevronDown className="h-5 w-5 text-muted-foreground" />
+                        <ChevronDown className="h-4 w-4 sm:h-5 sm:w-5 text-muted-foreground" />
                       ) : (
-                        <ChevronRight className="h-5 w-5 text-muted-foreground" />
+                        <ChevronRight className="h-4 w-4 sm:h-5 sm:w-5 text-muted-foreground" />
                       )}
                     </div>
-                    <div className="h-10 w-10 rounded-lg bg-primary/10 flex items-center justify-center flex-shrink-0">
-                      <Package className="h-5 w-5 text-primary" />
+                    <div className="h-8 w-8 sm:h-10 sm:w-10 rounded-lg bg-primary/10 flex items-center justify-center flex-shrink-0">
+                      <Package className="h-4 w-4 sm:h-5 sm:w-5 text-primary" />
                     </div>
                     <div className="flex-1 min-w-0">
-                      <div className="flex items-center gap-2 flex-wrap">
-                        <span className="font-medium truncate">{batch.trackingNumber}</span>
-                        <Badge variant="secondary" className="flex-shrink-0">
-                          {batch.totalCount} 件
+                      <div className="flex items-center gap-1.5 sm:gap-2 flex-wrap">
+                        <span className="font-medium text-sm sm:text-base truncate max-w-[140px] sm:max-w-none">{batch.trackingNumber}</span>
+                        <Badge variant="secondary" className="flex-shrink-0 text-xs">
+                          {batch.totalCount}件
                         </Badge>
+                      </div>
+                      <p className="text-xs sm:text-sm text-muted-foreground truncate mt-0.5">
+                        {batch.productName}
+                      </p>
+                      {/* 移动端显示日期和面单按钮 */}
+                      <div className="flex items-center gap-2 mt-1.5 sm:hidden">
+                        <span className="text-xs text-muted-foreground">
+                          {new Date(batch.latestProcessedAt).toLocaleDateString("zh-CN")}
+                        </span>
                         {shippingLabelPhoto && (
-                          <Badge variant="outline" className="flex-shrink-0 text-primary border-primary/30">
-                            <Image className="h-3 w-3 mr-1" />
-                            有面单照片
+                          <Badge variant="outline" className="text-xs text-primary border-primary/30 px-1.5 py-0">
+                            <Image className="h-2.5 w-2.5 mr-0.5" />
+                            面单
                           </Badge>
                         )}
                       </div>
-                      <p className="text-sm text-muted-foreground truncate mt-0.5">
-                        {batch.productName} · {batch.productSku}
-                      </p>
                     </div>
-                    <div className="text-right text-sm text-muted-foreground flex-shrink-0">
+                    {/* 桌面端日期显示 */}
+                    <div className="hidden sm:block text-right text-sm text-muted-foreground flex-shrink-0">
                       <p>{new Date(batch.latestProcessedAt).toLocaleDateString("zh-CN")}</p>
                       <p>{new Date(batch.latestProcessedAt).toLocaleTimeString("zh-CN", { hour: "2-digit", minute: "2-digit" })}</p>
                     </div>
                   </button>
                 </CollapsibleTrigger>
-                {/* 批次操作按钮 */}
-                <div className="pr-4 flex-shrink-0 flex items-center gap-2">
+                {/* 批次操作按钮 - 移动端隐藏文字 */}
+                <div className="pr-2 sm:pr-4 pt-3 sm:pt-0 flex-shrink-0 flex items-center gap-1 sm:gap-2">
                   {shippingLabelPhoto ? (
                     <Button
                       size="sm"
                       variant="outline"
-                      className="h-8"
+                      className="h-7 sm:h-8 px-2 sm:px-3"
                       onClick={(e) => {
                         e.stopPropagation();
                         setShippingLabelUrl(shippingLabelPhoto);
                       }}
                     >
-                      <Eye className="h-4 w-4 mr-1" />
-                      查看面单
+                      <Eye className="h-3.5 w-3.5 sm:h-4 sm:w-4" />
+                      <span className="hidden sm:inline ml-1">查看面单</span>
                     </Button>
                   ) : (
                     <Button
                       size="sm"
                       variant="outline"
-                      className="h-8 text-orange-600 border-orange-300 hover:bg-orange-50"
+                      className="h-7 sm:h-8 px-2 sm:px-3 text-orange-600 border-orange-300 hover:bg-orange-50"
                       onClick={(e) => {
                         e.stopPropagation();
                         handleOpenUploadDialog(batch);
                       }}
                     >
-                      <Upload className="h-4 w-4 mr-1" />
-                      补传面单
+                      <Upload className="h-3.5 w-3.5 sm:h-4 sm:w-4" />
+                      <span className="hidden sm:inline ml-1">补传面单</span>
                     </Button>
                   )}
                 </div>
@@ -394,96 +403,171 @@ export function InboundBatchList({ items, onDelete, onBatchDelete, enableBatchSe
               
               <CollapsibleContent>
                 <div className="border-t">
-                  <ScrollArea className="w-full">
-                    <Table>
-                      <TableHeader>
-                        <TableRow className="bg-muted/30 hover:bg-muted/30">
-                          {enableBatchSelect && (
-                            <TableHead className="w-[50px]"></TableHead>
+                  {/* 移动端使用卡片列表，桌面端使用表格 */}
+                  <div className="sm:hidden">
+                    {batch.items.map((item) => {
+                      const photoCount = getPhotoCount(item, true);
+                      const isSelected = selectedIds.has(item.id);
+                      return (
+                        <div 
+                          key={item.id}
+                          className={cn(
+                            "p-3 border-b last:border-b-0",
+                            isSelected && "bg-primary/5"
                           )}
-                          <TableHead className="font-semibold min-w-[100px]">LPN号</TableHead>
-                          <TableHead className="font-semibold min-w-[120px]">缺少配件</TableHead>
-                          <TableHead className="font-semibold min-w-[60px] text-center">照片</TableHead>
-                          <TableHead className="font-semibold min-w-[130px]">处理时间</TableHead>
-                          <TableHead className="font-semibold min-w-[60px] text-center">操作</TableHead>
-                        </TableRow>
-                      </TableHeader>
-                      <TableBody>
-                        {batch.items.map((item) => {
-                          const photoCount = getPhotoCount(item, true); // 排除物流面单
-                          const isSelected = selectedIds.has(item.id);
-
-                          return (
-                            <TableRow 
-                              key={item.id} 
-                              className={cn(
-                                "hover:bg-muted/20",
-                                isSelected && "bg-primary/5"
-                              )}
-                            >
-                              {enableBatchSelect && (
-                                <TableCell>
-                                  <Checkbox
-                                    checked={isSelected}
-                                    onCheckedChange={() => toggleSelectItem(item.id)}
-                                  />
-                                </TableCell>
-                              )}
-                              <TableCell>
-                                <code className="text-xs bg-muted px-1.5 py-0.5 rounded font-medium">
+                        >
+                          <div className="flex items-start gap-2">
+                            {enableBatchSelect && (
+                              <Checkbox
+                                checked={isSelected}
+                                onCheckedChange={() => toggleSelectItem(item.id)}
+                                className="mt-1"
+                              />
+                            )}
+                            <div className="flex-1 min-w-0 space-y-1.5">
+                              <div className="flex items-center justify-between gap-2">
+                                <code className="text-xs bg-muted px-1.5 py-0.5 rounded font-medium truncate">
                                   {item.lpn}
                                 </code>
-                              </TableCell>
-                              <TableCell className="text-muted-foreground text-sm">
-                                {item.missing_parts && item.missing_parts.length > 0
-                                  ? item.missing_parts.join(", ")
-                                  : "-"}
-                              </TableCell>
-                              <TableCell className="text-center">
-                                {photoCount > 0 ? (
-                                  <Button
-                                    size="sm"
-                                    variant="ghost"
-                                    className="h-7 px-2"
-                                    onClick={(e) => {
-                                      e.stopPropagation();
-                                      setPhotoViewItem(item);
-                                    }}
-                                  >
-                                    <Image className="h-4 w-4 mr-1" />
-                                    {photoCount}
-                                  </Button>
-                                ) : (
-                                  <span className="text-muted-foreground text-xs">-</span>
-                                )}
-                              </TableCell>
-                              <TableCell className="text-muted-foreground text-sm">
-                                {new Date(item.processed_at).toLocaleString("zh-CN")}
-                              </TableCell>
-                              <TableCell>
-                                <div className="flex justify-center">
-                                  {canDelete && (
+                                <span className="text-xs text-muted-foreground flex-shrink-0">
+                                  {new Date(item.processed_at).toLocaleDateString("zh-CN")}
+                                </span>
+                              </div>
+                              {item.missing_parts && item.missing_parts.length > 0 && (
+                                <p className="text-xs text-orange-600">
+                                  缺: {item.missing_parts.join(", ")}
+                                </p>
+                              )}
+                              <div className="flex items-center justify-between">
+                                <div className="flex items-center gap-2">
+                                  {photoCount > 0 && (
                                     <Button
-                                      size="icon"
+                                      size="sm"
                                       variant="ghost"
-                                      className="h-7 w-7 text-destructive hover:text-destructive"
+                                      className="h-6 px-1.5 text-xs"
                                       onClick={(e) => {
                                         e.stopPropagation();
-                                        onDelete(item.id);
+                                        setPhotoViewItem(item);
                                       }}
                                     >
-                                      <Trash2 className="h-4 w-4" />
+                                      <Image className="h-3 w-3 mr-0.5" />
+                                      {photoCount}张
                                     </Button>
                                   )}
                                 </div>
-                              </TableCell>
-                            </TableRow>
-                          );
-                        })}
-                      </TableBody>
-                    </Table>
-                    <ScrollBar orientation="horizontal" />
-                  </ScrollArea>
+                                {canDelete && (
+                                  <Button
+                                    size="sm"
+                                    variant="ghost"
+                                    className="h-6 w-6 p-0 text-destructive hover:text-destructive"
+                                    onClick={(e) => {
+                                      e.stopPropagation();
+                                      onDelete(item.id);
+                                    }}
+                                  >
+                                    <Trash2 className="h-3.5 w-3.5" />
+                                  </Button>
+                                )}
+                              </div>
+                            </div>
+                          </div>
+                        </div>
+                      );
+                    })}
+                  </div>
+                  
+                  {/* 桌面端表格 */}
+                  <div className="hidden sm:block">
+                    <ScrollArea className="w-full">
+                      <Table>
+                        <TableHeader>
+                          <TableRow className="bg-muted/30 hover:bg-muted/30">
+                            {enableBatchSelect && (
+                              <TableHead className="w-[50px]"></TableHead>
+                            )}
+                            <TableHead className="font-semibold min-w-[100px]">LPN号</TableHead>
+                            <TableHead className="font-semibold min-w-[120px]">缺少配件</TableHead>
+                            <TableHead className="font-semibold min-w-[60px] text-center">照片</TableHead>
+                            <TableHead className="font-semibold min-w-[130px]">处理时间</TableHead>
+                            <TableHead className="font-semibold min-w-[60px] text-center">操作</TableHead>
+                          </TableRow>
+                        </TableHeader>
+                        <TableBody>
+                          {batch.items.map((item) => {
+                            const photoCount = getPhotoCount(item, true);
+                            const isSelected = selectedIds.has(item.id);
+                            return (
+                              <TableRow 
+                                key={item.id} 
+                                className={cn(
+                                  "hover:bg-muted/20",
+                                  isSelected && "bg-primary/5"
+                                )}
+                              >
+                                {enableBatchSelect && (
+                                  <TableCell>
+                                    <Checkbox
+                                      checked={isSelected}
+                                      onCheckedChange={() => toggleSelectItem(item.id)}
+                                    />
+                                  </TableCell>
+                                )}
+                                <TableCell>
+                                  <code className="text-xs bg-muted px-1.5 py-0.5 rounded font-medium">
+                                    {item.lpn}
+                                  </code>
+                                </TableCell>
+                                <TableCell className="text-muted-foreground text-sm">
+                                  {item.missing_parts && item.missing_parts.length > 0
+                                    ? item.missing_parts.join(", ")
+                                    : "-"}
+                                </TableCell>
+                                <TableCell className="text-center">
+                                  {photoCount > 0 ? (
+                                    <Button
+                                      size="sm"
+                                      variant="ghost"
+                                      className="h-7 px-2"
+                                      onClick={(e) => {
+                                        e.stopPropagation();
+                                        setPhotoViewItem(item);
+                                      }}
+                                    >
+                                      <Image className="h-4 w-4 mr-1" />
+                                      {photoCount}
+                                    </Button>
+                                  ) : (
+                                    <span className="text-muted-foreground text-xs">-</span>
+                                  )}
+                                </TableCell>
+                                <TableCell className="text-muted-foreground text-sm">
+                                  {new Date(item.processed_at).toLocaleString("zh-CN")}
+                                </TableCell>
+                                <TableCell>
+                                  <div className="flex justify-center">
+                                    {canDelete && (
+                                      <Button
+                                        size="icon"
+                                        variant="ghost"
+                                        className="h-7 w-7 text-destructive hover:text-destructive"
+                                        onClick={(e) => {
+                                          e.stopPropagation();
+                                          onDelete(item.id);
+                                        }}
+                                      >
+                                        <Trash2 className="h-4 w-4" />
+                                      </Button>
+                                    )}
+                                  </div>
+                                </TableCell>
+                              </TableRow>
+                            );
+                          })}
+                        </TableBody>
+                      </Table>
+                      <ScrollBar orientation="horizontal" />
+                    </ScrollArea>
+                  </div>
                 </div>
               </CollapsibleContent>
             </Card>

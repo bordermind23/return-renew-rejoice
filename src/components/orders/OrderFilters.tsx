@@ -134,7 +134,7 @@ export function OrderFilters({
 
           {/* 排序选择 */}
           <Select value={sortField} onValueChange={(value) => onSortChange(value as SortField, sortDirection)}>
-            <SelectTrigger className="w-[90px] sm:w-[140px] h-8 sm:h-10 text-xs sm:text-sm bg-background">
+            <SelectTrigger className="w-[110px] sm:w-[140px] h-8 sm:h-10 text-xs sm:text-sm bg-background">
               <ArrowUpDown className="h-3.5 w-3.5 sm:h-4 sm:w-4 sm:mr-2" />
               <span className="hidden sm:inline"><SelectValue placeholder="排序" /></span>
               <span className="sm:hidden">排序</span>

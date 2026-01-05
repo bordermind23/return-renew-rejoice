@@ -58,28 +58,29 @@ export function OrderFilters({
   onClearFilters,
 }: OrderFiltersProps) {
   return (
-    <div className="flex flex-col gap-3 p-4 bg-card rounded-xl border">
-      <div className="flex flex-col lg:flex-row gap-3">
-        {/* 搜索框 */}
-        <div className="relative flex-1 min-w-[240px]">
+    <div className="flex flex-col gap-3 p-3 sm:p-4 bg-card rounded-xl border">
+      <div className="flex flex-col gap-3">
+        {/* 搜索框 - 移动端全宽 */}
+        <div className="relative">
           <Search className="absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-muted-foreground" />
           <Input
             placeholder="搜索订单号、LPN、产品名称..."
             value={searchTerm}
             onChange={(e) => onSearchChange(e.target.value)}
-            className="pl-10 h-10 bg-background"
+            className="pl-10 h-9 sm:h-10 bg-background"
           />
         </div>
 
-        <div className="flex flex-wrap gap-2">
+        {/* 筛选按钮组 - 移动端紧凑布局 */}
+        <div className="flex flex-wrap gap-1.5 sm:gap-2">
           {/* 状态筛选 */}
           <DropdownMenu>
             <DropdownMenuTrigger asChild>
-              <Button variant="outline" className="h-10 min-w-[100px] bg-background">
-                <Filter className="mr-2 h-4 w-4" />
-                状态
+              <Button variant="outline" size="sm" className="h-8 sm:h-10 px-2 sm:px-3 bg-background">
+                <Filter className="h-3.5 w-3.5 sm:h-4 sm:w-4 sm:mr-2" />
+                <span className="hidden sm:inline">状态</span>
                 {statusFilters.length > 0 && (
-                  <Badge variant="secondary" className="ml-2 px-1.5 py-0 text-xs">
+                  <Badge variant="secondary" className="ml-1 sm:ml-2 px-1 py-0 text-xs">
                     {statusFilters.length}
                   </Badge>
                 )}
@@ -107,11 +108,11 @@ export function OrderFilters({
 
           {/* 等级筛选 */}
           <Select value={gradeFilter} onValueChange={onGradeFilterChange}>
-            <SelectTrigger className="w-[100px] h-10 bg-background">
+            <SelectTrigger className="w-[70px] sm:w-[100px] h-8 sm:h-10 text-xs sm:text-sm bg-background">
               <SelectValue placeholder="等级" />
             </SelectTrigger>
             <SelectContent>
-              <SelectItem value="all">全部等级</SelectItem>
+              <SelectItem value="all">全部</SelectItem>
               <SelectItem value="A">
                 <div className="flex items-center gap-2">
                   <GradeBadge grade="A" />
@@ -133,9 +134,10 @@ export function OrderFilters({
 
           {/* 排序选择 */}
           <Select value={sortField} onValueChange={(value) => onSortChange(value as SortField, sortDirection)}>
-            <SelectTrigger className="w-[140px] h-10 bg-background">
-              <ArrowUpDown className="mr-2 h-4 w-4" />
-              <SelectValue placeholder="排序" />
+            <SelectTrigger className="w-[90px] sm:w-[140px] h-8 sm:h-10 text-xs sm:text-sm bg-background">
+              <ArrowUpDown className="h-3.5 w-3.5 sm:h-4 sm:w-4 sm:mr-2" />
+              <span className="hidden sm:inline"><SelectValue placeholder="排序" /></span>
+              <span className="sm:hidden">排序</span>
             </SelectTrigger>
             <SelectContent>
               {sortOptions.map((option) => (
@@ -150,7 +152,7 @@ export function OrderFilters({
           <Button
             variant="outline"
             size="icon"
-            className="h-10 w-10 bg-background"
+            className="h-8 w-8 sm:h-10 sm:w-10 bg-background"
             onClick={() => onSortChange(sortField, sortDirection === "desc" ? "asc" : "desc")}
             title={sortDirection === "desc" ? "降序" : "升序"}
           >
@@ -163,38 +165,38 @@ export function OrderFilters({
               variant="ghost"
               size="sm"
               onClick={onClearFilters}
-              className="h-10 text-muted-foreground hover:text-foreground"
+              className="h-8 sm:h-10 px-2 text-muted-foreground hover:text-foreground"
             >
-              <RotateCcw className="mr-1 h-4 w-4" />
-              重置
+              <RotateCcw className="h-3.5 w-3.5 sm:h-4 sm:w-4" />
+              <span className="hidden sm:inline ml-1">重置</span>
             </Button>
           )}
         </div>
       </div>
 
-      {/* 已选筛选条件标签 */}
+      {/* 已选筛选条件标签 - 移动端简化 */}
       {hasActiveFilters && (
-        <div className="flex flex-wrap items-center gap-2 pt-2 border-t border-border/50">
-          <span className="text-xs text-muted-foreground">已选条件:</span>
+        <div className="flex flex-wrap items-center gap-1.5 sm:gap-2 pt-2 border-t border-border/50">
+          <span className="text-xs text-muted-foreground hidden sm:inline">已选条件:</span>
           {statusFilters.map((status) => (
             <Badge
               key={status}
               variant="secondary"
-              className="gap-1 pl-2 pr-1 py-0.5 cursor-pointer hover:bg-secondary/80"
+              className="gap-0.5 sm:gap-1 pl-1.5 sm:pl-2 pr-0.5 sm:pr-1 py-0.5 cursor-pointer hover:bg-secondary/80 text-xs"
               onClick={() => onStatusFilterChange(status)}
             >
               <OrderStatusBadge status={status} />
-              <X className="h-3 w-3 ml-1" />
+              <X className="h-3 w-3 ml-0.5" />
             </Badge>
           ))}
           {gradeFilter !== "all" && (
             <Badge
               variant="secondary"
-              className="gap-1 pl-2 pr-1 py-0.5 cursor-pointer hover:bg-secondary/80"
+              className="gap-0.5 sm:gap-1 pl-1.5 sm:pl-2 pr-0.5 sm:pr-1 py-0.5 cursor-pointer hover:bg-secondary/80 text-xs"
               onClick={() => onGradeFilterChange("all")}
             >
               {gradeFilter === "ungraded" ? "未评级" : <GradeBadge grade={gradeFilter as "A" | "B" | "C"} />}
-              <X className="h-3 w-3 ml-1" />
+              <X className="h-3 w-3 ml-0.5" />
             </Badge>
           )}
         </div>

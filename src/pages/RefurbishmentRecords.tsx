@@ -151,138 +151,181 @@ export default function RefurbishmentRecords() {
         description="查看所有翻新处理记录"
       />
 
-      {/* 筛选区域 */}
-      <Card>
-        <CardContent className="pt-6">
-          <div className="flex flex-col sm:flex-row gap-4">
-            <div className="relative flex-1">
-              <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
-              <Input
-                placeholder="搜索LPN、产品名称、SKU..."
-                value={searchQuery}
-                onChange={(e) => setSearchQuery(e.target.value)}
-                className="pl-10"
-              />
-            </div>
+      {/* 筛选区域 - 移动端优化 */}
+      <div className="space-y-3">
+        <div className="relative">
+          <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
+          <Input
+            placeholder="搜索LPN、产品名称、SKU..."
+            value={searchQuery}
+            onChange={(e) => setSearchQuery(e.target.value)}
+            className="pl-10"
+          />
+        </div>
+        <div className="flex items-center justify-between gap-2">
+          <div className="flex items-center gap-2">
             <Select value={gradeFilter} onValueChange={setGradeFilter}>
-              <SelectTrigger className="w-[150px]">
-                <SelectValue placeholder="全部等级" />
+              <SelectTrigger className="w-[100px] h-9 text-sm">
+                <SelectValue placeholder="全部" />
               </SelectTrigger>
               <SelectContent>
-                <SelectItem value="all">全部等级</SelectItem>
+                <SelectItem value="all">全部</SelectItem>
                 <SelectItem value="A">A级</SelectItem>
                 <SelectItem value="B">B级</SelectItem>
                 <SelectItem value="C">C级</SelectItem>
               </SelectContent>
             </Select>
             {(searchQuery || gradeFilter !== "all") && (
-              <Button variant="ghost" size="icon" onClick={clearFilters}>
+              <Button variant="ghost" size="sm" onClick={clearFilters} className="h-9 px-2">
                 <X className="h-4 w-4" />
               </Button>
             )}
           </div>
-        </CardContent>
-      </Card>
+          <span className="text-xs text-muted-foreground">
+            共{filteredItems.length}条
+          </span>
+        </div>
+      </div>
 
-      {/* 批量操作 */}
+      {/* 批量操作 - 移动端优化 */}
       {canDeleteData && selectedItems.length > 0 && (
-        <Card className="border-primary/50 bg-primary/5">
-          <CardContent className="py-3">
-            <div className="flex items-center justify-between">
-              <span className="text-sm">
-                已选择 <strong>{selectedItems.length}</strong> 条记录
-              </span>
-              <Button variant="destructive" size="sm" onClick={handleBatchDelete}>
-                <Trash2 className="mr-2 h-4 w-4" />
-                批量删除
-              </Button>
-            </div>
-          </CardContent>
-        </Card>
+        <div className="flex items-center justify-between p-2 sm:p-3 bg-primary/5 border border-primary/20 rounded-lg">
+          <span className="text-xs sm:text-sm">
+            已选 <strong>{selectedItems.length}</strong> 条
+          </span>
+          <Button variant="destructive" size="sm" onClick={handleBatchDelete} className="h-8 text-xs sm:text-sm">
+            <Trash2 className="h-3.5 w-3.5 sm:h-4 sm:w-4 mr-1" />
+            删除
+          </Button>
+        </div>
       )}
 
       {/* 记录列表 */}
       <Card>
-        <CardHeader>
-          <CardTitle className="flex items-center gap-2">
-            <History className="h-5 w-5 text-primary" />
+        <CardHeader className="py-3 sm:py-6">
+          <CardTitle className="flex items-center gap-2 text-base sm:text-lg">
+            <History className="h-4 w-4 sm:h-5 sm:w-5 text-primary" />
             翻新记录 ({filteredItems.length})
           </CardTitle>
         </CardHeader>
-        <CardContent>
+        <CardContent className="p-0 sm:p-6 sm:pt-0">
           {filteredItems.length === 0 ? (
             <div className="text-center py-12 text-muted-foreground">
               {t.refurbishment?.noRecords || "暂无翻新记录"}
             </div>
           ) : (
-            <div className="overflow-x-auto">
-              <Table>
-                <TableHeader>
-                  <TableRow>
-                    <TableHead className="w-12">
-                      <Checkbox
-                        checked={selectedItems.length === filteredItems.length && filteredItems.length > 0}
-                        onCheckedChange={handleSelectAll}
-                      />
-                    </TableHead>
-                    <TableHead>LPN</TableHead>
-                    <TableHead>产品名称</TableHead>
-                    <TableHead>SKU</TableHead>
-                    <TableHead>翻新等级</TableHead>
-                    <TableHead>翻新时间</TableHead>
-                    <TableHead>操作员</TableHead>
-                    <TableHead className="text-right">操作</TableHead>
-                  </TableRow>
-                </TableHeader>
-                <TableBody>
-                  {filteredItems.map((item) => (
-                    <TableRow key={item.id}>
-                      <TableCell>
+            <>
+              {/* 移动端卡片列表 */}
+              <div className="sm:hidden divide-y">
+                {filteredItems.map((item) => (
+                  <div key={item.id} className="p-3 space-y-2">
+                    <div className="flex items-start justify-between gap-2">
+                      <div className="flex items-center gap-2">
                         <Checkbox
                           checked={selectedItems.includes(item.id)}
                           onCheckedChange={(checked) => handleSelectItem(item.id, !!checked)}
                         />
-                      </TableCell>
-                      <TableCell>
-                        <Badge variant="outline">{item.lpn}</Badge>
-                      </TableCell>
-                      <TableCell className="max-w-[200px] truncate">{item.product_name}</TableCell>
-                      <TableCell>{item.product_sku}</TableCell>
-                      <TableCell>
-                        <GradeBadge grade={item.refurbishment_grade as "A" | "B" | "C"} />
-                      </TableCell>
-                      <TableCell>
+                        <Badge variant="outline" className="text-xs">{item.lpn}</Badge>
+                      </div>
+                      <GradeBadge grade={item.refurbishment_grade as "A" | "B" | "C"} />
+                    </div>
+                    <p className="text-sm truncate pl-6">{item.product_name}</p>
+                    <div className="flex items-center justify-between pl-6">
+                      <span className="text-xs text-muted-foreground">
                         {item.refurbished_at 
-                          ? format(new Date(item.refurbished_at), "yyyy-MM-dd HH:mm")
+                          ? format(new Date(item.refurbished_at), "MM-dd HH:mm")
                           : "-"}
-                      </TableCell>
-                      <TableCell>{item.refurbished_by || "-"}</TableCell>
-                      <TableCell className="text-right">
-                        <div className="flex justify-end gap-1">
+                      </span>
+                      <div className="flex gap-1">
+                        <Button variant="ghost" size="sm" className="h-7 w-7 p-0" onClick={() => handleViewItem(item)}>
+                          <Eye className="h-3.5 w-3.5" />
+                        </Button>
+                        {canDeleteData && (
                           <Button
                             variant="ghost"
                             size="sm"
-                            onClick={() => handleViewItem(item)}
+                            className="h-7 w-7 p-0 text-destructive"
+                            onClick={() => handleDeleteSingle(item.id)}
                           >
-                            <Eye className="h-4 w-4" />
+                            <Trash2 className="h-3.5 w-3.5" />
                           </Button>
-                          {canDeleteData && (
+                        )}
+                      </div>
+                    </div>
+                  </div>
+                ))}
+              </div>
+              
+              {/* 桌面端表格 */}
+              <div className="hidden sm:block overflow-x-auto">
+                <Table>
+                  <TableHeader>
+                    <TableRow>
+                      <TableHead className="w-12">
+                        <Checkbox
+                          checked={selectedItems.length === filteredItems.length && filteredItems.length > 0}
+                          onCheckedChange={handleSelectAll}
+                        />
+                      </TableHead>
+                      <TableHead>LPN</TableHead>
+                      <TableHead>产品名称</TableHead>
+                      <TableHead>SKU</TableHead>
+                      <TableHead>翻新等级</TableHead>
+                      <TableHead>翻新时间</TableHead>
+                      <TableHead>操作员</TableHead>
+                      <TableHead className="text-right">操作</TableHead>
+                    </TableRow>
+                  </TableHeader>
+                  <TableBody>
+                    {filteredItems.map((item) => (
+                      <TableRow key={item.id}>
+                        <TableCell>
+                          <Checkbox
+                            checked={selectedItems.includes(item.id)}
+                            onCheckedChange={(checked) => handleSelectItem(item.id, !!checked)}
+                          />
+                        </TableCell>
+                        <TableCell>
+                          <Badge variant="outline">{item.lpn}</Badge>
+                        </TableCell>
+                        <TableCell className="max-w-[200px] truncate">{item.product_name}</TableCell>
+                        <TableCell>{item.product_sku}</TableCell>
+                        <TableCell>
+                          <GradeBadge grade={item.refurbishment_grade as "A" | "B" | "C"} />
+                        </TableCell>
+                        <TableCell>
+                          {item.refurbished_at 
+                            ? format(new Date(item.refurbished_at), "yyyy-MM-dd HH:mm")
+                            : "-"}
+                        </TableCell>
+                        <TableCell>{item.refurbished_by || "-"}</TableCell>
+                        <TableCell className="text-right">
+                          <div className="flex justify-end gap-1">
                             <Button
                               variant="ghost"
                               size="sm"
-                              className="text-destructive hover:text-destructive hover:bg-destructive/10"
-                              onClick={() => handleDeleteSingle(item.id)}
+                              onClick={() => handleViewItem(item)}
                             >
-                              <Trash2 className="h-4 w-4" />
+                              <Eye className="h-4 w-4" />
                             </Button>
-                          )}
-                        </div>
-                      </TableCell>
-                    </TableRow>
-                  ))}
-                </TableBody>
-              </Table>
-            </div>
+                            {canDeleteData && (
+                              <Button
+                                variant="ghost"
+                                size="sm"
+                                className="text-destructive hover:text-destructive hover:bg-destructive/10"
+                                onClick={() => handleDeleteSingle(item.id)}
+                              >
+                                <Trash2 className="h-4 w-4" />
+                              </Button>
+                            )}
+                          </div>
+                        </TableCell>
+                      </TableRow>
+                    ))}
+                  </TableBody>
+                </Table>
+              </div>
+            </>
           )}
         </CardContent>
       </Card>

@@ -151,6 +151,27 @@
   }
 }
 
+/* html5-qrcode 扫描器样式优化 - 隐藏多余的扫描框和图片 */
+@layer components {
+  /* 隐藏 html5-qrcode 默认的扫描框图片 */
+  [id^="scanner-container"] img {
+    display: none !important;
+  }
+  
+  /* 移除 html5-qrcode 添加的内部边框 */
+  [id^="scanner-container"] > div {
+    border: none !important;
+    box-shadow: none !important;
+  }
+  
+  /* 确保视频元素正确填充容器 */
+  [id^="scanner-container"] video {
+    object-fit: cover !important;
+    width: 100% !important;
+    height: 100% !important;
+  }
+}
+
 @keyframes fadeIn {
   from {
     opacity: 0;

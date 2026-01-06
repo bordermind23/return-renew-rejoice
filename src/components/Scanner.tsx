@@ -290,13 +290,19 @@ export function Scanner({
               </div>
             ) : (
               <>
+                {/* 
+                  Scanner容器 - html5-qrcode会在这里注入video元素
+                  添加CSS隐藏html5-qrcode自带的多余UI元素
+                */}
                 <div
                   id={scannerContainerId}
                   className={cn(
-                    "relative w-full overflow-hidden rounded-lg bg-muted flex items-center justify-center",
+                    "relative w-full overflow-hidden rounded-lg bg-muted",
                     scanType === "lpn" 
                       ? "aspect-[16/9]" // 横向比例适合条形码
-                      : "aspect-square sm:aspect-[4/3]"
+                      : "aspect-square sm:aspect-[4/3]",
+                    // 隐藏html5-qrcode自带的多余扫描框
+                    "[&>div]:!border-none [&_img]:hidden"
                   )}
                   style={{ maxHeight: "60vh" }}
                 />

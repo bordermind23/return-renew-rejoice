@@ -35,7 +35,9 @@ export function Scanner({
   const [cameras, setCameras] = useState<{ id: string; label: string }[]>([]);
   const [currentCameraIndex, setCurrentCameraIndex] = useState(0);
   const scannerRef = useRef<Html5Qrcode | null>(null);
-  const scannerContainerId = "scanner-container";
+  // 使用 useRef 生成唯一ID，避免多个 Scanner 实例冲突
+  const containerIdRef = useRef(`scanner-container-${Math.random().toString(36).substring(2, 9)}`);
+  const scannerContainerId = containerIdRef.current;
   
   const { permissionState, isGranted, isDenied, requestPermission } = useCameraPermission();
 

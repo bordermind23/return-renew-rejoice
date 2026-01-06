@@ -1040,10 +1040,25 @@ export function MobileInboundScanner({ initialTracking }: MobileInboundScannerPr
               </p>
             </div>
             <DrawerFooter className="flex-row gap-3 px-6">
-              <Button variant="outline" onClick={() => setIsForceCompleteOpen(false)} className="flex-1 h-12">
+              <Button 
+                variant="outline" 
+                onClick={(e) => {
+                  e.preventDefault();
+                  e.stopPropagation();
+                  setIsForceCompleteOpen(false);
+                }} 
+                className="flex-1 h-12"
+              >
                 取消
               </Button>
-              <Button onClick={handleForceComplete} className="flex-1 h-12 bg-amber-600 hover:bg-amber-700">
+              <Button 
+                onClick={(e) => {
+                  e.preventDefault();
+                  e.stopPropagation();
+                  handleForceComplete();
+                }} 
+                className="flex-1 h-12 bg-amber-600 hover:bg-amber-700"
+              >
                 确认完成
               </Button>
             </DrawerFooter>

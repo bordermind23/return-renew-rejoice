@@ -176,12 +176,17 @@ export default function Removals() {
     return arrivedCountByTrackingAndSku[`${trackingNumber}_${productSku}`] || 0;
   };
 
-  // 批量选择
+  // 批量选择 - 只选择当前页的数据
   const toggleSelectAll = () => {
-    if (selectedIds.length === filteredData.length) {
-      setSelectedIds([]);
+    const currentPageIds = paginatedData.map(item => item.id);
+    const allCurrentPageSelected = currentPageIds.every(id => selectedIds.includes(id));
+    
+    if (allCurrentPageSelected) {
+      // 取消选择当前页的所有项
+      setSelectedIds(prev => prev.filter(id => !currentPageIds.includes(id)));
     } else {
-      setSelectedIds(filteredData.map(item => item.id));
+      // 选择当前页的所有项（保留其他页已选的）
+      setSelectedIds(prev => [...new Set([...prev, ...currentPageIds])]);
     }
   };
 
@@ -1184,7 +1189,10 @@ export default function Removals() {
             <TableHeader>
               <TableRow className="bg-muted/50 hover:bg-muted/50">
                 <TableHead className="w-10">
-                  <Checkbox checked={selectedIds.length === filteredData.length && filteredData.length > 0} onCheckedChange={toggleSelectAll} />
+                  <Checkbox 
+                    checked={paginatedData.length > 0 && paginatedData.every(item => selectedIds.includes(item.id))} 
+                    onCheckedChange={toggleSelectAll} 
+                  />
                 </TableHead>
                 {viewMode === "grouped" && <TableHead className="w-10"></TableHead>}
                 <TableHead className="font-semibold min-w-[140px]">移除订单号</TableHead>

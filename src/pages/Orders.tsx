@@ -1270,6 +1270,7 @@ export default function Orders() {
                   
                   // 收集所有入库照片
                   const inboundPhotos: { url: string; label: string }[] = [];
+                  if (inboundItem.shipping_label_photo) inboundPhotos.push({ url: inboundItem.shipping_label_photo, label: "物流面单" });
                   if (inboundItem.lpn_label_photo) inboundPhotos.push({ url: inboundItem.lpn_label_photo, label: "LPN标签" });
                   if (inboundItem.packaging_photo_1) inboundPhotos.push({ url: inboundItem.packaging_photo_1, label: "包装照片1" });
                   if (inboundItem.packaging_photo_2) inboundPhotos.push({ url: inboundItem.packaging_photo_2, label: "包装照片2" });
@@ -1281,6 +1282,10 @@ export default function Orders() {
                   if (inboundItem.detail_photo) inboundPhotos.push({ url: inboundItem.detail_photo, label: "细节照片" });
                   if (inboundItem.product_photo) inboundPhotos.push({ url: inboundItem.product_photo, label: "产品照片" });
                   if (inboundItem.package_photo) inboundPhotos.push({ url: inboundItem.package_photo, label: "包装照片" });
+                  if (inboundItem.damage_photo_1) inboundPhotos.push({ url: inboundItem.damage_photo_1, label: "损坏照片1" });
+                  if (inboundItem.damage_photo_2) inboundPhotos.push({ url: inboundItem.damage_photo_2, label: "损坏照片2" });
+                  if (inboundItem.damage_photo_3) inboundPhotos.push({ url: inboundItem.damage_photo_3, label: "损坏照片3" });
+                  if (inboundItem.package_accessories_photo) inboundPhotos.push({ url: inboundItem.package_accessories_photo, label: "包装配件照片" });
                   
                   return (
                     <div className="space-y-4">

@@ -423,7 +423,7 @@ export default function OrderFindings() {
                     {selectedItem.lpn_label_photo && (
                       <div
                         className="aspect-square rounded-lg overflow-hidden border cursor-pointer hover:opacity-80 transition-opacity"
-                        onClick={() => setLightboxImage(selectedItem.lpn_label_photo!)}
+                        onClick={() => openLightbox(selectedItem, selectedItem.lpn_label_photo!)}
                       >
                         <img
                           src={selectedItem.lpn_label_photo}

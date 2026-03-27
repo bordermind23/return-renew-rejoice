@@ -112,7 +112,7 @@ export function ImageLightbox({ images, initialIndex = 0, open, onOpenChange }: 
 
   return (
     <div
-      className="fixed inset-0 z-[100] bg-black/90 flex items-center justify-center animate-fade-in"
+      className="fixed inset-0 z-[200] bg-black/90 flex items-center justify-center animate-fade-in"
       onClick={() => onOpenChange(false)}
     >
       {/* 顶部工具栏 */}

@@ -93,7 +93,29 @@ export default function OrderFindings() {
     return existingCaseLpns.includes(lpn.toLowerCase());
   };
 
-  // 判断是否有配件缺失
+  // 收集所有照片
+  const getAllPhotos = (item: InboundFinding): string[] => {
+    return [
+      ...getDamagePhotos(item),
+      item.lpn_label_photo,
+      item.packaging_photo_1,
+      item.packaging_photo_2,
+      item.packaging_photo_3,
+      item.packaging_photo_4,
+      item.packaging_photo_5,
+      item.packaging_photo_6,
+      item.accessories_photo,
+      item.package_accessories_photo,
+    ].filter(Boolean) as string[];
+  };
+
+  const openLightbox = (item: InboundFinding, clickedPhoto: string) => {
+    const allPhotos = getAllPhotos(item);
+    const index = allPhotos.indexOf(clickedPhoto);
+    setLightboxImages(allPhotos);
+    setLightboxIndex(index >= 0 ? index : 0);
+  };
+
   const hasMissingParts = (item: InboundFinding) => {
     return item.missing_parts && item.missing_parts.length > 0;
   };

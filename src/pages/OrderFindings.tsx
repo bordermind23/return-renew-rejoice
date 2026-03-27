@@ -49,7 +49,8 @@ export default function OrderFindings() {
   const [search, setSearch] = useState("");
   const [findingType, setFindingType] = useState<FindingType>("all");
   const [selectedItem, setSelectedItem] = useState<InboundFinding | null>(null);
-  const [lightboxImage, setLightboxImage] = useState<string | null>(null);
+  const [lightboxImages, setLightboxImages] = useState<string[]>([]);
+  const [lightboxIndex, setLightboxIndex] = useState(0);
   const [createCaseItem, setCreateCaseItem] = useState<InboundFinding | null>(null);
 
   const navigate = useNavigate();

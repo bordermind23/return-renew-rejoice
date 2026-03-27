@@ -7,7 +7,7 @@ export const mapDatabaseError = (error: unknown): string => {
   const message = error instanceof Error ? error.message : String(error);
   
   // Log full error for debugging (server-side or development only)
-  if (process.env.NODE_ENV === 'development') {
+  if (import.meta.env.DEV) {
     console.error('[Database Error]', {
       message,
       error,

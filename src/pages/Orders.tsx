@@ -161,7 +161,7 @@ export default function Orders() {
   
   // 导入相关
   const fileInputRef = useRef<HTMLInputElement>(null);
-  const searchTimeoutRef = useRef<NodeJS.Timeout>();
+  const searchTimeoutRef = useRef<ReturnType<typeof setTimeout>>();
   const [importProgress, setImportProgress] = useState<ImportProgress>({
     isImporting: false,
     total: 0,

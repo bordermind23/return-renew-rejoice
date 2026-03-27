@@ -590,12 +590,12 @@ export default function OrderFindings() {
       </Dialog>
 
       {/* 图片灯箱 */}
-      {lightboxImage && (
+      {lightboxImages.length > 0 && (
         <ImageLightbox
-          images={[lightboxImage]}
-          initialIndex={0}
-          open={!!lightboxImage}
-          onOpenChange={(open) => !open && setLightboxImage(null)}
+          images={lightboxImages}
+          initialIndex={lightboxIndex}
+          open={lightboxImages.length > 0}
+          onOpenChange={(open) => !open && setLightboxImages([])}
         />
       )}
     </div>

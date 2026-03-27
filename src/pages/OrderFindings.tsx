@@ -403,7 +403,7 @@ export default function OrderFindings() {
                         <div
                           key={idx}
                           className="aspect-square rounded-lg overflow-hidden border cursor-pointer hover:opacity-80 transition-opacity"
-                          onClick={() => setLightboxImage(photo)}
+                          onClick={() => openLightbox(selectedItem, photo)}
                         >
                           <img
                             src={photo}
